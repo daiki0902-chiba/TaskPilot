@@ -1,0 +1,63 @@
+{
+  "provider": "System.Data.SQLite.Core",
+  "provider_version": "1.0.119.0",
+  "target_framework": "net46",
+  "sqlite_version_from_official_release_notes": "3.46.1",
+  "platforms": [
+    "Windows x86 process",
+    "Windows x64 process"
+  ],
+  "packages": [
+    {
+      "id": "system.data.sqlite.core",
+      "version": "1.0.119.0",
+      "url": "https://api.nuget.org/v3-flatcontainer/system.data.sqlite.core/1.0.119/system.data.sqlite.core.1.0.119.nupkg",
+      "sha256": "2106b1fde378f6aebb4be4c6366b963780f3d400e36388ea44f7adcadb20c089"
+    },
+    {
+      "id": "stub.system.data.sqlite.core.netframework",
+      "version": "1.0.119.0",
+      "url": "https://api.nuget.org/v3-flatcontainer/stub.system.data.sqlite.core.netframework/1.0.119/stub.system.data.sqlite.core.netframework.1.0.119.nupkg",
+      "sha256": "f5f86b80729323890da590a8c7ba7957f04e2735e583d075220d1521745e9f4c"
+    }
+  ],
+  "files": [
+    {
+      "path": "System.Data.SQLite.dll",
+      "bytes": 450232,
+      "sha256": "77dac4e1aa63161d6aff363030a801945d6b8d5b823a6b460b2c2be9ec38d3b7"
+    },
+    {
+      "path": "System.Data.SQLite.xml",
+      "bytes": 1245480,
+      "sha256": "1b6c751c39881f02db601b7cc7b2e54e122f4870955e06ddb521314c20d23016"
+    },
+    {
+      "path": "ThirdPartyNotices/SQLite-Copyright.txt",
+      "bytes": 642,
+      "sha256": "8997ecb18caa62a8a35ea1c112de9f194449f30a8bda6d8fcc7918fa9634f857"
+    },
+    {
+      "path": "ThirdPartyNotices/System.Data.SQLite-Copyright.txt",
+      "bytes": 1224,
+      "sha256": "fe19d7c766934548c74d56c776056be293ec2a6472238e2b34939b0af0374fc1"
+    },
+    {
+      "path": "ThirdPartyNotices/zlib-1.3.1-License.txt",
+      "bytes": 1432,
+      "sha256": "93276b39b3b6ec5e9b0a12f06f8e978910336313f4e2cb2ff09d94be3287a13e"
+    },
+    {
+      "path": "x64/SQLite.Interop.dll",
+      "bytes": 2005688,
+      "sha256": "1111916dc329a13bd627b2cd90c9b2263de9923fd0bb6059c69c52332f360c37"
+    },
+    {
+      "path": "x86/SQLite.Interop.dll",
+      "bytes": 1592504,
+      "sha256": "553693b15bda4bbf7788bee09b8bd325ffe4db151686f432194c58e15b9b4f1e"
+    }
+  ],
+  "nuget_signature_validation_performed": false,
+  "windows_execution_verified": false
+}

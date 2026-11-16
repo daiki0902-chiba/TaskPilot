@@ -1,0 +1,14 @@
+DeveloperSandbox/
+artifacts/
+dist/
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+*.log
+*.bak
+*.tmp
+TestResults/
+LegacyBackup*/
