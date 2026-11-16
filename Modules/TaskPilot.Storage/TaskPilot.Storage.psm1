@@ -353,5 +353,7 @@ function Restore-TaskPilotTask {
 . (Join-Path $PSScriptRoot 'TaskPilot.MigrationNormalize.ps1')
 . (Join-Path $PSScriptRoot 'TaskPilot.MigrationDomains.ps1')
 . (Join-Path $PSScriptRoot 'TaskPilot.Migration.ps1')
+. (Join-Path $PSScriptRoot 'TaskPilot.Protection.ps1')
+Export-ModuleMember -Function @('New-TaskPilotDatabaseBackup','Restore-TaskPilotDatabase')
 Export-ModuleMember -Function @('Test-TaskPilotLegacyData','Import-TaskPilotLegacyData')
 Export-ModuleMember -Function @('New-TaskPilotDatabase','Open-TaskPilotStore','Close-TaskPilotStore','Get-TaskPilotStoreInfo','Get-TaskPilotProviderInfo','Invoke-TaskPilotTransaction','Add-TaskPilotTask','Get-TaskPilotTask','Set-TaskPilotTask','Remove-TaskPilotTask','Restore-TaskPilotTask','*-TaskPilotSubtask','*-TaskPilotWorkLog','*-TaskPilotCompletionActual','Complete-TaskPilotTask','*-TaskPilotCalendar','*-TaskPilotHolidaySet','*-TaskPilotRecurringRule','Get-TaskPilotRecurringRules','Invoke-TaskPilotRecurringOccurrence','*-TaskPilotMonthlySnapshot','*-TaskPilotSettings','*-TaskPilotNotifications','Get-TaskPilotReadSnapshot')
