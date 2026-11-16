@@ -343,15 +343,15 @@ function Save-TaskPilotNotifications {
         $notificationPosition=0
         foreach($notificationHistoryEntry in $notificationHistoryInput){
             $notificationEventId=ConvertTo-TPDomainInteger (Get-TPDomainField $notificationHistoryEntry 'event_id') 'event_id' -Minimum 1 -Nullable
-            $notificationLocal=Assert-TPDomainText (Get-TPDomainField $notificationHistoryEntry 'occurred_at_local_text' -Required) 'occurred_at_local_text'
+            $notificationLocal=Assert-TPDomainText (Get-TPDomainField $notificationHistoryEntry 'occurred_at_local_text' -Required) 'occurred_at_local_text' -AllowEmpty
             $notificationUtc=Assert-TPDomainUtc (Get-TPDomainField $notificationHistoryEntry 'occurred_at_utc') 'occurred_at_utc' -Nullable
             $notificationTimezone=Get-TPDomainField $notificationHistoryEntry 'timezone_id'
             if($null -ne $notificationTimezone){$notificationTimezone=Assert-TPDomainText $notificationTimezone 'timezone_id'}
-            $notificationAction=Assert-TPDomainText (Get-TPDomainField $notificationHistoryEntry 'action' -Required) 'action'
+            $notificationAction=Assert-TPDomainText (Get-TPDomainField $notificationHistoryEntry 'action' -Required) 'action' -AllowEmpty
             $notificationLegacyTask=Assert-TPDomainText (Get-TPDomainField $notificationHistoryEntry 'legacy_task_id_text' -Required) 'legacy_task_id_text' -AllowEmpty
             $notificationTask=ConvertTo-TPDomainInteger (Get-TPDomainField $notificationHistoryEntry 'task_id') 'task_id' -Minimum 1 -Nullable
             $notificationTitle=Assert-TPDomainText (Get-TPDomainField $notificationHistoryEntry 'task_name_snapshot' -Required) 'task_name_snapshot' -AllowEmpty
-            $notificationCategory=Assert-TPDomainText (Get-TPDomainField $notificationHistoryEntry 'category' -Required) 'category'
+            $notificationCategory=Assert-TPDomainText (Get-TPDomainField $notificationHistoryEntry 'category' -Required) 'category' -AllowEmpty
             $notificationOrder=ConvertTo-TPDomainInteger (Get-TPDomainField $notificationHistoryEntry 'sort_order' ([long]$notificationPosition)) 'sort_order'
             Invoke-TPSql -Store $Store -Mode NonQuery -Sql 'INSERT INTO notification_history(event_id,occurred_at_local_text,occurred_at_utc,timezone_id,action,legacy_task_id_text,task_id,task_name_snapshot,category,sort_order) VALUES(@id,@local,@utc,@timezone,@action,@legacy,@task,@title,@category,@order)' -Parameters @{id=$notificationEventId;local=$notificationLocal;utc=$notificationUtc;timezone=$notificationTimezone;action=$notificationAction;legacy=$notificationLegacyTask;task=$notificationTask;title=$notificationTitle;category=$notificationCategory;order=$notificationOrder} | Out-Null
             $notificationPosition++
