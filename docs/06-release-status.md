@@ -2,13 +2,13 @@
 
 現時点の判定は **販売判定保留**。SQLite統合の開発候補版と自動テストを作成した段階であり、Windows実機で全機能が合格した製品とは報告しない。
 
-## 反映を止めている事項
+## GitHub接続の解決と反映方針
 
 2026-11-18、利用者が公開設定を変更した後の再試行で、GitHub連携から `daiki0902-chiba/TaskPilot` の詳細・contents・branchesを取得できた。main `a761e76fbe4c4335a1847dbfc4417516d205316f` の全ツリーにはREADMEと.gitattributesの2ファイルだけがあり、アプリ本体・テスト・CIは未登録である。過去の404から読み取り成功へ状況が変わっている。
 
-開発ブランチを作成するGitHub APIは403 `Resource not accessible by integration` で拒否された。最初の確認時はCLIが `monaca9831` でpush権限falseだったが、再接続後は `daiki0902-chiba`・push権限trueへ切り替わった。対象repoの選択とアプリのcontents/write権限も確認した。一方、GitHubのinstallation情報では連携アプリが一時停止中であり、APIによるブランチ作成とCLIのpush dry-runはいずれも403だった。停止解除後の再確認が必要。リモートの開発ブランチ作成、push、PR作成は未完了。mainは変更していない。
+途中で開発ブランチを作成するGitHub APIが403 `Resource not accessible by integration` で拒否された。CLIの再接続、対象repo・contents/write権限の確認に続き、連携アプリの一時停止を特定した。利用者が停止解除した後、API上のsuspended_atがnullになり、開発ブランチ作成が成功した。認証・接続に関するこの障害は解消した。
 
-候補版の8コミットを取得済みmainの上へ適用したローカルブランチを準備し、アプリ・保存モジュール・テストは前回検証した版と同じであることを比較した。書き込み可能な認証が整うまではリモートへ反映できない。反映時はmainが変わっていないことを再確認し、専用ブランチへpushする。[反映状況](07-github-sync.md) を参照。
+候補版の8コミットを取得済みmainの上へ適用し、アプリ・保存モジュール・テストは前回検証した版と同じであることを比較した。専用ブランチ `development/sqlite-commercial-20261116` をレビュー対象にする。mainへの直接push・マージ・販売リリースは行わない。[反映状況](07-github-sync.md) を参照。
 
 ## Windowsで未検証の事項
 

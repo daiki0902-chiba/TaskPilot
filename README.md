@@ -2,7 +2,7 @@
 
 PowerShell 5.1とWindows Formsを維持し、既存GUIの保存処理をSQLiteへ接続した開発用ソースです。Pythonは使いません。WindowsでのEXE生成・実機受入は未実施のため、現時点で販売可能と判定した製品ではありません。
 
-**2026-11-18、GitHubの読み取りが回復しました。** `daiki0902-chiba/TaskPilot` のmain `a761e76fbe4c4335a1847dbfc4417516d205316f` を取得し、全ツリーがREADMEと.gitattributesの2ファイルで、アプリ本体・テストが未登録であることを確認しました。この候補版は以前確認したSTEP3本体とSTEP4Cを基準にしています。mainを親にする反映用のローカルブランチを準備しました。CLIのアカウントと書き込み許可は回復しましたが、連携アプリがGitHub側で一時停止中のため、ブランチ作成・pushは403で拒否されています。リモートのmainは変更していません。詳細は [GitHub反映状況](docs/07-github-sync.md) を参照してください。
+**GitHubへの反映先は開発ブランチ `development/sqlite-commercial-20261116` です。** main `a761e76fbe4c4335a1847dbfc4417516d205316f` の全ツリーにはREADMEと.gitattributesの2ファイルだけがあり、アプリ本体・テストが未登録だったため、以前確認したSTEP3本体とSTEP4Cを基準に候補版を作成しました。mainを親とする履歴を用い、mainへ直接反映しません。GitHub連携アプリの一時停止は解除され、開発ブランチの作成も成功しました。詳細は [GitHub反映状況](docs/07-github-sync.md) を参照してください。
 
 ## 成果物
 
