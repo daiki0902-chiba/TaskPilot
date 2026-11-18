@@ -1,0 +1,676 @@
+{
+  "Validated": true,
+  "Version": "1.0.0.0",
+  "Architecture": "x64",
+  "PayloadFiles": 131,
+  "PayloadManifest": [
+    {
+      "Path": "Adapters/TaskPilot.GuiCommon.ps1",
+      "Component": "TaskPilot",
+      "Sha256": "6e88605c8f572d12f7dc025c5cd9c376c42c550fd6e99fc173b673da797af0d4"
+    },
+    {
+      "Path": "Adapters/TaskPilot.GuiDomains.ps1",
+      "Component": "TaskPilot",
+      "Sha256": "f85b4dbe7c2477eeca6116e55c6b47ceb620d50313d3fd20001b14937ff98cc5"
+    },
+    {
+      "Path": "Adapters/TaskPilot.GuiOperations.ps1",
+      "Component": "TaskPilot",
+      "Sha256": "dd8ac68b302dba2a6ddd0075595efa4b6dae71bd6f37d79a41979f5d4b67ce8a"
+    },
+    {
+      "Path": "Adapters/TaskPilot.GuiStartup.ps1",
+      "Component": "TaskPilot",
+      "Sha256": "1298809a1214b43957fe49e4606d0b94280803bce76605235d3d484f177e1a34"
+    },
+    {
+      "Path": "Adapters/TaskPilot.GuiTasks.ps1",
+      "Component": "TaskPilot",
+      "Sha256": "95bf380880c9ad81f09312a33ba3f591ccbc28bf86b2762afe2ef5bdbc761864"
+    },
+    {
+      "Path": "Modules/TaskPilot.Storage/TaskPilot.Children.ps1",
+      "Component": "TaskPilot",
+      "Sha256": "765d83d25ad0a977b368721515bc54f5fddbd9e111ac2042748b3682a586e831"
+    },
+    {
+      "Path": "Modules/TaskPilot.Storage/TaskPilot.Domain.ps1",
+      "Component": "TaskPilot",
+      "Sha256": "44244ad8d795f9b7ade8ea071f6cd57dce9f9fdb6d4b8fab7560737033da6fb5"
+    },
+    {
+      "Path": "Modules/TaskPilot.Storage/TaskPilot.Migration.ps1",
+      "Component": "TaskPilot",
+      "Sha256": "d80495f274879882d9630bec80bb97f67225203d2529a3b7628d7a3194ca12cc"
+    },
+    {
+      "Path": "Modules/TaskPilot.Storage/TaskPilot.MigrationDomains.ps1",
+      "Component": "TaskPilot",
+      "Sha256": "bff16dfe860a1e9c0742c7c711455e8c7a182a108f199634a14016ec8459cb18"
+    },
+    {
+      "Path": "Modules/TaskPilot.Storage/TaskPilot.MigrationFiles.ps1",
+      "Component": "TaskPilot",
+      "Sha256": "eec9d09a957598f833f608fb3f359ac87233c702b894bf0f12ebd7e0a05f954b"
+    },
+    {
+      "Path": "Modules/TaskPilot.Storage/TaskPilot.MigrationNormalize.ps1",
+      "Component": "TaskPilot",
+      "Sha256": "6577340b25c9de0d55a2b0a893f5c87f2a6f129d65b5b487252a4686599c48dd"
+    },
+    {
+      "Path": "Modules/TaskPilot.Storage/TaskPilot.Protection.ps1",
+      "Component": "TaskPilot",
+      "Sha256": "4af9fe26887cd420b5fae66b338b75fab59366123003c041facd8d4e01681069"
+    },
+    {
+      "Path": "Modules/TaskPilot.Storage/TaskPilot.Storage.psd1",
+      "Component": "TaskPilot",
+      "Sha256": "3a512889a31d745a7c56c1c221a9d36414324932df0d54dce869fcefcabb26ef"
+    },
+    {
+      "Path": "Modules/TaskPilot.Storage/TaskPilot.Storage.psm1",
+      "Component": "TaskPilot",
+      "Sha256": "54d86f98bbdfd60a5c1872f0396fb720fb82450e0fb2ef76f31d5efc9a2fac9c"
+    },
+    {
+      "Path": "Modules/TaskPilot.Storage/provider/System.Data.SQLite.dll",
+      "Component": "TaskPilot",
+      "Sha256": "77dac4e1aa63161d6aff363030a801945d6b8d5b823a6b460b2c2be9ec38d3b7"
+    },
+    {
+      "Path": "Modules/TaskPilot.Storage/provider/System.Data.SQLite.xml",
+      "Component": "TaskPilot",
+      "Sha256": "1b6c751c39881f02db601b7cc7b2e54e122f4870955e06ddb521314c20d23016"
+    },
+    {
+      "Path": "Modules/TaskPilot.Storage/provider/ThirdPartyNotices/SQLite-Copyright.txt",
+      "Component": "TaskPilot",
+      "Sha256": "8997ecb18caa62a8a35ea1c112de9f194449f30a8bda6d8fcc7918fa9634f857"
+    },
+    {
+      "Path": "Modules/TaskPilot.Storage/provider/ThirdPartyNotices/System.Data.SQLite-Copyright.txt",
+      "Component": "TaskPilot",
+      "Sha256": "fe19d7c766934548c74d56c776056be293ec2a6472238e2b34939b0af0374fc1"
+    },
+    {
+      "Path": "Modules/TaskPilot.Storage/provider/ThirdPartyNotices/zlib-1.3.1-License.txt",
+      "Component": "TaskPilot",
+      "Sha256": "93276b39b3b6ec5e9b0a12f06f8e978910336313f4e2cb2ff09d94be3287a13e"
+    },
+    {
+      "Path": "Modules/TaskPilot.Storage/provider/provider-files.sha256.json",
+      "Component": "TaskPilot",
+      "Sha256": "cd4c900aaa48f535bd7178483132f97e59a4b8c7690a366f80eb62b14abf0956"
+    },
+    {
+      "Path": "Modules/TaskPilot.Storage/provider/provider-manifest.json",
+      "Component": "TaskPilot",
+      "Sha256": "671a5f51946d628e3634a016f21913b6ed6eb1a5fbb919626d594eba340e7be0"
+    },
+    {
+      "Path": "Modules/TaskPilot.Storage/provider/x64/SQLite.Interop.dll",
+      "Component": "TaskPilot",
+      "Sha256": "1111916dc329a13bd627b2cd90c9b2263de9923fd0bb6059c69c52332f360c37"
+    },
+    {
+      "Path": "Modules/TaskPilot.Storage/provider/x86/SQLite.Interop.dll",
+      "Component": "TaskPilot",
+      "Sha256": "553693b15bda4bbf7788bee09b8bd325ffe4db151686f432194c58e15b9b4f1e"
+    },
+    {
+      "Path": "Codec/Import-TaskPilotMigrationCodec.ps1",
+      "Component": "TaskPilot",
+      "Sha256": "2a9eceecf192d6ac99c050b6640ce8278117ffc97fc02dcc8277a59de9bd6ed3"
+    },
+    {
+      "Path": "Codec/TaskPilotMigrationCodec.cs",
+      "Component": "TaskPilot",
+      "Sha256": "c3f72905357a96827a4f053b8b9160f277aea0fe67d605bcfc05090decae393b"
+    },
+    {
+      "Path": "schema/001_initial.sql",
+      "Component": "TaskPilot",
+      "Sha256": "9e2974ad84f1aa9859aaf56433a6ce940081f058ca19371881fbe221f32f4ee8"
+    },
+    {
+      "Path": "README.md",
+      "Component": "TaskPilot",
+      "Sha256": "475bc869f2f54a541222785c8d13147595773565d63c153ac67aa4d6df3735be"
+    },
+    {
+      "Path": "ThirdPartyNotices/README.md",
+      "Component": "Dependency notices",
+      "Sha256": "7f9c1963745a39518304642a57215794ba417ccc47f3257cad150aa468440e60"
+    },
+    {
+      "Path": "Modules/ImportExcel/Add-Subtotals.ps1",
+      "Component": "ImportExcel",
+      "Sha256": "e54f6309b3dfb04f54aedec2cfee7e19096a07d02722e1baf045928390f9f8d0"
+    },
+    {
+      "Path": "Modules/ImportExcel/Charting/Charting.ps1",
+      "Component": "ImportExcel",
+      "Sha256": "013b3e8dc36ab76e66cfaefe5ed1b06639bcca92586e229c598517818255fa7b"
+    },
+    {
+      "Path": "Modules/ImportExcel/Charting/barchart.md",
+      "Component": "ImportExcel",
+      "Sha256": "8dc5080fe492eec150c259efdbc534889da3c9eaaa9d416af1f8cd66f116865d"
+    },
+    {
+      "Path": "Modules/ImportExcel/Charting/columnchart.md",
+      "Component": "ImportExcel",
+      "Sha256": "ba72b3440bff6b64ad6bb9df2f9d3bf6b170acd9fa73b5fa4fa313cac0688604"
+    },
+    {
+      "Path": "Modules/ImportExcel/Charting/dochart.md",
+      "Component": "ImportExcel",
+      "Sha256": "df18cb9bf606a664abe33fca45ca3c5d57b2dd7d1cfc4ae9f619e67baf1d36ad"
+    },
+    {
+      "Path": "Modules/ImportExcel/Charting/linechart.md",
+      "Component": "ImportExcel",
+      "Sha256": "3ae195c2a88551707f0c3db02390ac60ab420fa86e5545d2cca405740ece9224"
+    },
+    {
+      "Path": "Modules/ImportExcel/Charting/piechart.md",
+      "Component": "ImportExcel",
+      "Sha256": "c10f8f9f189852a38d944abeff72eac19126ce47feec742dbcd5db9e261e71ae"
+    },
+    {
+      "Path": "Modules/ImportExcel/EPPlus.dll",
+      "Component": "ImportExcel",
+      "Sha256": "c32cefbd1ea051ed3af06e7fb9dd558598a612f042164140cd8be722a351bc63"
+    },
+    {
+      "Path": "Modules/ImportExcel/Export-StocksToExcel.ps1",
+      "Component": "ImportExcel",
+      "Sha256": "0bc5b27e46c26fbf8e934b98f803a901cd65a23c37386ee7a3606d9070a6764a"
+    },
+    {
+      "Path": "Modules/ImportExcel/Export-charts.ps1",
+      "Component": "ImportExcel",
+      "Sha256": "b84ffedb8dbdd46f6bdb728a08fcbf1690ed75d671199b394cf8e7e8d4e6e2d6"
+    },
+    {
+      "Path": "Modules/ImportExcel/FAQ/How to Create an Empty Excel File.md",
+      "Component": "ImportExcel",
+      "Sha256": "8d84af1a22db5f03cafe9af8e4c8dbea91dbe973cba081a07b64162dc39f0e3d"
+    },
+    {
+      "Path": "Modules/ImportExcel/FAQ/How to Read an Existing Excel File.md",
+      "Component": "ImportExcel",
+      "Sha256": "a7a92194a3caa0a72c33940c37dc685a3b3bbb3954176d09b66973da5150370b"
+    },
+    {
+      "Path": "Modules/ImportExcel/FAQ/How to Write to an Existing Excel File.md",
+      "Component": "ImportExcel",
+      "Sha256": "e5ac0ddaae5accdc1915c7be51dd91dab28a700fae44258870886ccbec72747c"
+    },
+    {
+      "Path": "Modules/ImportExcel/GetExcelTable.ps1",
+      "Component": "ImportExcel",
+      "Sha256": "ab2b24cf72a52d4c9d25f5e64d24f97306c77c1f381ab3dbf75adb50075f4e9c"
+    },
+    {
+      "Path": "Modules/ImportExcel/ImportExcel.psd1",
+      "Component": "ImportExcel",
+      "Sha256": "dcc25c276a757e7364b4aff5a7d51aa7e1f666f4bcd90d19d82df7e0f869f151"
+    },
+    {
+      "Path": "Modules/ImportExcel/ImportExcel.psm1",
+      "Component": "ImportExcel",
+      "Sha256": "62a4c4420e0cec570bee463983f0bad9a1d7db2ac05dda1c4f69883f4b68a807"
+    },
+    {
+      "Path": "Modules/ImportExcel/InferData/InferData.ps1",
+      "Component": "ImportExcel",
+      "Sha256": "dbc176029496058f50f7efc865285665960de0b17d11ca2c2cd04a898944a27a"
+    },
+    {
+      "Path": "Modules/ImportExcel/InferData/invoke-alltests.md",
+      "Component": "ImportExcel",
+      "Sha256": "0d11f18cb0a3f31981a0a15412c4cff304193ff6e3753b27b8320f64d4e47428"
+    },
+    {
+      "Path": "Modules/ImportExcel/InferData/test-boolean.md",
+      "Component": "ImportExcel",
+      "Sha256": "cafc104cfb756a7c6ff4263cd0e2ee0b88ca11e041d324b57215711c7a6060f5"
+    },
+    {
+      "Path": "Modules/ImportExcel/InferData/test-date.md",
+      "Component": "ImportExcel",
+      "Sha256": "e64eb747fe9adc1c60e8bca85e10ff597efbd11f4cda2f1d8205462d04373ef3"
+    },
+    {
+      "Path": "Modules/ImportExcel/InferData/test-integer.md",
+      "Component": "ImportExcel",
+      "Sha256": "de9be0106f93f2f3fc7c6128fad23cb85cad8996a02b9c02f15ed5897be9195f"
+    },
+    {
+      "Path": "Modules/ImportExcel/InferData/test-number.md",
+      "Component": "ImportExcel",
+      "Sha256": "6065cae293444ebe48ed6fde55bea3d735fe229297f8a2474defa2553ee6152e"
+    },
+    {
+      "Path": "Modules/ImportExcel/InferData/test-string.md",
+      "Component": "ImportExcel",
+      "Sha256": "858a7a3efad552076c329b8477e302072b7cb2a168ad692efb5f990ed976e46b"
+    },
+    {
+      "Path": "Modules/ImportExcel/LICENSE.txt",
+      "Component": "ImportExcel",
+      "Sha256": "ebf3b60c90c2d787c8cc4efe9381fbd9f4584c49ca711b62b7dc5ec1653ed3d7"
+    },
+    {
+      "Path": "Modules/ImportExcel/Pivot/Pivot.ps1",
+      "Component": "ImportExcel",
+      "Sha256": "a81fce9b4eb24abd442cf31330e4e46baab6d14b8e7127e8e28fd81fff7fb77f"
+    },
+    {
+      "Path": "Modules/ImportExcel/Pivot/pivot.md",
+      "Component": "ImportExcel",
+      "Sha256": "42a9b5466aa6d5570b21d9aab0ab19ea930fa8cf3af19ab6d007a1e91fcbcfee"
+    },
+    {
+      "Path": "Modules/ImportExcel/Plot.ps1",
+      "Component": "ImportExcel",
+      "Sha256": "8fd55dcfd65a13af928f9dcba469aafe9d4ca7ae8f1cfe48cfae0bdfb2d59ccb"
+    },
+    {
+      "Path": "Modules/ImportExcel/Private/ArgumentCompletion.ps1",
+      "Component": "ImportExcel",
+      "Sha256": "b4e551b960cf47cee70ab839128b9a85b52990e4f9a8444699676bdb92590f8f"
+    },
+    {
+      "Path": "Modules/ImportExcel/Private/Invoke-ExcelReZipFile.ps1",
+      "Component": "ImportExcel",
+      "Sha256": "93e6166fdbfd4ffca02cb14a612a767fc530dbc9b17f8f68b2d636487bfe2c5d"
+    },
+    {
+      "Path": "Modules/ImportExcel/Public/Add-ConditionalFormatting.ps1",
+      "Component": "ImportExcel",
+      "Sha256": "540965d79f4d06f86d93e4e40046896b2e76ab7e169b4723854aa12c2544e22a"
+    },
+    {
+      "Path": "Modules/ImportExcel/Public/Add-ExcelChart.ps1",
+      "Component": "ImportExcel",
+      "Sha256": "d892010b8fef11906257b83259ada1b026f80b29f62f186ea82518cb9988bdd2"
+    },
+    {
+      "Path": "Modules/ImportExcel/Public/Add-ExcelDataValidationRule.ps1",
+      "Component": "ImportExcel",
+      "Sha256": "3017fe3b419b9c7d6676ddb02ebd6e710925fa46867cc659e06f006cb3625c25"
+    },
+    {
+      "Path": "Modules/ImportExcel/Public/Add-ExcelName.ps1",
+      "Component": "ImportExcel",
+      "Sha256": "8f06360bbcb7ec73a5222827c385ca164ce5969b37a4dbcad1985e1edae9a3f0"
+    },
+    {
+      "Path": "Modules/ImportExcel/Public/Add-ExcelTable.ps1",
+      "Component": "ImportExcel",
+      "Sha256": "22bd84bdc34ea36dfeb62e6e969ecb946662ce2bf147897fba9cacb4e88c03c5"
+    },
+    {
+      "Path": "Modules/ImportExcel/Public/Add-PivotTable.ps1",
+      "Component": "ImportExcel",
+      "Sha256": "6affb38229f2e848cce46ee9318d7f52955cd61f88605014d2d372a58fdd9a78"
+    },
+    {
+      "Path": "Modules/ImportExcel/Public/Add-Worksheet.ps1",
+      "Component": "ImportExcel",
+      "Sha256": "ee30b6224b6802e592de9858e75cf5432649f8db2e6e4ce22a6f4d1fe3bdcf65"
+    },
+    {
+      "Path": "Modules/ImportExcel/Public/Close-ExcelPackage.ps1",
+      "Component": "ImportExcel",
+      "Sha256": "a016c3f28b16988f273ad7653ffbc16985f03b600ba8bd89500fb43dac051988"
+    },
+    {
+      "Path": "Modules/ImportExcel/Public/Compare-Worksheet.ps1",
+      "Component": "ImportExcel",
+      "Sha256": "f1bbc621e8fb4451810014abf3305985a07bed7c4f80b35f148e34292d76b117"
+    },
+    {
+      "Path": "Modules/ImportExcel/Public/Convert-ExcelRangeToImage.ps1",
+      "Component": "ImportExcel",
+      "Sha256": "399135a861f93acae0627502fa0f3ecee5e462557614808ed7d60418dbfc6e27"
+    },
+    {
+      "Path": "Modules/ImportExcel/Public/ConvertFrom-ExcelData.ps1",
+      "Component": "ImportExcel",
+      "Sha256": "55bf7157a3d6d33625d1a7a4ce9b2980413cb694a65d8239956674c4ccdb4faf"
+    },
+    {
+      "Path": "Modules/ImportExcel/Public/ConvertFrom-ExcelSheet.ps1",
+      "Component": "ImportExcel",
+      "Sha256": "e1f40e1681ec7ef57e9f0f373dcc4c517c315d036ec3fc81098a5ed116e351ff"
+    },
+    {
+      "Path": "Modules/ImportExcel/Public/ConvertFrom-ExcelToSQLInsert.ps1",
+      "Component": "ImportExcel",
+      "Sha256": "13b4fa6152fc9d8cced9825b63bc7a6ab640aea1f886ffdeeca8f39712e4176f"
+    },
+    {
+      "Path": "Modules/ImportExcel/Public/ConvertTo-ExcelXlsx.ps1",
+      "Component": "ImportExcel",
+      "Sha256": "917178d2f444823bb09c70d76a402fe4fcbfd8ce6bb7e42017333934ebb45e72"
+    },
+    {
+      "Path": "Modules/ImportExcel/Public/Copy-ExcelWorksheet.ps1",
+      "Component": "ImportExcel",
+      "Sha256": "ef037152bf119b00c02818035735e7d24d4b545efbdaafd1c12c873190c858f0"
+    },
+    {
+      "Path": "Modules/ImportExcel/Public/Enable-ExcelAutoFilter.ps1",
+      "Component": "ImportExcel",
+      "Sha256": "5c4140e740b371790ae1ad53a794b7cab7946f697d86bd8f49547c1c83bbf9b2"
+    },
+    {
+      "Path": "Modules/ImportExcel/Public/Enable-ExcelAutofit.ps1",
+      "Component": "ImportExcel",
+      "Sha256": "539ee80ecc8bcfb11b1d1e8301d01a882d112f9a02a158342f2516992e090995"
+    },
+    {
+      "Path": "Modules/ImportExcel/Public/Expand-NumberFormat.ps1",
+      "Component": "ImportExcel",
+      "Sha256": "358789422d0f1254f0897576aaea90f57ca540b2b8f418b81b8492adc65be02e"
+    },
+    {
+      "Path": "Modules/ImportExcel/Public/Export-Excel.ps1",
+      "Component": "ImportExcel",
+      "Sha256": "b2d903079d666096c8e09654173538e51e0952742795840c3aeec326b6aab774"
+    },
+    {
+      "Path": "Modules/ImportExcel/Public/Get-ExcelColumnName.ps1",
+      "Component": "ImportExcel",
+      "Sha256": "525458b6bb16f6b329cfb96a209d5f4635ce04811775d4afae42061a02f895fe"
+    },
+    {
+      "Path": "Modules/ImportExcel/Public/Get-ExcelFileSchema.ps1",
+      "Component": "ImportExcel",
+      "Sha256": "65e7fb3c5a0a90710e4f27f7864324678f02e02cd04d03e4950edbeb8a05c27d"
+    },
+    {
+      "Path": "Modules/ImportExcel/Public/Get-ExcelFileSummary.ps1",
+      "Component": "ImportExcel",
+      "Sha256": "5326c433ffcd8e00ccf3de567b2fc40851784e338566afe9199355b1cd3d8651"
+    },
+    {
+      "Path": "Modules/ImportExcel/Public/Get-ExcelSheetDimensionAddress.ps1",
+      "Component": "ImportExcel",
+      "Sha256": "31c557aaec877f71d3a2cea6916dc013f69126e83e73c67412128a9525e9cca1"
+    },
+    {
+      "Path": "Modules/ImportExcel/Public/Get-ExcelSheetInfo.ps1",
+      "Component": "ImportExcel",
+      "Sha256": "e7bc0140619aa62d6fe8efdaad6055dfb80612bcdc7a93b7f907280e736e513f"
+    },
+    {
+      "Path": "Modules/ImportExcel/Public/Get-ExcelWorkbookInfo.ps1",
+      "Component": "ImportExcel",
+      "Sha256": "18efc62b116a103380ce6e20b8e36d281b5b5e058b7a75acc3fcac201ab68bfe"
+    },
+    {
+      "Path": "Modules/ImportExcel/Public/Get-HtmlTable.ps1",
+      "Component": "ImportExcel",
+      "Sha256": "5aa67b757f7e2096f697318f92db51f129f8676cf6eab83cb2fa57db1673e8cd"
+    },
+    {
+      "Path": "Modules/ImportExcel/Public/Get-Range.ps1",
+      "Component": "ImportExcel",
+      "Sha256": "fee968540a6b288940f205e8e2cd578ae61ec2871044d8ee915709d890f02270"
+    },
+    {
+      "Path": "Modules/ImportExcel/Public/Get-XYRange.ps1",
+      "Component": "ImportExcel",
+      "Sha256": "e418d613c2cd24e7c140d1fb09c37deb9823ff296d8581a8451b757c54a3d123"
+    },
+    {
+      "Path": "Modules/ImportExcel/Public/Import-Excel.ps1",
+      "Component": "ImportExcel",
+      "Sha256": "7729c826ff413bca995087f495941162aed8afd898f2b143075203adb8857416"
+    },
+    {
+      "Path": "Modules/ImportExcel/Public/Import-Html.ps1",
+      "Component": "ImportExcel",
+      "Sha256": "5de0520f1628331ca524b7925b59d85868392cad1974d2ef05073d89a6388796"
+    },
+    {
+      "Path": "Modules/ImportExcel/Public/Import-UPS.ps1",
+      "Component": "ImportExcel",
+      "Sha256": "58985fa6d4ba5c3dc3e9bee65c8906f8b43e88787bba8a40c0b2c2c46d54fb96"
+    },
+    {
+      "Path": "Modules/ImportExcel/Public/Import-USPS.ps1",
+      "Component": "ImportExcel",
+      "Sha256": "6c7dd4bbca9e4feff7c500501827884ab98ad5ae4743df270875b095ef4f634e"
+    },
+    {
+      "Path": "Modules/ImportExcel/Public/Invoke-ExcelQuery.ps1",
+      "Component": "ImportExcel",
+      "Sha256": "313ef85850ba001b46d16374edb9d0d00f44b02edfbba85e16c69e0b0617233e"
+    },
+    {
+      "Path": "Modules/ImportExcel/Public/Invoke-Sum.ps1",
+      "Component": "ImportExcel",
+      "Sha256": "b1c477114702c8c5f8f35ff732a799be1ea1648920e947385e62aac4091d2580"
+    },
+    {
+      "Path": "Modules/ImportExcel/Public/Join-Worksheet.ps1",
+      "Component": "ImportExcel",
+      "Sha256": "6f35e2823da8b39a2d6bb75098682c2e0f820f82d6b45e31cfe2e4d98a606835"
+    },
+    {
+      "Path": "Modules/ImportExcel/Public/Merge-MultipleSheets.ps1",
+      "Component": "ImportExcel",
+      "Sha256": "7c1f2656693869310c2168c599368a952a463ba196b821145b391db2cc8d32d4"
+    },
+    {
+      "Path": "Modules/ImportExcel/Public/Merge-Worksheet.ps1",
+      "Component": "ImportExcel",
+      "Sha256": "a6d3c85bafdf2f5d6e592953d4f6c0e2c53935f8ce6b5fdf074315e1db385d48"
+    },
+    {
+      "Path": "Modules/ImportExcel/Public/New-ConditionalFormattingIconSet.ps1",
+      "Component": "ImportExcel",
+      "Sha256": "895a3a18ecc55406247fa1db2278bd0fd08f48084400d64cc0ec8bb5a348874d"
+    },
+    {
+      "Path": "Modules/ImportExcel/Public/New-ConditionalText.ps1",
+      "Component": "ImportExcel",
+      "Sha256": "a2a193de66e1a25d3946e9efd6ca41cb02edb2396043c7d6bda20cb4c945d402"
+    },
+    {
+      "Path": "Modules/ImportExcel/Public/New-ExcelChartDefinition.ps1",
+      "Component": "ImportExcel",
+      "Sha256": "3ef4547aa2c3d67c18e682496e7ad9528bdbe946763a4cdfcd9278822a8ef227"
+    },
+    {
+      "Path": "Modules/ImportExcel/Public/New-ExcelStyle.ps1",
+      "Component": "ImportExcel",
+      "Sha256": "972c644c238a6586fd35aedd66d2f6c82b6cc3924912ff88e37a76f1d132bbaf"
+    },
+    {
+      "Path": "Modules/ImportExcel/Public/New-PSItem.ps1",
+      "Component": "ImportExcel",
+      "Sha256": "8d81bd359298ea5d50e2febc128064e8dd1fa1ed4b1ce787f83fcbe7f04d72fc"
+    },
+    {
+      "Path": "Modules/ImportExcel/Public/New-PivotTableDefinition.ps1",
+      "Component": "ImportExcel",
+      "Sha256": "c8437652b18418a02613815614766c32ec39f6365ac2d024e491849624fc011c"
+    },
+    {
+      "Path": "Modules/ImportExcel/Public/Open-ExcelPackage.ps1",
+      "Component": "ImportExcel",
+      "Sha256": "31d8795314de3277335a4238d261efd344a1ae56c6dd6bbbc64bf5e498ff3230"
+    },
+    {
+      "Path": "Modules/ImportExcel/Public/Read-Clipboard.ps1",
+      "Component": "ImportExcel",
+      "Sha256": "ffc39b7d2cd858b5dece9c67f803ab14395cc0e0092743f25c6bfaaf209692be"
+    },
+    {
+      "Path": "Modules/ImportExcel/Public/Read-OleDbData.ps1",
+      "Component": "ImportExcel",
+      "Sha256": "002ac10b96e515c92a62d0d66633ac948c19f4d63471890d47d5f1e30e3d6082"
+    },
+    {
+      "Path": "Modules/ImportExcel/Public/Remove-Worksheet.ps1",
+      "Component": "ImportExcel",
+      "Sha256": "c8d7f031ce05b5f9f6fd2c76c617fb40db1a77eff6082e9ea70b697d59659f35"
+    },
+    {
+      "Path": "Modules/ImportExcel/Public/Select-Worksheet.ps1",
+      "Component": "ImportExcel",
+      "Sha256": "df13401528b816337ed17ffa6056dc2a535bc867c9f1909b0792adac5de4c045"
+    },
+    {
+      "Path": "Modules/ImportExcel/Public/Send-SQLDataToExcel.ps1",
+      "Component": "ImportExcel",
+      "Sha256": "a6e02be360ee9a8d513cc26f202bd2f79513151e1b5487c1be4b95617cf7d47b"
+    },
+    {
+      "Path": "Modules/ImportExcel/Public/Set-CellComment.ps1",
+      "Component": "ImportExcel",
+      "Sha256": "4ad0894a85c7f057151d2a31430bd5493a9ab81e0d8e18d2cd1b503af127ecbb"
+    },
+    {
+      "Path": "Modules/ImportExcel/Public/Set-CellStyle.ps1",
+      "Component": "ImportExcel",
+      "Sha256": "f1789dd22470b51049699b1aa8c8f7d72e81f605c18a38454bd86fcb3b02db06"
+    },
+    {
+      "Path": "Modules/ImportExcel/Public/Set-ExcelColumn.ps1",
+      "Component": "ImportExcel",
+      "Sha256": "0232d0d27225cdd6543b854c4be86ab408428fa6b5ca452c40cb81830a78bdc2"
+    },
+    {
+      "Path": "Modules/ImportExcel/Public/Set-ExcelRange.ps1",
+      "Component": "ImportExcel",
+      "Sha256": "f10887fb458d388ee5c16466fd71646180b45a0a8521276db9cecfa278f53041"
+    },
+    {
+      "Path": "Modules/ImportExcel/Public/Set-ExcelRow.ps1",
+      "Component": "ImportExcel",
+      "Sha256": "b02cde8e6e177706b0800a52377cfbe53a51d7dfbd3526a529391bf47c1d3b7c"
+    },
+    {
+      "Path": "Modules/ImportExcel/Public/Set-WorksheetProtection.ps1",
+      "Component": "ImportExcel",
+      "Sha256": "cfe2424c98df713d065308309e2199e7ae88d7c5955d3e4bca9f87597b2a972a"
+    },
+    {
+      "Path": "Modules/ImportExcel/Public/Update-FirstObjectProperties.ps1",
+      "Component": "ImportExcel",
+      "Sha256": "df84b08fdaa6dfd07b486afdb983b8c91a6d3e10ff872c0334f080cc25cdd5da"
+    },
+    {
+      "Path": "Modules/ImportExcel/SUMMARY.md",
+      "Component": "ImportExcel",
+      "Sha256": "fe7e1b053450a7e13b5e06d05ecd8c2900ef7867a4a6a825378fef160443762b"
+    },
+    {
+      "Path": "Modules/ImportExcel/Testimonials/t1.png",
+      "Component": "ImportExcel",
+      "Sha256": "5f9486708471a3041257755886366ebc4e23996885df7cf392613b7c9f7d18b2"
+    },
+    {
+      "Path": "Modules/ImportExcel/changelog.md",
+      "Component": "ImportExcel",
+      "Sha256": "b63f0056775729831939ad09d31c7f5cf366688c33b20adb558dd66da4949e23"
+    },
+    {
+      "Path": "Modules/ImportExcel/en/ImportExcel-help.xml",
+      "Component": "ImportExcel",
+      "Sha256": "16a9657063ed6a4f47ab5b6f95adf8882e05ebca4abfb9cb35141bdeddc1c832"
+    },
+    {
+      "Path": "Modules/ImportExcel/en/Strings.psd1",
+      "Component": "ImportExcel",
+      "Sha256": "138d2ec176ac54db6181c9c9c8c96aefe42f2ed4b8875e06766098e8c990682b"
+    },
+    {
+      "Path": "Modules/ImportExcel/test.xlsx",
+      "Component": "ImportExcel",
+      "Sha256": "f6bf6815221c45e23ecffc3d09f2b588755f01e49f60b7d4bbdc3f5978916f2c"
+    },
+    {
+      "Path": "ThirdPartyNotices/PS2EXE-1.0.17-LICENSE.original",
+      "Component": "Dependency notices",
+      "Sha256": "31cbb7c4a4ec3d46302bac50dcc509fd5fc12aec8fc47325c2739e79c5c8d3f5"
+    },
+    {
+      "Path": "ThirdPartyNotices/PS2EXE-1.0.17-LICENSE.utf8.txt",
+      "Component": "Dependency notices",
+      "Sha256": "c37f4a8a1c826cb41b2e993b173daf4a2b82afd2efe5f33a444c3e5678266abb"
+    },
+    {
+      "Path": "ThirdPartyNotices/ImportExcel-7.8.10-Apache-2.0.txt",
+      "Component": "Dependency notices",
+      "Sha256": "ebf3b60c90c2d787c8cc4efe9381fbd9f4584c49ca711b62b7dc5ec1653ed3d7"
+    },
+    {
+      "Path": "ThirdPartyNotices/LGPL-3.0.txt",
+      "Component": "Dependency notices",
+      "Sha256": "e3a994d82e644b03a792a930f574002658412f62407f5fee083f2555c5f23118"
+    },
+    {
+      "Path": "ThirdPartyNotices/GPL-3.0.txt",
+      "Component": "Dependency notices",
+      "Sha256": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986"
+    },
+    {
+      "Path": "ThirdPartyNotices/MS-PL.txt",
+      "Component": "Dependency notices",
+      "Sha256": "7a162b1da10f1c22db4c68f07bec4a8355259f8d4aab5b00a2b2bbd423d833dd"
+    },
+    {
+      "Path": "ThirdPartyNotices/EPPlus-DotNetZip-Notice.txt",
+      "Component": "Dependency notices",
+      "Sha256": "2267c5d231973dc514c7646b7505977ac135498d8bbd3d720ac2b2ce9de11fd0"
+    },
+    {
+      "Path": "ThirdPartyNotices/EPPlus-ManagedZlib-JCraft-Notice.txt",
+      "Component": "Dependency notices",
+      "Sha256": "019adb3c548bb5327261d01eb59e45e17f3a2dd8ebb499e0a16f7c4e28081917"
+    },
+    {
+      "Path": "ThirdPartySources/EPPlus-4.5.3.2-source-4dacf276.zip",
+      "Component": "EPPlus corresponding source",
+      "Sha256": "2e4d9e97016ac4f58368b5eee99f42bc70b35468c383f4111701fd445fcdda24"
+    },
+    {
+      "Path": "ThirdPartyNotices/SQLite/SQLite-Copyright.txt",
+      "Component": "SQLite notices",
+      "Sha256": "8997ecb18caa62a8a35ea1c112de9f194449f30a8bda6d8fcc7918fa9634f857"
+    },
+    {
+      "Path": "ThirdPartyNotices/SQLite/System.Data.SQLite-Copyright.txt",
+      "Component": "SQLite notices",
+      "Sha256": "fe19d7c766934548c74d56c776056be293ec2a6472238e2b34939b0af0374fc1"
+    },
+    {
+      "Path": "ThirdPartyNotices/SQLite/zlib-1.3.1-License.txt",
+      "Component": "SQLite notices",
+      "Sha256": "93276b39b3b6ec5e9b0a12f06f8e978910336313f4e2cb2ff09d94be3287a13e"
+    }
+  ],
+  "ExpectedGeneratedPaths": [
+    "TaskPilot.exe",
+    "TaskPilot.exe.config",
+    "BuildInfo.json",
+    "SoftwareBillOfMaterials.json",
+    "FileHashes.json"
+  ],
+  "SourceSha256": "27b9e3bfc4f8ab24ecbef55f9d6a0253f86a5e98a732b90324f73bebe6645186",
+  "DependencyLockSha256": "2a0bf5ecb2f5ef000c2d22175386b2c27cd23227fdf3261217f0150252783d34",
+  "RuntimeAllowlistSha256": "f9d95a12a0392668f2100056d068c2758588db1fcd8b21c48112ebae188afb2a",
+  "ExecutableGenerated": false,
+  "WindowsExecutionVerified": false,
+  "OutputCreated": false
+}
