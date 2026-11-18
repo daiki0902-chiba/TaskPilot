@@ -1,4 +1,4 @@
-# GitHub反映の準備状況（2026-11-18）
+# GitHub反映結果（2026-11-18）
 
 公開設定の変更後、リポジトリの読み取りは成功した。続く403は、連携アプリの一時停止を利用者が解除した後に解消した。以下は実際の取得結果と反映方針である。
 
@@ -13,6 +13,11 @@
 | アプリの対象・許可 | TaskPilotが選択済み、contents/writeとpull_requests/writeを確認 |
 | アプリの稼働状態 | 停止解除済み。API上のsuspended_atはnull |
 | 反映先 | development/sqlite-commercial-20261116。mainへ直接反映しない |
+| 最初のソース反映 | 8abcc9e6367c54a9ea36e5983b805c0ec6cbbcfbへ通常のpushが成功 |
+| ドラフトPR | [#1 SQLite保存・安全なデータ移行を既存WinFormsへ統合](https://github.com/daiki0902-chiba/TaskPilot/pull/1)、未マージ |
+| ソース反映後の照合 | GitHubから新規cloneし、80/80ファイルのSHA256一致、44 PowerShellファイルのBOM・構文を確認 |
+
+反映後照合の対象コミットは上記8abcc9eである。詳細は [github-readback.json](verification/github-readback.json) に記録した。この記録追加以降の文書コミットと、当該コミットで実施した照合は区別する。実行コードは前回自動テストを通した候補版から変更していない。
 
 ## 準備したローカル履歴
 

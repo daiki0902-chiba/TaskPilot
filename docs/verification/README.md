@@ -19,6 +19,8 @@ Result: 8 test groups passed, 0 failed.
 
 詳細な標準出力・OS・実行時刻・パラメーター種別は [results.json](results.json) に記録した。配布予定の検証結果は [build-validation.json](build-validation.json)。件数は各スイート内の確認数であり、Windowsで合格した画面数や全機能網羅率を表さない。
 
+GitHubへの初回ソース反映コミット8abcc9eを新規cloneして行ったバイト照合・BOM・構文検査の結果は [github-readback.json](github-readback.json) に記録した。これもWindows実行の結果ではない。
+
 Windows 10/11、Windows PowerShell 5.1、同梱Windows DLL、実際のEXE・GUI・通知・Excel・署名の検証は実施していない。Windows受入表と販売判定は別に管理し、今回の自動テスト成功を販売合格とはしない。
 
 開発者は次の形式で再実行できる。Windowsではテスト専用アダプターを指定せず、同梱Windows用プロバイダーを使う。
