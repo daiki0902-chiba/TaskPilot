@@ -8,8 +8,10 @@
 | main | a761e76fbe4c4335a1847dbfc4417516d205316f |
 | mainの全ファイル | README.md、.gitattributes |
 | 既存アプリ・テスト・CI | mainには未登録 |
-| GitHub連携の書き込み | ブランチ作成が403 Resource not accessible by integration |
-| 実行環境のCLI認証 | monaca9831、対象repoのpush権限false |
+| GitHub連携の書き込み | APIブランチ作成・CLI push dry-runが403 |
+| 実行環境のCLI認証 | 再接続後はdaiki0902-chiba、対象repoのpush権限true |
+| アプリの対象・許可 | TaskPilotが選択済み、contents/writeとpull_requests/writeを確認 |
+| アプリの稼働状態 | GitHub側のinstallation情報が一時停止中（suspended_atが設定済み） |
 | リモートへの変更 | なし。main・公開設定・アクセス権を変更していない |
 
 ## 準備したローカル履歴
@@ -22,6 +24,6 @@ READMEのadd/add競合は候補版の説明に統合した。元のmainのREADME
 
 ## 続行するために必要なこと
 
-公開・非公開の設定と書き込み許可は別である。TaskPilotへ書き込み可能なGitHub認証を連携または実行環境で利用できるようにする必要がある。現在の連携ではブランチ作成が拒否され、現在のCLIアカウントにもpush権限がないため、どちらからも反映できていない。
+再接続によってCLIのアカウント・対象repoへのpush権限は回復した。アプリの選択対象にもTaskPilotがあり、contents/writeの許可もある。しかし、連携アプリがGitHub側で一時停止されているため、書き込みは拒否されている。GitHubのインストール済みアプリ設定で一時停止を解除した後、実際のブランチ作成・pushで再確認する必要がある。停止解除やアクセス権の変更をこの作業が代行した事実はない。
 
 認証が整った後、mainの先端が上記から変わっていないか、対象開発ブランチが他の作業で作られていないかを読み直す。確認後に専用ブランチへ通常のpushを行い、必要に応じてドラフトPRでレビューする。mainへ直接pushしたり、force pushで既存履歴を置き換えたりしない。
