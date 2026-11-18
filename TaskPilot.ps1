@@ -10,91 +10,22 @@ if ([string]::IsNullOrWhiteSpace($PSScriptRoot)) {
 }
 $LocalAppData = [Environment]::GetFolderPath('LocalApplicationData')
 if ([string]::IsNullOrWhiteSpace($LocalAppData)) { throw 'LOCALAPPDATA を取得できません。' }
-$Root = Join-Path $LocalAppData 'TaskPilot'
+$LegacyRoot = Join-Path $LocalAppData 'TaskPilot'
+$Root = Join-Path $LocalAppData 'TaskPilot4'
 
-function Initialize-TaskPilotStorage {
-    # Never merge with or overwrite an existing destination, including a partial one.
-    if (Test-Path -LiteralPath $Root) { return }
-    $legacyData = Join-Path $InstallRoot 'Data'
-    $legacySettings = Join-Path $InstallRoot 'Settings.json'
-    $hasLegacy = (Test-Path -LiteralPath $legacyData -PathType Container) -or (Test-Path -LiteralPath $legacySettings -PathType Leaf)
-    if (-not $hasLegacy) { return } # Fresh install; Initialize-Store creates new data.
 
-    # If legacy data exists, require the three core files. Never silently create a blank store.
-    foreach ($name in @('TaskList.csv','CompletedTask.csv','NextId.txt')) {
-        if (-not (Test-Path -LiteralPath (Join-Path $legacyData $name) -PathType Leaf)) {
-            throw "旧データが不完全です: $name。旧データは変更していません。"
-        }
-    }
-    $answer = [System.Windows.Forms.MessageBox]::Show(
-        "旧バージョンのデータが見つかりました。`r`n`r`n移行元: $InstallRoot`r`n移行先: $Root`r`n`r`nデータをコピーして移行しますか？`r`n元のデータは削除しません。`r`n「いいえ」を選ぶと起動を中止します。",
-        'TaskPilot - データ移行',
-        [System.Windows.Forms.MessageBoxButtons]::YesNo,
-        [System.Windows.Forms.MessageBoxIcon]::Question)
-    if ($answer -ne [System.Windows.Forms.DialogResult]::Yes) { throw 'データ移行をキャンセルしました。' }
-
-    $stage = Join-Path $LocalAppData ('TaskPilot_Migration_' + [guid]::NewGuid().ToString('N'))
-    try {
-        New-Item -ItemType Directory -Path $stage -ErrorAction Stop | Out-Null
-        foreach ($name in @('Data','Backup','Export','Logs','Settings.json')) {
-            $source = Join-Path $InstallRoot $name
-            if (Test-Path -LiteralPath $source) {
-                Copy-Item -LiteralPath $source -Destination (Join-Path $stage $name) -Recurse -ErrorAction Stop
-            }
-        }
-        # Check that every copied file is byte-for-byte identical to the original.
-        foreach ($name in @('Data','Backup','Export','Logs','Settings.json')) {
-            $source = Join-Path $InstallRoot $name
-            if (-not (Test-Path -LiteralPath $source)) { continue }
-            if (Test-Path -LiteralPath $source -PathType Leaf) {
-                $files = @(Get-Item -LiteralPath $source -ErrorAction Stop)
-            } else {
-                $files = @(Get-ChildItem -LiteralPath $source -File -Recurse -Force -ErrorAction Stop)
-            }
-            foreach ($file in $files) {
-                $relative = $file.FullName.Substring($InstallRoot.TrimEnd('\').Length).TrimStart('\')
-                $dest = Join-Path $stage $relative
-                if (-not (Test-Path -LiteralPath $dest -PathType Leaf)) { throw "移行先にファイルがありません: $relative" }
-                $srcHash = (Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256 -ErrorAction Stop).Hash
-                $dstHash = (Get-FileHash -LiteralPath $dest -Algorithm SHA256 -ErrorAction Stop).Hash
-                if ($srcHash -ne $dstHash) { throw "移行データの照合に失敗しました: $relative" }
-            }
-        }
-        if (Test-Path -LiteralPath $Root) { throw '移行中に保存先が作成されました。上書きを防ぐため中止します。' }
-        Move-Item -LiteralPath $stage -Destination $Root -ErrorAction Stop
-        [System.Windows.Forms.MessageBox]::Show("データを移行しました。`r`n保存先: $Root`r`n旧データは残しています。",'TaskPilot') | Out-Null
-    } catch {
-        throw "データ移行に失敗しました。旧データは変更していません。詳細: $($_.Exception.Message)"
-    } finally {
-        if (Test-Path -LiteralPath $stage) { Remove-Item -LiteralPath $stage -Recurse -Force -ErrorAction SilentlyContinue }
-    }
-}
 $DataDir = Join-Path $Root 'Data'
 $ExportDir = Join-Path $Root 'Export'
 $TaskFile = Join-Path $DataDir 'TaskList.csv'
 $ArchiveFile = Join-Path $DataDir 'CompletedTask.csv'
 $IdFile = Join-Path $DataDir 'NextId.txt'
 $BackupDir = Join-Path $Root 'Backup'
-$LogDir = Join-Path $Root 'Logs'
+$LogDir = Join-Path $LocalAppData 'TaskPilot4Logs'
 $Columns = @('ID','Date','Task','Priority','DueDate','Status','Memo')
 $SettingsFile = Join-Path $Root 'Settings.json'
 $script:AppSettings = @{ NotifyOnStartup = $true; NotifyDays = 3; DailyNotifyEnabled = $false; DailyNotifyTime = "09:00" }
-function Load-AppSettings {
-    if (-not (Test-Path -LiteralPath $SettingsFile)) { return }
-    try {
-        $obj = Get-Content -LiteralPath $SettingsFile -Raw -Encoding UTF8 | ConvertFrom-Json -ErrorAction Stop
-        if ($null -ne $obj.NotifyOnStartup -and $obj.NotifyOnStartup -is [bool]) { $script:AppSettings.NotifyOnStartup = $obj.NotifyOnStartup }
-        if ($null -ne $obj.NotifyDays -and [int]$obj.NotifyDays -ge 0 -and [int]$obj.NotifyDays -le 30) { $script:AppSettings.NotifyDays = [int]$obj.NotifyDays }
-        if ($null -ne $obj.DailyNotifyEnabled -and $obj.DailyNotifyEnabled -is [bool]) { $script:AppSettings.DailyNotifyEnabled = $obj.DailyNotifyEnabled }
-        if ([string]$obj.DailyNotifyTime -match '^([01][0-9]|2[0-3]):[0-5][0-9]$') { $script:AppSettings.DailyNotifyTime = [string]$obj.DailyNotifyTime }
-    } catch {
-        throw "設定ファイルを読み込めません: $($_.Exception.Message)"
-    }
-}
-function Save-AppSettings {
-    $json = $script:AppSettings | ConvertTo-Json -Compress
-    Save-TextSafely $SettingsFile $json 'UTF8'
-}
+
+
 function Show-SettingsDialog {
     $dialog = New-Object System.Windows.Forms.Form
     $dialog.Text = '設定'
@@ -156,90 +87,11 @@ function Show-SettingsDialog {
     } finally { $dialog.Dispose() }
 }
 
-function Initialize-Store {
-    if (Test-Path -LiteralPath $DataDir) {
-        $existing = @(Get-ChildItem -LiteralPath $DataDir -File)
-        if ($existing.Count -gt 0) {
-            foreach ($core in @($TaskFile,$ArchiveFile)) {
-                if (-not (Test-Path -LiteralPath $core -PathType Leaf)) { throw "既存データの一部がありません: $core。バックアップから復旧してください。" }
-            }
-        }
-    }
-    foreach ($dir in @($DataDir,$ExportDir,$BackupDir,$LogDir)) { if (-not (Test-Path -LiteralPath $dir)) { New-Item -ItemType Directory -Path $dir -Force | Out-Null } }
-    foreach ($path in @($TaskFile,$ArchiveFile)) {
-        if (-not (Test-Path -LiteralPath $path)) { Set-Content -LiteralPath $path -Value ($Columns -join ',') -Encoding UTF8 }
-    }
-    if (-not (Test-Path -LiteralPath $IdFile)) {
-        $ids = @((@(Read-Tasks $TaskFile) + @(Read-Tasks $ArchiveFile)) | ForEach-Object { [int]$_.ID })
-        $max = 0
-        foreach ($id in $ids) { if ($id -gt $max) { $max = $id } }
-        Set-Content -LiteralPath $IdFile -Value ($max + 1) -Encoding ASCII
-    }
-}
-function Read-Tasks([string]$path) {
-    if (-not (Test-Path -LiteralPath $path -PathType Leaf)) { throw "タスクファイルがありません: $path" }
-    $header = Get-Content -LiteralPath $path -TotalCount 1 -Encoding UTF8
-    if (($header -replace '"','') -ne ($Columns -join ',')) { throw "タスクCSVの列が不正です: $path。上書きを中止します。" }
-    $rows = @(Import-Csv -LiteralPath $path -Encoding UTF8 -ErrorAction Stop)
-    $seen = @{}
-    foreach ($row in $rows) {
-        $id = 0
-        if (-not [int]::TryParse([string]$row.ID,[ref]$id) -or $id -lt 1 -or $seen.ContainsKey($id)) {
-            throw "タスクCSVに不正または重複したIDがあります: $path。上書きを中止します。"
-        }
-        $seen[$id] = $true
-    }
-    return $rows
-}
-function Backup-Data {
-    # Publish a complete, verified snapshot only after every copy has succeeded.
-    $token = (Get-Date -Format 'yyyyMMdd_HHmmss_fff') + '_' + [guid]::NewGuid().ToString('N').Substring(0,8)
-    $pending = Join-Path $BackupDir ('.pending_' + $token)
-    $folder = Join-Path $BackupDir $token
-    try {
-        New-Item -ItemType Directory -Path (Join-Path $pending 'Data') -Force -ErrorAction Stop | Out-Null
-        $hashes = @{}
-        foreach ($file in @(Get-ChildItem -LiteralPath $DataDir -File | Where-Object { $_.Name -notlike '.*' })) {
-            $relative = 'Data/' + $file.Name
-            $dest = Join-Path $pending $relative
-            Copy-Item -LiteralPath $file.FullName -Destination $dest -ErrorAction Stop
-            $hash = (Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256).Hash
-            if ($hash -ne (Get-FileHash -LiteralPath $dest -Algorithm SHA256).Hash) { throw 'バックアップ照合に失敗しました。' }
-            $hashes[$relative] = $hash
-        }
-        if (Test-Path -LiteralPath $SettingsFile -PathType Leaf) {
-            Copy-Item -LiteralPath $SettingsFile -Destination $pending -ErrorAction Stop
-            $hashes['Settings.json'] = (Get-FileHash -LiteralPath $SettingsFile -Algorithm SHA256).Hash
-            if ($hashes['Settings.json'] -ne (Get-FileHash -LiteralPath (Join-Path $pending 'Settings.json') -Algorithm SHA256).Hash) { throw '設定バックアップの照合に失敗しました。' }
-        }
-        @{ Version=2; Files=$hashes } | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $pending 'Snapshot.json') -Encoding UTF8
-        Test-BackupFolder $pending
-        [IO.Directory]::Move($pending,$folder)
-    } finally {
-        if (Test-Path -LiteralPath $pending) { Remove-Item -LiteralPath $pending -Recurse -Force -ErrorAction SilentlyContinue }
-    }
-}
-function Repair-NextTaskId {
-    $seen = @{}; $max = 0
-    foreach ($task in (@(Read-Tasks $TaskFile) + @(Read-Tasks $ArchiveFile))) {
-        $n = [int]$task.ID
-        if ($seen.ContainsKey($n)) { throw "タスク一覧と完了一覧でIDが重複しています: $n" }
-        $seen[$n] = $true
-        if ($n -gt $max) { $max = $n }
-    }
-    $next = 0
-    if (-not [int]::TryParse((Get-Content -LiteralPath $IdFile -Raw).Trim(),[ref]$next) -or $next -lt 1) { throw 'NextId.txtが不正です。バックアップから復旧してください。' }
-    if ($max -ge [int]::MaxValue - 1) { throw 'タスクIDの上限に達しました。' }
-    if ($next -le $max) { Save-TextSafely $IdFile ([string]($max+1)) 'ASCII' }
-}
-function Reserve-TaskId {
-    Repair-NextTaskId
-    $id = [int](Get-Content -LiteralPath $IdFile -Raw).Trim()
-    if ($id -ge [int]::MaxValue - 1) { throw 'タスクIDの上限に達しました。' }
-    # Reserve before writing a task: a failed save may leave a harmless gap.
-    Save-TextSafely $IdFile ([string]($id+1)) 'ASCII'
-    return $id
-}
+
+
+
+
+
 function Write-ActionLog([string]$action, [string]$detail) {
     try {
         if (-not (Test-Path -LiteralPath $LogDir)) { New-Item -ItemType Directory -Path $LogDir -Force | Out-Null }
@@ -272,68 +124,25 @@ function Replace-FileSafely([string]$source, [string]$destination) {
         if (Test-Path -LiteralPath $backup) { Remove-Item -LiteralPath $backup -Force -ErrorAction SilentlyContinue }
     }
 }
-function Save-TextSafely([string]$path, [string]$content, [string]$encodingName) {
-    if ((Test-Path -LiteralPath $TaskFile) -and (Test-Path -LiteralPath $ArchiveFile) -and (Test-Path -LiteralPath $IdFile) -and
-        ((Split-Path -Parent $path) -eq $DataDir -or $path -eq $SettingsFile)) { Backup-Data }
-    $dir = Split-Path -Parent $path
-    $temp = Join-Path $dir ('.tmp_' + [guid]::NewGuid().ToString('N'))
-    try {
-        Set-Content -LiteralPath $temp -Value $content -Encoding $encodingName -ErrorAction Stop
-        if (Test-Path -LiteralPath $path) {
-            # File.Replace replaces an existing file atomically on the same volume.
-            Replace-FileSafely $temp $path
-        } else {
-            [System.IO.File]::Move($temp, $path)
-        }
-    } finally {
-        if (Test-Path -LiteralPath $temp) { Remove-Item -LiteralPath $temp -Force -ErrorAction SilentlyContinue }
-    }
-}
-function Save-Tasks([string]$path, [array]$items) {
-    $dir = Split-Path -Parent $path
-    $temp = Join-Path $dir ('.csv_' + [guid]::NewGuid().ToString('N'))
-    try {
-        if ($items.Count -eq 0) { Set-Content -LiteralPath $temp -Value ($Columns -join ',') -Encoding UTF8 -ErrorAction Stop }
-        else { $items | Select-Object $Columns | Export-Csv -LiteralPath $temp -NoTypeInformation -Encoding UTF8 -ErrorAction Stop }
-        if (Test-Path -LiteralPath $path) { Replace-FileSafely $temp $path }
-        else { [System.IO.File]::Move($temp, $path) }
-        if ($script:AutoReportsReady) { Update-AutoReports }
-    } finally {
-        if (Test-Path -LiteralPath $temp) { Remove-Item -LiteralPath $temp -Force -ErrorAction SilentlyContinue }
-    }
-}
+
+
 
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
 [System.Windows.Forms.Application]::EnableVisualStyles()
+try {
+. (Join-Path $InstallRoot 'Adapters/TaskPilot.GuiCommon.ps1')
+. (Join-Path $InstallRoot 'Adapters/TaskPilot.GuiTasks.ps1')
+. (Join-Path $InstallRoot 'Adapters/TaskPilot.GuiDomains.ps1')
+. (Join-Path $InstallRoot 'Adapters/TaskPilot.GuiOperations.ps1')
+. (Join-Path $InstallRoot 'Adapters/TaskPilot.GuiStartup.ps1')
+    Initialize-TPGuiApplication
 
 
 # STEP 3.3B: recurrence generation. Outlook sync and business-day calendars are not implemented.
 $RecurringFile = Join-Path $DataDir 'RecurringRules.json'
-function Read-RecurringRules {
-    if (-not (Test-Path -LiteralPath $RecurringFile)) { return @() }
-    $raw = Get-Content -LiteralPath $RecurringFile -Raw -Encoding UTF8 -ErrorAction Stop
-    if ([string]::IsNullOrWhiteSpace($raw)) { throw '定期タスク設定ファイルが空です。' }
-    $obj = ConvertFrom-Json -InputObject $raw -ErrorAction Stop
-    if ($null -eq $obj -or $null -eq $obj.Rules -or $obj.Version -ne 1) { throw '定期タスク設定の形式が正しくありません。' }
-    $rules = @($obj.Rules)
-    foreach ($r in $rules) {
-        if ([string]::IsNullOrWhiteSpace([string]$r.Id) -or [string]::IsNullOrWhiteSpace([string]$r.Name) -or
-            @('毎日','毎週','毎月（日付）','毎月（第N曜日）','毎月（第N営業日）','毎月（最終営業日）') -notcontains [string]$r.Type) {
-            throw '定期タスク設定に不正なルールがあります。自動修復せず読み込みを中止しました。'
-        }
-    }
-    return $rules
-}
-function Save-RecurringRules([array]$rules) {
-    $payload = @{ Version = 1; Rules = @($rules) } | ConvertTo-Json -Depth 8
-    if (Test-Path -LiteralPath $RecurringFile) {
-        $stamp = Get-Date -Format 'yyyyMMdd_HHmmss_fff'
-        $copy = Join-Path $BackupDir ('RecurringRules_' + $stamp + '_' + [guid]::NewGuid().ToString('N').Substring(0,6) + '.json')
-        Copy-Item -LiteralPath $RecurringFile -Destination $copy -ErrorAction Stop
-    }
-    Save-TextSafely $RecurringFile $payload 'UTF8'
-}
+
+
 # STEP 3.3B: generate the latest due occurrence only (not an unbounded backlog).
 # Business-day rules are deliberately excluded until holiday/company-calendar support is available.
 function Get-LatestRecurringDate($rule, [datetime]$today) {
@@ -352,7 +161,7 @@ function Get-LatestRecurringDate($rule, [datetime]$today) {
         return $null
     }
     for ($back=0; $back -le 1; $back++) {
-        $month = (Get-Date -Year $today.Year -Month $today.Month -Day 1).AddMonths(-$back)
+        $month = ((Get-Date -Year $today.Year -Month $today.Month -Day 1).Date).AddMonths(-$back)
         $candidate = $null
         if ($type -eq '毎月（日付）') {
             $d = [int]$rule.Day
@@ -374,46 +183,7 @@ function Get-LatestRecurringDate($rule, [datetime]$today) {
     }
     return $null
 }
-function Invoke-RecurringGeneration {
-    $rules = @(Read-RecurringRules)
-    if ($rules.Count -eq 0) { return 0 }
-    $today = (Get-Date).Date
-    $items = @(Read-Tasks $TaskFile)
-    $archive = @(Read-Tasks $ArchiveFile)
-    $nextId = 0
-    if (-not [int]::TryParse((Get-Content -LiteralPath $IdFile -Raw).Trim(),[ref]$nextId) -or $nextId -lt 1) { throw 'NextId.txtが不正です。定期タスクの生成を中止しました。' }
-    $added = 0
-    foreach ($rule in $rules) {
-        if (-not [bool]$rule.Enabled) { continue }
-        try { $due = Get-LatestRecurringDate $rule $today }
-        catch {
-            Write-ActionLog '定期タスク生成保留' ("$($rule.Name): $($_.Exception.Message)")
-            continue
-        }
-        if ($null -eq $due) { continue }
-        $key = 'TP-RECUR:' + [string]$rule.Id + ':' + $due.ToString('yyyyMMdd')
-        # Marker is stored in the task memo, so a crash between CSV and ID update
-        # cannot cause duplicate occurrences on the next run.
-        $found = @($items + $archive | Where-Object { ([string]$_.Memo).Contains($key) }).Count -gt 0
-        if ($found) { continue }
-        $used = @($items + $archive | Where-Object { [string]$_.ID -eq [string]$nextId }).Count -gt 0
-        while ($used) {
-            $nextId++
-            $used = @($items + $archive | Where-Object { [string]$_.ID -eq [string]$nextId }).Count -gt 0
-        }
-        $memo = (([string]$rule.Note).Trim() + ' [' + $key + ']').Trim()
-        $nextId = Reserve-TaskId
-        $row = [pscustomobject]@{ ID=$nextId; Date=(Get-Date -Format 'yyyy/MM/dd'); Task=[string]$rule.Name; Priority='中'; DueDate=$due.ToString('yyyy/MM/dd'); Status='未着手'; Memo=$memo }
-        Backup-Data
-        Save-Tasks $TaskFile @($items + @($row))
-        $items = @($items + @($row))
-        $nextId++
 
-        Write-ActionLog '定期タスク自動生成' ("ID=$($row.ID), $key")
-        $added++
-    }
-    return $added
-}
 
 
 # STEP 3.3C-1: holiday data import and company closure management ONLY.
@@ -421,42 +191,9 @@ function Invoke-RecurringGeneration {
 $HolidayFile = Join-Path $DataDir 'JapaneseHolidays.json'
 $ClosureFile = Join-Path $DataDir 'CompanyClosures.json'
 $OfficialHolidayUrl = 'https://www8.cao.go.jp/chosei/shukujitsu/syukujitsu.csv'
-function Read-CompanyClosures {
-    if (-not (Test-Path -LiteralPath $ClosureFile)) { return @() }
-    $obj = Get-Content -LiteralPath $ClosureFile -Raw -Encoding UTF8 | ConvertFrom-Json -ErrorAction Stop
-    if ($null -eq $obj -or [int]$obj.Version -ne 1 -or $null -eq $obj.Dates) { throw '会社休業日の設定ファイルが不正です。' }
-    $dates = @($obj.Dates)
-    foreach ($d in $dates) {
-        $parsed = [datetime]::MinValue
-        if (-not [datetime]::TryParseExact([string]$d,'yyyy-MM-dd',[cultureinfo]::InvariantCulture,[Globalization.DateTimeStyles]::None,[ref]$parsed)) { throw '会社休業日の形式が不正です。' }
-    }
-    return @($dates | Sort-Object -Unique)
-}
-function Save-CompanyClosures([array]$dates) {
-    $payload = @{ Version = 1; Dates = @($dates | Sort-Object -Unique) } | ConvertTo-Json -Depth 4
-    if (Test-Path -LiteralPath $ClosureFile) {
-        $copy = Join-Path $BackupDir ('CompanyClosures_' + (Get-Date -Format 'yyyyMMdd_HHmmss_fff') + '.json')
-        Copy-Item -LiteralPath $ClosureFile -Destination $copy -ErrorAction Stop
-    }
-    Save-TextSafely $ClosureFile $payload 'UTF8'
-}
-function Get-VerifiedHolidayCalendar([int]$year) {
-    if (-not (Test-Path -LiteralPath $HolidayFile)) { throw '祝日データがありません。祝日・休業日管理から公式CSVを取り込んでください。' }
-    $obj = Get-Content -LiteralPath $HolidayFile -Raw -Encoding UTF8 | ConvertFrom-Json -ErrorAction Stop
-    if ($null -eq $obj -or [int]$obj.Version -ne 1 -or $null -eq $obj.Holidays) { throw '祝日データの形式が不正です。' }
-    # The final year in the official CSV may be incomplete. Do not assume its coverage.
-    $maxYear = ([datetime]::ParseExact([string]$obj.LastDate,'yyyy-MM-dd',[cultureinfo]::InvariantCulture)).Year
-    $minYear = ([datetime]::ParseExact([string]$obj.FirstDate,'yyyy-MM-dd',[cultureinfo]::InvariantCulture)).Year
-    if ($year -le $minYear -or $year -ge $maxYear) { throw "${year}年の祝日データの完全性を確認できません。対象年を含む最新の公式CSVを確認してください。" }
-    $holidays = @{}
-    foreach ($entry in @($obj.Holidays)) {
-        $date = [datetime]::MinValue
-        if (-not [datetime]::TryParseExact([string]$entry.Date,'yyyy-MM-dd',[cultureinfo]::InvariantCulture,[Globalization.DateTimeStyles]::None,[ref]$date)) { throw '祝日データに不正な日付があります。' }
-        if ($date.Year -eq $year) { $holidays[$date.ToString('yyyy-MM-dd')] = $true }
-    }
-    if ($holidays.Count -lt 12) { throw "${year}年の祝日データが不足しています。" }
-    return $holidays
-}
+
+
+
 function Get-BusinessOccurrence($rule, [datetime]$month) {
     $holidays = Get-VerifiedHolidayCalendar $month.Year
     $closures = @{}
@@ -464,7 +201,7 @@ function Get-BusinessOccurrence($rule, [datetime]$month) {
     $days = [System.Collections.Generic.List[datetime]]::new()
     $count = [datetime]::DaysInMonth($month.Year,$month.Month)
     for ($d=1; $d -le $count; $d++) {
-        $date = Get-Date -Year $month.Year -Month $month.Month -Day $d -Hour 0 -Minute 0 -Second 0
+        $date = (Get-Date -Year $month.Year -Month $month.Month -Day $d -Hour 0 -Minute 0 -Second 0).Date
         $key = $date.ToString('yyyy-MM-dd')
         if ($date.DayOfWeek -in @([DayOfWeek]::Saturday,[DayOfWeek]::Sunday)) { continue }
         if ($holidays.ContainsKey($key) -or $closures.ContainsKey($key)) { continue }
@@ -491,7 +228,7 @@ function Get-NextRecurringDate($rule, [datetime]$today) {
         return $base.AddDays($offset)
     }
     for ($i=0; $i -lt 24; $i++) {
-        $month = (Get-Date -Year $base.Year -Month $base.Month -Day 1).AddMonths($i)
+        $month = ((Get-Date -Year $base.Year -Month $base.Month -Day 1).Date).AddMonths($i)
         $candidate = $null
         if ($type -eq '毎月（日付）') {
             $day = [int]$rule.Day
@@ -511,34 +248,7 @@ function Get-NextRecurringDate($rule, [datetime]$today) {
     }
     return $null
 }
-function Import-JapaneseHolidayCsv([string]$path) {
-    # Cabinet Office CSV is typically Shift-JIS/CP932. Reject malformed/unknown formats.
-    $bytes = [System.IO.File]::ReadAllBytes($path)
-    if ($bytes.Length -lt 20 -or $bytes.Length -gt 2000000) { throw '祝日CSVのファイルサイズが想定外です。' }
-    $enc = [System.Text.Encoding]::GetEncoding(932,[System.Text.EncoderFallback]::ExceptionFallback,[System.Text.DecoderFallback]::ExceptionFallback)
-    $csvText = $enc.GetString($bytes)
-    $lines = @($csvText -split '\r?\n' | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
-    if ($lines.Count -lt 2 -or -not $lines[0].Contains('国民の祝日')) { throw '内閣府の祝日CSVとして認識できません。ヘッダーを確認してください。' }
-    $entries = @{}
-    foreach ($line in $lines[1..($lines.Count-1)]) {
-        $parts = $line.Split(',',2)
-        if ($parts.Count -ne 2 -or [string]::IsNullOrWhiteSpace($parts[1])) { throw "祝日CSVに不正な行があります: $line" }
-        $dt = [datetime]::MinValue
-        if (-not [datetime]::TryParseExact($parts[0].Trim(),[string[]]@('yyyy/M/d','yyyy/MM/dd'),[cultureinfo]::InvariantCulture,[Globalization.DateTimeStyles]::None,[ref]$dt)) { throw "祝日CSVの日付が不正です: $line" }
-        $key = $dt.ToString('yyyy-MM-dd')
-        if ($entries.ContainsKey($key)) { throw "祝日CSVに重複日付があります: $key" }
-        $entries[$key] = $parts[1].Trim()
-    }
-    if ($entries.Count -lt 10) { throw '祝日データが少なすぎるため取り込みを中止しました。' }
-    $sorted = @($entries.Keys | Sort-Object)
-    $payload = @{ Version=1; Source='Cabinet Office CSV'; ImportedAt=(Get-Date).ToString('o'); FirstDate=$sorted[0]; LastDate=$sorted[-1]; Holidays=@($sorted | ForEach-Object { @{ Date=$_; Name=$entries[$_] } }) } | ConvertTo-Json -Depth 6
-    if (Test-Path -LiteralPath $HolidayFile) {
-        $copy = Join-Path $BackupDir ('JapaneseHolidays_' + (Get-Date -Format 'yyyyMMdd_HHmmss_fff') + '.json')
-        Copy-Item -LiteralPath $HolidayFile -Destination $copy -ErrorAction Stop
-    }
-    Save-TextSafely $HolidayFile $payload 'UTF8'
-    return $entries.Count
-}
+
 function Show-HolidayManagementDialog {
     $dlg = New-Object System.Windows.Forms.Form
     $dlg.Text = '祝日・会社休業日管理'
@@ -549,9 +259,9 @@ function Show-HolidayManagementDialog {
     $status.Location = New-Object System.Drawing.Point(16,12)
     $status.Size = New-Object System.Drawing.Size(575,64)
     $status.Text = '祝日データ：未取り込み'
-    if (Test-Path -LiteralPath $HolidayFile) {
+    if ($null -ne (Read-HolidaysDocument)) {
         try {
-            $holidayObj = Get-Content -LiteralPath $HolidayFile -Raw -Encoding UTF8 | ConvertFrom-Json -ErrorAction Stop
+            $holidayObj = Read-HolidaysDocument
             $status.Text = "祝日データ：$(@($holidayObj.Holidays).Count)件`r`n収録期間：$($holidayObj.FirstDate) ～ $($holidayObj.LastDate)"
         } catch { $status.Text = '祝日データ：読み込みエラー（再取り込みが必要です）' }
     }
@@ -606,7 +316,7 @@ function Show-HolidayManagementDialog {
             $dates = @(Read-CompanyClosures)
             $date = $picker.Value.ToString('yyyy-MM-dd')
             if ($dates -contains $date) { return }
-            Save-CompanyClosures @($dates + @($date))
+            Add-CompanyClosure $date
             & $reload
         } catch { Show-Failure $_ }
     })
@@ -614,7 +324,7 @@ function Show-HolidayManagementDialog {
         if ($null -eq $list.SelectedItem) { return }
         try {
             $selected = [string]$list.SelectedItem
-            Save-CompanyClosures @((Read-CompanyClosures) | Where-Object { $_ -ne $selected })
+            Remove-CompanyClosure $selected
             & $reload
         } catch { Show-Failure $_ }
     })
@@ -774,7 +484,7 @@ function Show-RecurringRulesDialog {
             $new = Show-RecurringRuleEditor $null
             if ($null -ne $new) {
                 $next = @($rules.ToArray()) + @($new)
-                Save-RecurringRules $next
+                Save-RecurringRules $next -OriginalRules @($rules.ToArray())
                 [void]$rules.Add($new)
                 Refresh-RuleList
             }
@@ -788,7 +498,7 @@ function Show-RecurringRulesDialog {
             $updated = Show-RecurringRuleEditor $old
             if ($null -ne $updated) {
                 $next = @($rules | ForEach-Object { if ($_.Id -eq $id) { $updated } else { $_ } })
-                Save-RecurringRules $next
+                Save-RecurringRules $next -OriginalRules @($rules.ToArray())
                 $rules.Clear()
                 foreach ($r in $next) { [void]$rules.Add($r) }
                 Refresh-RuleList
@@ -801,7 +511,7 @@ function Show-RecurringRulesDialog {
         try {
             $id = [string]$list.SelectedItems[0].Tag
             $next = @($rules | Where-Object { $_.Id -ne $id })
-            Save-RecurringRules $next
+            Save-RecurringRules $next -OriginalRules @($rules.ToArray())
             $rules.Clear()
             foreach ($r in $next) { [void]$rules.Add($r) }
             Refresh-RuleList
@@ -824,27 +534,8 @@ function Ask-Confirm([string]$message) {
 # STEP 3.4B: planned work dates are stored separately, keyed by immutable task ID.
 # Existing TaskList.csv and recurrence marker fields are intentionally untouched.
 $PlannedDatesFile = Join-Path $DataDir 'PlannedDates.json'
-function Read-PlannedDates {
-    $map = @{}
-    if (-not (Test-Path -LiteralPath $PlannedDatesFile)) { return $map }
-    $raw = Get-Content -LiteralPath $PlannedDatesFile -Raw -Encoding UTF8
-    if ([string]::IsNullOrWhiteSpace($raw)) { return $map }
-    $parsed = ConvertFrom-Json -InputObject $raw -ErrorAction Stop
-    foreach ($property in $parsed.PSObject.Properties) {
-        $date = [datetime]::MinValue
-        if ($property.Name -match '^\d+$' -and [datetime]::TryParseExact([string]$property.Value,'yyyy/MM/dd',[cultureinfo]::InvariantCulture,[Globalization.DateTimeStyles]::None,[ref]$date)) {
-            $map[$property.Name] = $date.ToString('yyyy/MM/dd')
-        }
-    }
-    return $map
-}
-function Save-PlannedDate([string]$taskId,[string]$plannedDate) {
-    $map = Read-PlannedDates
-    if ([string]::IsNullOrWhiteSpace($plannedDate)) { $map.Remove($taskId) | Out-Null }
-    else { $map[$taskId] = $plannedDate }
-    $json = ConvertTo-Json -InputObject $map -Depth 3
-    Save-TextSafely $PlannedDatesFile $json 'UTF8'
-}
+
+
 function Get-PlannedDate([string]$taskId) {
     $map = Read-PlannedDates
     if ($map.ContainsKey($taskId)) { return [string]$map[$taskId] }
@@ -852,35 +543,13 @@ function Get-PlannedDate([string]$taskId) {
 }
 # STEP 3.6B: optional work plan metadata, separate from the legacy CSV.
 $WorkPlansFile = Join-Path $DataDir 'WorkPlans.json'
-function Read-WorkPlans {
-    $map = @{}
-    if (-not (Test-Path -LiteralPath $WorkPlansFile)) { return $map }
-    $raw = Get-Content -LiteralPath $WorkPlansFile -Raw -Encoding UTF8 -ErrorAction Stop
-    if ([string]::IsNullOrWhiteSpace($raw)) { return $map }
-    $parsed = ConvertFrom-Json -InputObject $raw -ErrorAction Stop
-    foreach ($property in $parsed.PSObject.Properties) {
-        if ($property.Name -notmatch '^\d+$' -or $null -eq $property.Value) { continue }
-        $map[$property.Name] = $property.Value
-    }
-    return $map
-}
+
 function Get-WorkPlan([string]$taskId) {
     $map = Read-WorkPlans
     if ($map.ContainsKey($taskId)) { return $map[$taskId] }
     return $null
 }
-function Save-WorkPlan([string]$taskId,[string]$startDate,[decimal]$hours) {
-    $map = Read-WorkPlans
-    if ([string]::IsNullOrWhiteSpace($startDate) -and $hours -eq 0) {
-        [void]$map.Remove($taskId)
-    } else {
-        $map[$taskId] = @{ StartDate=$startDate; EstimatedHours=[double]$hours }
-    }
-    $json = ConvertTo-Json -InputObject $map -Depth 5
-    Save-TextSafely $WorkPlansFile $json 'UTF8'
-    # Work-plan metadata is stored separately from TaskList.csv. Refresh after committing it.
-    if ($script:AutoReportsReady) { Update-AutoReports }
-}
+
 function Save-WorkPlanFromDialog([string]$taskId,$value) {
     if ($null -eq $value -or -not $value.PSObject.Properties['WorkStartDate']) { return }
     Save-WorkPlan $taskId ([string]$value.WorkStartDate) ([decimal]$value.EstimatedHours)
@@ -889,47 +558,15 @@ function Save-WorkPlanFromDialog([string]$taskId,$value) {
 # STEP 3.6C: working calendar and completion history (stored independently of legacy CSV).
 $script:CapacityFile = Join-Path $DataDir 'CapacitySettings.json'
 $script:ActualFile = Join-Path $DataDir 'ActualHours.json'
-function Read-CapacitySettings {
-    $default = @{ Weekdays=@(1,2,3,4,5); DailyHours=8.0; WorkOnHolidays=$false; Overrides=@{} }
-    if (-not (Test-Path -LiteralPath $script:CapacityFile)) { return $default }
-    $obj = Get-Content -LiteralPath $script:CapacityFile -Raw -Encoding UTF8 | ConvertFrom-Json -ErrorAction Stop
-    if ($null -ne $obj.Weekdays) { $default.Weekdays = @($obj.Weekdays | ForEach-Object { [int]$_ }) }
-    if ($null -ne $obj.DailyHours) { $default.DailyHours = [double]$obj.DailyHours }
-    if ($null -ne $obj.WorkOnHolidays) { $default.WorkOnHolidays = [bool]$obj.WorkOnHolidays }
-    if ($null -ne $obj.Overrides) {
-        foreach ($p in $obj.Overrides.PSObject.Properties) { $default.Overrides[$p.Name] = [double]$p.Value }
-    }
-    return $default
-}
-function Save-CapacitySettings($cfg) {
-    Save-TextSafely $script:CapacityFile (ConvertTo-Json -InputObject $cfg -Depth 10) 'UTF8'
-}
-function Read-ActualHours {
-    $map = @{}
-    if (-not (Test-Path -LiteralPath $script:ActualFile)) { return $map }
-    $obj = Get-Content -LiteralPath $script:ActualFile -Raw -Encoding UTF8 | ConvertFrom-Json -ErrorAction Stop
-    if ($null -ne $obj) { foreach ($p in $obj.PSObject.Properties) { $map[$p.Name] = $p.Value } }
-    return $map
-}
-function Save-ActualHours([string]$id,[datetime]$completedDate,[decimal]$hours,[string]$name) {
-    $map = Read-ActualHours
-    $map[$id] = @{ CompletedDate=$completedDate.ToString('yyyy/MM/dd'); ActualHours=[double]$hours; TaskName=$name }
-    Save-TextSafely $script:ActualFile (ConvertTo-Json -InputObject $map -Depth 6) 'UTF8'
-}
+
+
+
+
 
 # STEP 3.6D: daily work entries, independent from completion totals.
 $script:WorkLogFile = Join-Path $DataDir 'WorkLogs.json'
-function Read-WorkLogs {
-    $rows = @()
-    if (-not (Test-Path -LiteralPath $script:WorkLogFile)) { return $rows }
-    $raw = Get-Content -LiteralPath $script:WorkLogFile -Raw -Encoding UTF8 | ConvertFrom-Json -ErrorAction Stop
-    foreach ($r in @($raw)) { if ($null -ne $r) { $rows += $r } }
-    return $rows
-}
-function Save-WorkLogs($rows) {
-    $json = ConvertTo-Json -InputObject @($rows) -Depth 8
-    Save-TextSafely $script:WorkLogFile $json 'UTF8'
-}
+
+
 function Get-LoggedHours([string]$taskId) {
     $sum = 0.0
     foreach ($r in @(Read-WorkLogs)) { if ([string]$r.TaskId -eq $taskId) { $sum += [double]$r.Hours } }
@@ -966,7 +603,7 @@ function Show-WorkLogDialog {
         $total=Get-LoggedHours $script:WorkLogDialogTaskId
         $plan=Get-WorkPlan $script:WorkLogDialogTaskId
         $estimated=0.0; if ($null -ne $plan) { $estimated=[double]$plan.EstimatedHours }
-        $script:WorkLogDialogCaption.Text=('予定：{0:N2}h  作業記録：{1:N2}h  残り見込み：{2:N2}h（下限0）' -f $estimated,$total,[math]::Max(0,$estimated-$total))
+        $script:WorkLogDialogCaption.Text=('予定：{0:N2}h  作業記録：{1:N2}h  残り見込み：{2:N2}h（下限0）' -f $estimated,$total,[math]::Max(0.0,$estimated-$total))
         foreach ($r in @(Read-WorkLogs | Where-Object { [string]$_.TaskId -eq $script:WorkLogDialogTaskId } | Sort-Object WorkDate)) {
             [void]$script:WorkLogDialogTaskIds.Add([string]$r.EntryId)
             [void]$script:WorkLogDialogList.Items.Add(('{0}  {1:N2}h  {2}' -f $r.WorkDate,[double]$r.Hours,[string]$r.Memo))
@@ -976,7 +613,7 @@ function Show-WorkLogDialog {
         try {
             $rows=@(Read-WorkLogs)
             $rows+= [pscustomobject]@{EntryId=[guid]::NewGuid().ToString('N');TaskId=$script:WorkLogDialogTaskId;WorkDate=$script:WorkLogDialogDay.Value.ToString('yyyy/MM/dd');Hours=[double]$script:WorkLogDialogHours.Value;Memo=$script:WorkLogDialogMemo.Text}
-            Save-WorkLogs $rows
+            Save-WorkLogs $rows -ExpectedSnapshotToken (Get-TPGuiLastChildSnapshotToken 'work_logs')
             & $script:WorkLogDialogRefresh; Update-TopCapacity; Update-AutoReports
         } catch { Show-Failure $_ }
     })
@@ -985,7 +622,7 @@ function Show-WorkLogDialog {
             if ($script:WorkLogDialogList.SelectedIndex -lt 0) { return }
             $removeId=$script:WorkLogDialogTaskIds[$script:WorkLogDialogList.SelectedIndex]
             $rows=@(Read-WorkLogs | Where-Object { [string]$_.EntryId -ne $removeId })
-            Save-WorkLogs $rows
+            Save-WorkLogs $rows -ExpectedSnapshotToken (Get-TPGuiLastChildSnapshotToken 'work_logs')
             & $script:WorkLogDialogRefresh; Update-TopCapacity; Update-AutoReports
         } catch { Show-Failure $_ }
     })
@@ -993,33 +630,7 @@ function Show-WorkLogDialog {
     try { & $script:WorkLogDialogRefresh; [void]$dlg.ShowDialog($form) } finally { $dlg.Dispose() }
 }
 
-function Get-CapacityHolidayKeys {
-    $keys = @{}
-    # Reuse existing holiday data where available; missing holiday files mean no holiday exclusions.
-    $holidayPath = Join-Path $DataDir 'JapaneseHolidays.json'
-    $closurePath = Join-Path $DataDir 'CompanyClosures.json'
-    foreach ($path in @($holidayPath,$closurePath)) {
-        if (-not (Test-Path -LiteralPath $path)) { continue }
-        try {
-            $raw = Get-Content -LiteralPath $path -Raw -Encoding UTF8 | ConvertFrom-Json -ErrorAction Stop
-            foreach ($item in @($raw)) {
-                if ($null -eq $item) { continue }
-                if ($item -is [string]) { $candidate = $item }
-                elseif ($item.PSObject.Properties['Date']) { $candidate = [string]$item.Date }
-                else { $candidate = '' }
-                $dt = [datetime]::MinValue
-                if ([datetime]::TryParse($candidate,[ref]$dt)) { $keys[$dt.ToString('yyyy-MM-dd')] = $true }
-            }
-            if ($null -ne $raw -and $raw -is [pscustomobject]) {
-                foreach ($p in $raw.PSObject.Properties) {
-                    $dt = [datetime]::MinValue
-                    if ([datetime]::TryParse($p.Name,[ref]$dt)) { $keys[$dt.ToString('yyyy-MM-dd')] = $true }
-                }
-            }
-        } catch { throw "休日データを読み込めません: $path : $($_.Exception.Message)" }
-    }
-    return $keys
-}
+
 function Get-DayCapacity([datetime]$date,$cfg,$holidays) {
     $key = $date.ToString('yyyy-MM-dd')
     if ($cfg.Overrides.ContainsKey($key)) { return [double]$cfg.Overrides[$key] }
@@ -1029,7 +640,7 @@ function Get-DayCapacity([datetime]$date,$cfg,$holidays) {
     return [double]$cfg.DailyHours
 }
 function Get-MonthCapacity([datetime]$month,$cfg,$holidays) {
-    $first = Get-Date -Year $month.Year -Month $month.Month -Day 1
+    $first = (Get-Date -Year $month.Year -Month $month.Month -Day 1).Date
     $days = [datetime]::DaysInMonth($month.Year,$month.Month)
     $hours = 0.0; $workdays = 0
     for ($i=0; $i -lt $days; $i++) {
@@ -1043,13 +654,13 @@ function Get-TaskMonthAllocation($task,[datetime]$month,$cfg,$holidays,$plans) {
     $id = [string]$task.ID
     if (-not $plans.ContainsKey($id)) { return 0.0 }
     $plan = $plans[$id]
-    $estimate = [math]::Max(0,([double]$plan.EstimatedHours - (Get-LoggedHours $id)))
+    $estimate = [math]::Max(0.0,([double]$plan.EstimatedHours - (Get-LoggedHours $id)))
     if ($estimate -le 0) { return 0.0 }
     $start = [datetime]::MinValue; $end = [datetime]::MinValue
     if (-not [datetime]::TryParse([string]$plan.StartDate,[ref]$start)) { return 0.0 }
     if (-not [datetime]::TryParse([string]$task.DueDate,[ref]$end)) { return 0.0 }
     if ($end.Date -lt $start.Date) { return 0.0 }
-    $monthStart = Get-Date -Year $month.Year -Month $month.Month -Day 1
+    $monthStart = (Get-Date -Year $month.Year -Month $month.Month -Day 1).Date
     $monthEnd = $monthStart.AddMonths(1).AddDays(-1)
     if ($end.Date -lt $monthStart -or $start.Date -gt $monthEnd) { return 0.0 }
     $total = 0.0; $part = 0.0
@@ -1062,7 +673,7 @@ function Get-TaskMonthAllocation($task,[datetime]$month,$cfg,$holidays,$plans) {
     return ($estimate * $part / $total)
 }
 function Get-RemainingMonthCapacity([datetime]$month,[datetime]$asOf,$cfg,$holidays) {
-    $first = Get-Date -Year $month.Year -Month $month.Month -Day 1
+    $first = (Get-Date -Year $month.Year -Month $month.Month -Day 1).Date
     $end = $first.AddMonths(1).AddDays(-1)
     $start = $first
     if ($asOf.Date -gt $start) { $start = $asOf.Date }
@@ -1157,7 +768,7 @@ function Show-ActualHoursDialog {
     $save=New-Object System.Windows.Forms.Button; $save.Text='実績を保存'; $save.SetBounds(185,153,120,32); $dlg.Controls.Add($save)
     $cancel=New-Object System.Windows.Forms.Button; $cancel.Text='閉じる'; $cancel.SetBounds(320,153,90,32); $dlg.Controls.Add($cancel)
     $cancel.Add_Click({$dlg.Close()})
-    $save.Add_Click({ try { Save-ActualHours ([string]$task.ID) $day.Value ([decimal]$hours.Value) ([string]$task.Task); $script:ReportsNeedRefresh = $true; Update-AutoReports; if ($script:ReportsNeedRefresh) { [System.Windows.Forms.MessageBox]::Show("完了実績は保存されましたが、Excelの更新に失敗しました。`r`n$script:ReportError`r`nExcelを閉じて「ファイル表示 → Excelを再出力」を実行してください。",'Excel更新待ち') | Out-Null }; $dlg.Close() } catch { Show-Failure $_ } })
+    $save.Add_Click({ try { Save-ActualHours ([string]$task.ID) $day.Value ([decimal]$hours.Value) ([string]$task.Task) -ExpectedVersion ([long]$task.TPRowVersion); $script:ReportsNeedRefresh = $true; Update-AutoReports; if ($script:ReportsNeedRefresh) { [System.Windows.Forms.MessageBox]::Show("完了実績は保存されましたが、Excelの更新に失敗しました。`r`n$script:ReportError`r`nExcelを閉じて「ファイル表示 → Excelを再出力」を実行してください。",'Excel更新待ち') | Out-Null }; $dlg.Close() } catch { Show-Failure $_ } })
     try { [void]$dlg.ShowDialog($form) } finally { $dlg.Dispose() }
 }
 function Show-MonthlyCapacityDialog {
@@ -1202,15 +813,17 @@ function Show-MonthlyCapacityDialog {
             $planned=[double]$savedSnapshot.PlannedHours; $workLogged.Hours=[double]$savedSnapshot.LoggedHours
             $actualHours=[double]$savedSnapshot.CompletedActualHours; $actualCount=[int]$savedSnapshot.CompletedCount
         }
-        $rate=0.0
-        if ($cap.Hours -gt 0) { $rate=100.0*$planned/$cap.Hours }
+        $rate=$null
+        if ($null -ne $savedSnapshot) { $rate=$savedSnapshot.PlannedRate }
+        elseif ($cap.Hours -gt 0) { $rate=100.0*$planned/$cap.Hours }
+        $rateText=if($null -eq $rate){'算出なし'}else{([math]::Round([double]$rate,1)).ToString()+' %'}
         $remaining=$cap.Hours-$planned
         $month.Text=$script:capacityMonth.ToString('yyyy年M月')
         $acceptance=$remainingCap.Hours-$planned
-        $body.Text= "総稼働日数： $($cap.Workdays) 日`r`n総稼働可能時間： $([math]::Round($cap.Hours,2)) 時間`r`n残り稼働日数： $($remainingCap.Workdays) 日`r`n当月残り稼働可能時間： $([math]::Round($remainingCap.Hours,2)) 時間`r`n未完了タスクの月間予定工数： $([math]::Round($planned,2)) 時間`r`n月間予定稼働率： $([math]::Round($rate,1)) %`r`n追加受入目安： $([math]::Round($acceptance,2)) 時間`r`n`r`n当月作業記録： $([math]::Round($workLogged.Hours,2)) 時間（$($workLogged.Count) 件）`r`n当月完了実績： $([math]::Round($actualHours,2)) 時間（$actualCount 件）`r`n実績未入力の完了タスク： $unrecorded 件（全期間）"
+        $body.Text= "総稼働日数： $($cap.Workdays) 日`r`n総稼働可能時間： $([math]::Round($cap.Hours,2)) 時間`r`n残り稼働日数： $($remainingCap.Workdays) 日`r`n当月残り稼働可能時間： $([math]::Round($remainingCap.Hours,2)) 時間`r`n未完了タスクの月間予定工数： $([math]::Round($planned,2)) 時間`r`n月間予定稼働率： $rateText`r`n追加受入目安： $([math]::Round($acceptance,2)) 時間`r`n`r`n当月作業記録： $([math]::Round($workLogged.Hours,2)) 時間（$($workLogged.Count) 件）`r`n当月完了実績： $([math]::Round($actualHours,2)) 時間（$actualCount 件）`r`n実績未入力の完了タスク： $unrecorded 件（全期間）"
         if ($cap.Hours -le 0) { $body.Text += "`r`n※稼働可能時間が0のため稼働率は算出できません。" }
         if ($null -ne $savedSnapshot) { $body.Text += "`r`n※この月は確定済みです（保存値を表示）。" }
-        $progress.Value=[int][math]::Min(100,[math]::Max(0,[math]::Round($rate)))
+        $progress.Value=[int][math]::Min(100,[math]::Max(0.0,[math]::Round([double]$rate)))
     }
     $prev.Add_Click({ try { $script:capacityMonth=$script:capacityMonth.AddMonths(-1); & $refresh } catch { Show-Failure $_ } })
     $next.Add_Click({ try { $script:capacityMonth=$script:capacityMonth.AddMonths(1); & $refresh } catch { Show-Failure $_ } })
@@ -1406,7 +1019,7 @@ function Get-TaskExcelRows($tasks) {
             ID=$t.ID; 登録日=$t.Date; タスク名=$t.Task; 優先度=$t.Priority
             実施予定日=$scheduled; 作業開始日=$start; 期限=$t.DueDate; 状態=$t.Status
             予定所要時間_h=$estimated; 作業記録合計_h=$logged
-            残り予定工数_h=[math]::Max(0,$estimated-$logged)
+            残り予定工数_h=[math]::Max(0.0,$estimated-$logged)
             完了実績_h=$(if ($null -ne $actual) { $actual.ActualHours } else { $null })
             完了日=$(if ($null -ne $actual) { $actual.CompletedDate } else { '' })
             サブタスク数=$children.Count; サブタスク完了数=$done; 備考=$t.Memo
@@ -1436,17 +1049,8 @@ function Add-ExtendedExcelSheets([string]$path) {
 # STEP 3.6F: monthly snapshots, audit history and editable finalized figures.
 $script:MonthlySnapshotFile = Join-Path $DataDir 'MonthlySnapshots.json'
 $script:MonthlyAuditFile = Join-Path $DataDir 'MonthlySnapshotAudit.json'
-function Read-MonthlySnapshots {
-    $map=@{}
-    if (Test-Path -LiteralPath $script:MonthlySnapshotFile) {
-        $obj=Get-Content -LiteralPath $script:MonthlySnapshotFile -Raw -Encoding UTF8 | ConvertFrom-Json -ErrorAction Stop
-        if ($null -ne $obj) { foreach($p in $obj.PSObject.Properties) { $map[$p.Name]=$p.Value } }
-    }
-    return $map
-}
-function Write-MonthlySnapshots($map) {
-    Save-TextSafely $script:MonthlySnapshotFile (ConvertTo-Json -InputObject $map -Depth 12) 'UTF8'
-}
+
+
 function Get-MonthlySnapshotData([datetime]$month,[string]$origin) {
     $cfg=Read-CapacitySettings; $holidays=Get-CapacityHolidayKeys
     $cap=Get-MonthCapacity $month $cfg $holidays
@@ -1468,28 +1072,8 @@ function Get-MonthlySnapshotData([datetime]$month,[string]$origin) {
         FinalizedAt=(Get-Date).ToString('o'); Source=$origin; Revision=1
     }
 }
-function Add-MonthlyAudit([string]$month,[string]$reason,$before,$after) {
-    $entries=@()
-    if (Test-Path -LiteralPath $script:MonthlyAuditFile) {
-        $entries=@(Get-Content -LiteralPath $script:MonthlyAuditFile -Raw -Encoding UTF8 | ConvertFrom-Json -ErrorAction Stop)
-    }
-    $entries+= [pscustomobject]@{ At=(Get-Date).ToString('o'); Month=$month; Reason=$reason; Before=$before; After=$after }
-    Save-TextSafely $script:MonthlyAuditFile (ConvertTo-Json -InputObject @($entries) -Depth 14) 'UTF8'
-}
-function Invoke-MonthlyAutoFinalize {
-    $today=(Get-Date).Date
-    $previous=$today.AddDays(1-$today.Day).AddMonths(-1)
-    $key=$previous.ToString('yyyy/MM')
-    $map=Read-MonthlySnapshots
-    if ($map.ContainsKey($key)) { return }
-    # Do not fabricate older months: only the immediately preceding month can be reconstructed.
-    Backup-Data
-    $origin='起動時の再計算（過去月末時点の完全再現ではありません）'
-    $entry=Get-MonthlySnapshotData $previous $origin
-    $map[$key]=$entry
-    Write-MonthlySnapshots $map
-    Add-MonthlyAudit $key '自動確定' $null $entry
-}
+
+
 function Show-MonthlySnapshotsDialog {
     $dlg=New-Object System.Windows.Forms.Form
     $dlg.Text='月次確定データ・修正履歴'; $dlg.Size=New-Object System.Drawing.Size(850,630)
@@ -1516,8 +1100,8 @@ function Show-MonthlySnapshotsDialog {
         foreach($field in $fields) { $boxes[$field].Text=[string]$item.$field }
         $info.Text=('確定日時: {0} / 版: {1} / {2}' -f $item.FinalizedAt,$item.Revision,$item.Source)
         $history.Text=''
-        if (Test-Path -LiteralPath $script:MonthlyAuditFile) {
-            $audit=@(Get-Content -LiteralPath $script:MonthlyAuditFile -Raw -Encoding UTF8 | ConvertFrom-Json)
+        if ($true) {
+            $audit=@(Read-MonthlyAudit)
             $history.Lines=@($audit | Where-Object { $_.Month -eq $key } | ForEach-Object { '{0}  {1}' -f $_.At,$_.Reason })
         }
     }
@@ -1529,6 +1113,7 @@ function Show-MonthlySnapshotsDialog {
             if (-not $map.ContainsKey($key)) { return }
             $values=@{}
             foreach($field in $fields) {
+                if ($field -eq 'PlannedRate' -and [string]::IsNullOrWhiteSpace($boxes[$field].Text)) { $values[$field]=$null; continue }
                 $number=0.0
                 if (-not [double]::TryParse($boxes[$field].Text,[ref]$number)) { throw "数値が不正です: $field" }
                 if ($field -in @('Workdays','CompletedCount') -and ($number -lt 0 -or $number -ne [math]::Truncate($number))) { throw "整数で入力してください: $field" }
@@ -1538,11 +1123,11 @@ function Show-MonthlySnapshotsDialog {
             $old=$map[$key]; $before=ConvertTo-Json -InputObject $old -Depth 12
             $new=@{}; $oldObject=$before | ConvertFrom-Json; foreach($p in $oldObject.PSObject.Properties) { $new[$p.Name]=$p.Value }
             foreach($field in $fields) { $new[$field]=$values[$field] }
-            $new['Revision']=[int]$old.Revision+1; $new['Source']='手動修正'
+            $new['Revision']=[long]$old.Revision+1; $new['Source']='手動修正'
             $new['FinalizedAt']=(Get-Date).ToString('o')
             Backup-Data
-            $map[$key]=$new; Write-MonthlySnapshots $map
-            Add-MonthlyAudit $key '手動修正' ($before | ConvertFrom-Json) $new
+            $map[$key]=$new; try { Write-MonthlySnapshots $map -ChangedMonth $key -ExpectedRevision ([long]$old.Revision) -Reason '手動修正' } catch { $map[$key]=$old; throw }
+
             & $load
             Update-AutoReports
             [System.Windows.Forms.MessageBox]::Show($dlg,'保存しました。Excelを再生成しました。','TaskPilot') | Out-Null
@@ -1568,7 +1153,7 @@ function Add-AnalyticsExcelSheets([string]$path) {
         if (-not $unique.ContainsKey($key)) { $unique[$key]=$true; $distinct += $t }
     }
     $today = (Get-Date).Date
-    $firstMonth = Get-Date -Year $today.Year -Month $today.Month -Day 1
+    $firstMonth = (Get-Date -Year $today.Year -Month $today.Month -Day 1).Date
     $months = @()
     $finalized = Read-MonthlySnapshots
     for ($i=11; $i -ge 0; $i--) {
@@ -1857,34 +1442,7 @@ function Write-CompletedReport([string]$path) {
     }
     Get-TaskExcelRows $completed | ConvertTo-SafeExcelRows | Export-Excel -Path $path -WorksheetName 'CompletedTask' -AutoSize -BoldTopRow -ErrorAction Stop
 }
-function Update-AutoReports {
-    # The source data has already been committed; a report failure must never undo it.
-    $script:ReportsNeedRefresh = $true
-    $script:ReportError = ''
-    try {
-        # Prefer the packaged dependency; do not require customer-side module installation.
-        $bundledModule = Join-Path $InstallRoot 'Modules\ImportExcel\ImportExcel.psd1'
-        if (Test-Path -LiteralPath $bundledModule -PathType Leaf) {
-            Import-Module -Name $bundledModule -ErrorAction Stop
-        } else {
-            # Developer/source execution fallback; customer package must include the module.
-            Import-Module ImportExcel -ErrorAction Stop
-        }
-        if (-not (Get-Command Export-Excel -ErrorAction SilentlyContinue)) { throw 'ImportExcel の Export-Excel が見つかりません。' }
-        Publish-ExcelReport 'TaskList.xlsx' { param($p) Write-ExcelReport $false $p }
-        Publish-ExcelReport 'CompletedTask.xlsx' { param($p) Write-CompletedReport $p }
-        Publish-ExcelReport 'Dashboard.xlsx' { param($p) Write-ExcelReport $true $p }
-        $script:ReportsNeedRefresh = $false
-        Write-ActionLog 'Excel自動更新' '3ファイル更新完了'
-    } catch {
-        $script:ReportError = $_.Exception.Message
-        if ($_.Exception -is [System.IO.IOException] -and $_.Exception.HResult -eq -2147024864) {
-            $script:ReportError = 'Excelレポートが別のアプリで開かれているため、更新できません。TaskList.xlsx / CompletedTask.xlsx / Dashboard.xlsx をすべて閉じてから、もう一度開いてください。'
-        }
-        Write-ErrorLog $_
-        Write-ActionLog 'Excel自動更新失敗' $script:ReportError
-    }
-}
+
 function Open-AutoReport([string]$name) {
     $target = Join-Path $ExportDir $name
     if ($script:ReportsNeedRefresh -or -not (Test-Path -LiteralPath $target)) { Update-AutoReports }
@@ -1896,143 +1454,17 @@ function Open-AutoReport([string]$name) {
     Start-Process -FilePath $target -ErrorAction Stop
 }
 
-function Test-BackupFolder([string]$folder) {
-    $manifestPath = Join-Path $folder 'Snapshot.json'
-    if (-not (Test-Path -LiteralPath $manifestPath -PathType Leaf)) { throw '旧形式バックアップです。関連データとの不整合を防ぐため、この版では復元できません。旧版とデータ全体のコピーを使用してください。' }
-    $manifest = Get-Content -LiteralPath $manifestPath -Raw -Encoding UTF8 | ConvertFrom-Json
-    if ($manifest.Version -ne 2 -or $null -eq $manifest.Files) { throw 'バックアップ形式が不正です。' }
-    foreach ($entry in $manifest.Files.PSObject.Properties) {
-        if ($entry.Name -notmatch '^(Data/[A-Za-z0-9_-]+\.(csv|json|txt)|Settings\.json)$') { throw 'バックアップに不正なパスがあります。' }
-        $file = Join-Path $folder $entry.Name
-        if (-not (Test-Path -LiteralPath $file -PathType Leaf) -or (Get-FileHash -LiteralPath $file -Algorithm SHA256).Hash -ne [string]$entry.Value) { throw "バックアップの照合に失敗しました: $($entry.Name)" }
-    }
-    $folder = Join-Path $folder 'Data'
-    foreach ($coreName in @('TaskList.csv','CompletedTask.csv','NextId.txt')) {
-        if ($null -eq $manifest.Files.PSObject.Properties['Data/' + $coreName]) { throw 'バックアップの必須項目がありません。' }
-    }
-    foreach ($jsonFile in @(Get-ChildItem -LiteralPath $folder -Filter '*.json' -File)) {
-        $null = Get-Content -LiteralPath $jsonFile.FullName -Raw -Encoding UTF8 | ConvertFrom-Json -ErrorAction Stop
-    }
-    foreach ($name in @('TaskList.csv','CompletedTask.csv','NextId.txt')) {
-        if (-not (Test-Path -LiteralPath (Join-Path $folder $name) -PathType Leaf)) { throw "バックアップに $name がありません。" }
-    }
-    $idText = (Get-Content -LiteralPath (Join-Path $folder 'NextId.txt') -Raw).Trim()
-    $nextId = 0
-    if (-not [int]::TryParse($idText,[ref]$nextId) -or $nextId -lt 1) { throw 'バックアップのNextId.txtが不正です。' }
-    $ids = @{}
-    foreach ($name in @('TaskList.csv','CompletedTask.csv')) {
-        $file = Join-Path $folder $name
-        $header = Get-Content -LiteralPath $file -TotalCount 1 -Encoding UTF8
-        foreach ($col in $Columns) { if (@($header -split ',' | ForEach-Object { $_.Trim('"') }) -cnotcontains $col) { throw "$name の列 $col がありません。" } }
-        foreach ($row in @(Read-Tasks $file)) {
-            $n = 0
-            if (-not [int]::TryParse([string]$row.ID,[ref]$n) -or $n -lt 1) { throw "$name に不正なIDがあります。" }
-            if ($ids.ContainsKey($n)) { throw "重複ID: $n" }
-            $ids[$n] = $true
-            # A stale positive counter is repaired from validated task IDs on startup.
-        }
-    }
-}
 
-function Invoke-RestoreSnapshot([string]$selected) {
-    Test-BackupFolder $selected
-    # Keep a verified recovery point. Restart to discard all in-memory caches.
-    Backup-Data
-    $rollback = Join-Path $Root ('RollbackStage_' + [guid]::NewGuid().ToString('N'))
-    New-Item -ItemType Directory -Path $rollback -ErrorAction Stop | Out-Null
-    Copy-Item -LiteralPath $DataDir -Destination (Join-Path $rollback 'Data') -Recurse -ErrorAction Stop
-    if (Test-Path -LiteralPath $SettingsFile) { Copy-Item -LiteralPath $SettingsFile -Destination $rollback -ErrorAction Stop }
-    try {
-        try {
-            $manifest = Get-Content -LiteralPath (Join-Path $selected 'Snapshot.json') -Raw -Encoding UTF8 | ConvertFrom-Json
-            # Copy only manifest-verified files; remove metadata absent from the snapshot.
-            foreach ($file in @(Get-ChildItem -LiteralPath $DataDir -File | Where-Object { $_.Name -notlike '.*' })) { Remove-Item -LiteralPath $file.FullName -Force -ErrorAction Stop }
-            foreach ($entry in $manifest.Files.PSObject.Properties) {
-                $dest = Join-Path $Root $entry.Name
-                Copy-Item -LiteralPath (Join-Path $selected $entry.Name) -Destination $dest -Force -ErrorAction Stop
-            }
-            if ($null -eq $manifest.Files.PSObject.Properties['Settings.json'] -and (Test-Path -LiteralPath $SettingsFile)) { Remove-Item -LiteralPath $SettingsFile -Force -ErrorAction Stop }
-        } catch {
-            $restoreError = $_
-            try {
-                foreach ($file in @(Get-ChildItem -LiteralPath $DataDir -File | Where-Object { $_.Name -notlike '.*' })) { Remove-Item -LiteralPath $file.FullName -Force -ErrorAction Stop }
-                Get-ChildItem -LiteralPath (Join-Path $rollback 'Data') -File | Copy-Item -Destination $DataDir -Force -ErrorAction Stop
-                if (Test-Path -LiteralPath (Join-Path $rollback 'Settings.json')) { Copy-Item -LiteralPath (Join-Path $rollback 'Settings.json') -Destination $SettingsFile -Force -ErrorAction Stop }
-                elseif (Test-Path -LiteralPath $SettingsFile) { Remove-Item -LiteralPath $SettingsFile -Force -ErrorAction Stop }
-            } catch { throw "復元と巻き戻しに失敗しました。アプリを終了し、回復用コピーを保管してください: $rollback" }
-            throw $restoreError
-        }
-        Write-ActionLog '復元' (Split-Path -Leaf $selected)
 
-    } finally {
-        # Preserve rollback files even on success for manual disaster recovery.
-    }
-}
 
-function Restore-GuiBackup {
-    $folders = @(Get-ChildItem -LiteralPath $BackupDir -Directory | Where-Object { $_.Name -notlike '.*' } | Sort-Object Name -Descending)
-    if ($folders.Count -eq 0) { [System.Windows.Forms.MessageBox]::Show('バックアップがありません。') | Out-Null; return }
-    $dialog = New-Object System.Windows.Forms.Form
-    $dialog.Text = 'バックアップ復元'
-    $dialog.Size = New-Object System.Drawing.Size(510,380)
-    $dialog.StartPosition = 'CenterParent'
-    $dialog.FormBorderStyle = 'FixedDialog'
-    $dialog.MaximizeBox = $false
-    $list = New-Object System.Windows.Forms.ListBox
-    $list.SetBounds(15,15,465,260)
-    foreach ($folder in $folders) { [void]$list.Items.Add($folder.Name) }
-    $dialog.Controls.Add($list)
-    $ok = New-Object System.Windows.Forms.Button
-    $ok.Text = '復元'; $ok.SetBounds(290,290,90,30)
-    $cancel = New-Object System.Windows.Forms.Button
-    $cancel.Text = 'キャンセル'; $cancel.SetBounds(390,290,90,30)
-    $cancel.DialogResult = [System.Windows.Forms.DialogResult]::Cancel
-    $dialog.Controls.AddRange([System.Windows.Forms.Control[]]@($ok,$cancel))
-    $dialog.CancelButton = $cancel
-    $ok.Add_Click({
-        if ($list.SelectedIndex -lt 0) { [System.Windows.Forms.MessageBox]::Show('バックアップを選択してください。') | Out-Null; return }
-        $dialog.DialogResult = [System.Windows.Forms.DialogResult]::OK
-        $dialog.Close()
-    })
-    $dialog.BackColor = [System.Drawing.Color]::FromArgb(22,33,51)
-    $dialog.ForeColor = [System.Drawing.Color]::FromArgb(231,239,249)
-    foreach ($control in $dialog.Controls) {
-        if ($control -is [System.Windows.Forms.TextBox] -or $control -is [System.Windows.Forms.ComboBox]) {
-            $control.BackColor = [System.Drawing.Color]::FromArgb(31,46,67)
-            $control.ForeColor = [System.Drawing.Color]::White
-        }
-        if ($control -is [System.Windows.Forms.Button]) {
-            $control.FlatStyle = 'Flat'
-            $control.BackColor = [System.Drawing.Color]::FromArgb(35,75,116)
-            $control.ForeColor = [System.Drawing.Color]::White
-        }
-    }
-    $result = $dialog.ShowDialog($form)
-    $selectedIndex = $list.SelectedIndex
-    $dialog.Dispose()
-    if ($result -ne [System.Windows.Forms.DialogResult]::OK) { return }
-    $selected = $folders[$selectedIndex].FullName
-    Test-BackupFolder $selected
-    if (-not (Ask-Confirm "選択したバックアップに復元しますか？`n現在のデータは復元前にバックアップします。")) { return }
-    Invoke-RestoreSnapshot $selected
-    [System.Windows.Forms.MessageBox]::Show('全データを復元しました。アプリを終了します。再度起動してください。','TaskPilot') | Out-Null
-    $form.Close()
-}
+
+
 
 
 # STEP 3.5A: Subtasks are stored independently; existing task CSV format is unchanged.
 $script:SubtaskFile = Join-Path $DataDir 'Subtasks.json'
-function Read-Subtasks {
-    if (-not (Test-Path -LiteralPath $script:SubtaskFile)) { return @() }
-    $raw = Get-Content -LiteralPath $script:SubtaskFile -Raw -Encoding UTF8
-    if ([string]::IsNullOrWhiteSpace($raw)) { throw 'サブタスクデータが空です。' }
-    $obj = ConvertFrom-Json -InputObject $raw -ErrorAction Stop
-    return @($obj | Where-Object { $null -ne $_ })
-}
-function Save-Subtasks([array]$items) {
-    $json = ConvertTo-Json -InputObject @($items) -Depth 6
-    Save-TextSafely $script:SubtaskFile $json 'UTF8'
-}
+
+
 function Get-SubtaskProgress([string]$parentId) {
     $children = @(Read-Subtasks | Where-Object { [string]$_.ParentId -eq $parentId })
     if ($children.Count -eq 0) { return 'サブタスク: なし' }
@@ -2101,7 +1533,7 @@ function Show-SubtasksDialog($parent) {
             if ($title.Length -gt 200) { throw 'サブタスク名は200文字以内にしてください。' }
             $all = @(Read-Subtasks)
             $new = [pscustomobject]@{ Id=[guid]::NewGuid().ToString('N'); ParentId=$parentId; Title=$title; Done=$false }
-            Save-Subtasks @($all + @($new))
+            Save-Subtasks @($all + @($new)) -ExpectedSnapshotToken (Get-TPGuiLastChildSnapshotToken 'subtasks')
             $subtaskNameBox.Clear()
             & $refresh
             Refresh-Details
@@ -2113,7 +1545,7 @@ function Show-SubtasksDialog($parent) {
         try {
             $all = @(Read-Subtasks)
             foreach ($child in $all) { if ([string]$child.Id -eq [string]$e.Item.Tag) { $child.Done = [bool]$e.Item.Checked } }
-            Save-Subtasks $all
+            Save-Subtasks $all -ExpectedSnapshotToken (Get-TPGuiLastChildSnapshotToken 'subtasks')
             & $refresh
             Refresh-Details
         } catch { Show-Failure $_; & $refresh }
@@ -2124,7 +1556,7 @@ function Show-SubtasksDialog($parent) {
             $id = [string]$list.SelectedItems[0].Tag
             if (-not (Ask-Confirm '選択したサブタスクを削除しますか？')) { return }
             $all = @(Read-Subtasks | Where-Object { [string]$_.Id -ne $id })
-            Save-Subtasks $all
+            Save-Subtasks $all -ExpectedSnapshotToken (Get-TPGuiLastChildSnapshotToken 'subtasks')
             & $refresh
             Refresh-Details
         } catch { Show-Failure $_ }
@@ -2268,23 +1700,10 @@ function Selected-Task {
     $id = [string]$grid.CurrentRow.Cells[0].Value
     return @(Read-Tasks $TaskFile | Where-Object { [string]$_.ID -eq $id }) | Select-Object -First 1
 }
-function Save-EditedTask($target,$value) {
-    $items = @(Read-Tasks $TaskFile)
-    foreach ($item in $items) {
-        if ([string]$item.ID -eq [string]$target.ID) {
-            foreach ($field in @('Task','Priority','DueDate','Status','Memo')) { $item.$field = $value.$field }
-        }
-    }
-    Backup-Data
-    Save-Tasks $TaskFile $items
-    if ($value.PSObject.Properties['PlannedDate']) { Save-PlannedDate ([string]$target.ID) ([string]$value.PlannedDate) }
-    Save-WorkPlanFromDialog ([string]$target.ID) $value
-    Write-ActionLog '編集' ("ID=$($target.ID)")
-    Refresh-List
-}
+
 
 $form = New-Object System.Windows.Forms.Form
-$form.Text = 'TaskPilot - 0.9.20.5（販売準備レビュー版）'
+$form.Text = 'TaskPilot - SQLite統合 開発候補版'
 $form.Size = New-Object System.Drawing.Size(1120,760)
 $form.MinimumSize = New-Object System.Drawing.Size(850,500)
 $form.StartPosition = 'CenterScreen'
@@ -2331,14 +1750,7 @@ function Add-Button([string]$label,[scriptblock]$action) {
     try {
         $value = New-TaskDialog $null
         if ($null -eq $value) { return }
-        $items = @(Read-Tasks $TaskFile)
-        $id = Reserve-TaskId
-        $row = [pscustomobject]@{ ID=$id; Date=(Get-Date -Format 'yyyy/MM/dd'); Task=$value.Task; Priority=$value.Priority; DueDate=$value.DueDate; Status=$value.Status; Memo=$value.Memo }
-        Backup-Data
-        Save-Tasks $TaskFile @($items + @($row))
-
-        Save-PlannedDate ([string]$id) ([string]$value.PlannedDate)
-                Save-WorkPlanFromDialog ([string]$id) $value
+        $id = Add-TPGuiTaskFromDialog $value
         Write-ActionLog '追加' ("ID=$id")
         Refresh-List
     } catch { Show-Failure $_ }
@@ -2365,10 +1777,7 @@ $script:deleteButton = Add-Button '削除' {
         $task = Selected-Task
         if ($null -eq $task) { return }
         if (-not (Ask-Confirm "ID $($task.ID) : $($task.Task) を削除しますか？`r`n関連サブタスクは保持されます（復元用）。")) { return }
-        $items = @(Read-Tasks $TaskFile | Where-Object { [string]$_.ID -ne [string]$task.ID })
-        Backup-Data
-        Save-Tasks $TaskFile $items
-        Write-ActionLog '削除' ("ID=$($task.ID)")
+        Remove-TPGuiSelectedTask $task
         Refresh-List
     } catch { Show-Failure $_ }
 }
@@ -2589,14 +1998,7 @@ function Show-CalendarDay([datetime]$date) {
         try {
             $value = New-TaskDialog $null $date
             if ($null -ne $value) {
-                $items = @(Read-Tasks $TaskFile)
-                $id = Reserve-TaskId
-                $row = [pscustomobject]@{ ID=$id; Date=(Get-Date -Format 'yyyy/MM/dd'); Task=$value.Task; Priority=$value.Priority; DueDate=$value.DueDate; Status=$value.Status; Memo=$value.Memo }
-                Backup-Data
-                Save-Tasks $TaskFile @($items + @($row))
-        
-                Save-PlannedDate ([string]$id) ([string]$value.PlannedDate)
-                Save-WorkPlanFromDialog ([string]$id) $value
+                $id = Add-TPGuiTaskFromDialog $value
                 Write-ActionLog '追加（カレンダー）' ("ID=$id")
                 Refresh-List
                 & $reload
@@ -2689,14 +2091,7 @@ function Update-TaskCalendar {
                     $date = [datetime]$this.Tag
                     $value = New-TaskDialog $null $date
                     if ($null -eq $value) { return }
-                    $items = @(Read-Tasks $TaskFile)
-                    $id = Reserve-TaskId
-                    $row = [pscustomobject]@{ ID=$id; Date=(Get-Date -Format 'yyyy/MM/dd'); Task=$value.Task; Priority=$value.Priority; DueDate=$value.DueDate; Status=$value.Status; Memo=$value.Memo }
-                    Backup-Data
-                    Save-Tasks $TaskFile @($items + @($row))
-            
-                    Save-PlannedDate ([string]$id) ([string]$value.PlannedDate)
-                Save-WorkPlanFromDialog ([string]$id) $value
+                    $id = Add-TPGuiTaskFromDialog $value
                     Write-ActionLog '追加（カレンダー）' ("ID=$id")
                     Refresh-List
                     Update-TaskCalendar
@@ -2865,7 +2260,7 @@ $script:subtaskPreviewList.Add_ItemChecked({
                 break
             }
         }
-        if ($found) { Save-Subtasks $all }
+        if ($found) { Save-Subtasks $all -ExpectedSnapshotToken (Get-TPGuiLastChildSnapshotToken 'subtasks') }
         Refresh-Details
     } catch {
         Show-Failure $_
@@ -3018,47 +2413,9 @@ $script:NotificationHistory = @()
 $script:NotificationBusy = $false
 $script:NotificationTimer = New-Object System.Windows.Forms.Timer
 $script:NotificationTimer.Interval = 60000 # Check once per minute while app is open.
-function Load-NotificationData {
-    if (Test-Path -LiteralPath $script:NotificationStateFile) {
-        $obj = Get-Content -LiteralPath $script:NotificationStateFile -Raw -Encoding UTF8 | ConvertFrom-Json -ErrorAction Stop
-        foreach ($item in @($obj.Seen)) { if ($null -ne $item -and [string]$item -ne '') { $script:NotificationSeen[[string]$item] = $true } }
-        foreach ($item in @($obj.Snoozed)) {
-            if ($null -eq $item -or [string]::IsNullOrWhiteSpace([string]$item.Key)) { continue }
-            $dt = [datetime]::MinValue
-            if ([datetime]::TryParse([string]$item.Until,[ref]$dt) -and $dt -gt (Get-Date)) { $script:NotificationSnoozed[[string]$item.Key] = $dt }
-        }
-    }
-    if (Test-Path -LiteralPath $script:NotificationHistoryFile) {
-        $data = Get-Content -LiteralPath $script:NotificationHistoryFile -Raw -Encoding UTF8 | ConvertFrom-Json -ErrorAction Stop
-        $script:NotificationHistory = @($data | Where-Object { $null -ne $_ })
-    }
-}
-function Save-NotificationData {
-    # Limit persisted state/history to prevent unbounded growth.
-    $cutoff = (Get-Date).AddDays(-45).ToString('yyyyMMdd')
-    $seen = @($script:NotificationSeen.Keys | Where-Object { ($_ -split ':')[0] -ge $cutoff })
-    $script:NotificationSeen = @{}
-    foreach ($key in $seen) { $script:NotificationSeen[$key] = $true }
-    $snoozed = @()
-    foreach ($key in @($script:NotificationSnoozed.Keys)) {
-        if ($script:NotificationSnoozed[$key] -gt (Get-Date)) {
-            $snoozed += [pscustomobject]@{ Key=$key; Until=$script:NotificationSnoozed[$key].ToString('o') }
-        } else { $script:NotificationSnoozed.Remove($key) }
-    }
-    $state = @{ Seen=@($seen); Snoozed=@($snoozed) } | ConvertTo-Json -Depth 5
-    Save-TextSafely $script:NotificationStateFile $state 'UTF8'
-    $script:NotificationHistory = @($script:NotificationHistory | Select-Object -Last 500)
-    Save-TextSafely $script:NotificationHistoryFile (ConvertTo-Json -InputObject @($script:NotificationHistory) -Depth 5) 'UTF8'
-}
-function Add-NotificationHistory([object[]]$alerts,[string]$action) {
-    foreach ($a in $alerts) {
-        $script:NotificationHistory += [pscustomobject]@{
-            Time=(Get-Date).ToString('yyyy/MM/dd HH:mm:ss'); Action=$action
-            ID=[string]$a.ID; Task=[string]$a.Name; Category=[string]$a.Category
-        }
-    }
-    Save-NotificationData
-}
+
+
+
 function Show-NotificationHistory {
     $window = New-Object System.Windows.Forms.Form
     try {
@@ -3212,30 +2569,22 @@ $script:NotificationTimer.Add_Tick({
 })
 $form.Add_FormClosed({ $script:NotificationTimer.Stop(); $script:NotificationTimer.Dispose() })
 
-$script:StorageLock = $null
-try {
-    try {
-        $script:StorageLock = [IO.File]::Open((Join-Path $LocalAppData 'TaskPilot.storage.lock'),[IO.FileMode]::OpenOrCreate,[IO.FileAccess]::ReadWrite,[IO.FileShare]::None)
-    } catch { throw 'TaskPilotの保存先をロックできません。他のTaskPilotを終了してから再度起動してください。' }
-    Initialize-TaskPilotStorage
-    Initialize-Store
     Repair-NextTaskId
     Load-AppSettings
     Load-NotificationData
     Invoke-MonthlyAutoFinalize
     $script:AutoReportsReady = $true
-    Update-AutoReports
     $generatedCount = Invoke-RecurringGeneration
+    Update-AutoReports
     Refresh-List
     if ($generatedCount -gt 0) { [System.Windows.Forms.MessageBox]::Show($form,"定期タスクを $generatedCount 件追加しました。",'定期タスク') | Out-Null }
     $form.Add_Shown({
-        if ([bool]$script:AppSettings.NotifyOnStartup) {
-            try { Show-TaskPilotAlertPopup } catch { Show-Failure $_ }
-        }
+        if ([bool]$script:AppSettings.NotifyOnStartup) { try { Show-TaskPilotAlertPopup } catch { Show-Failure $_ } }
         $script:NotificationTimer.Start()
         try { Invoke-DailyNotificationCheck } catch { Write-ErrorLog $_ }
     })
     [void][System.Windows.Forms.Application]::Run($form)
-} catch { Show-Failure $_ } finally {
-    if ($null -ne $script:StorageLock) { $script:StorageLock.Dispose() }
-}
+} catch {
+    if(Get-Command Show-Failure -ErrorAction SilentlyContinue){Show-Failure $_}
+    else{Write-ErrorLog $_;[System.Windows.Forms.MessageBox]::Show($_.Exception.Message,'TaskPilot 起動エラー',[System.Windows.Forms.MessageBoxButtons]::OK,[System.Windows.Forms.MessageBoxIcon]::Error)|Out-Null}
+} finally { if(Get-Command Close-TPGuiApplication -ErrorAction SilentlyContinue){Close-TPGuiApplication} }
