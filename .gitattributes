@@ -1,2 +1,7 @@
 # Auto detect text files and perform LF normalization
 * text=auto
+
+# These files are verified by their exact upstream/reference byte hashes.
+reference/TaskPilot_STEP3_6F_4.ps1 -text
+schema/001_initial.sql -text
+Modules/TaskPilot.Storage/provider/** -text
