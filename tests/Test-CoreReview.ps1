@@ -13,6 +13,7 @@ $null=New-Item -ItemType Directory -Path $fixture
 $db=Join-Path $fixture '日本語 ; review.db'
 $stores=New-Object 'System.Collections.Generic.List[object]'
 $script:unexpectedStore=$null
+$link=Join-Path $fixture 'linked-directory';$linkCreated=$false
 try {
     $created=New-TaskPilotDatabase -DatabasePath $db @providerArgs
     Assert-Review ($created.SchemaVersion-eq40001) 'Schema version'
@@ -79,14 +80,14 @@ try {
         Assert-Review ([IO.File]::ReadAllText($side)-ceq'synthetic-recovery-marker') 'Existing recovery file retained'
         Assert-Review (-not(Test-Path -LiteralPath $sideDb)) 'No DB published beside recovery file'
     }
-    $link=Join-Path $fixture 'linked-directory'
-    $linkCreated=$false
     try {$null=New-Item -ItemType SymbolicLink -Path $link -Target $fixture -ErrorAction Stop;$linkCreated=$true} catch { Write-Output 'SKIP: link creation requires unavailable platform privileges.' }
     if($linkCreated){
         Expect-ReviewFailure {New-TaskPilotDatabase -DatabasePath (Join-Path $link 'linked-new.db') @providerArgs} 'Linked ancestor blocked before creating a DB'
         Expect-ReviewFailure {Open-TaskPilotStore -DatabasePath (Join-Path $link '日本語 ; review.db') @providerArgs} 'Linked ancestor blocked before opening a DB'
         Assert-Review (-not(Test-Path -LiteralPath (Join-Path $fixture 'linked-new.db'))) 'Link refusal creates no destination DB'
-        Remove-Item -LiteralPath $link -Force
+        # Delete only the known directory link, without recursion or PS5.1 prompts.
+        [IO.Directory]::Delete($link,$false);$linkCreated=$false
+        Assert-Review ([IO.File]::Exists($db)) 'Link cleanup preserves target database'
     }
     Write-Output 'PASS: core creation, no overwrite, Unicode parameters, hour precision, stale writers, nested rollback-only, child ownership, read-only snapshots, soft-delete restoration and sidecar preservation.'
     # Test-provider mode must be explicit for every Open/New call, even after caching.
@@ -100,5 +101,8 @@ try {
 } finally {
     if($null-ne$script:unexpectedStore){try{Close-TaskPilotStore $script:unexpectedStore}catch{}}
     foreach($store in $stores){try{if(-not$store.Closed){Close-TaskPilotStore $store}}catch{}}
+    # A failed link assertion must not leave a cycle for recursive fixture cleanup.
+    # If this nonrecursive deletion fails, retain the fixture for investigation.
+    if($linkCreated){[IO.Directory]::Delete($link,$false);$linkCreated=$false}
     Remove-Item -LiteralPath $fixture -Recurse -Force -ErrorAction SilentlyContinue
 }

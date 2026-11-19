@@ -10,7 +10,7 @@ $null=New-Item -ItemType Directory -Path (Join-Path $source 'Backup/empty') -For
 [IO.File]::WriteAllBytes((Join-Path $source 'Data/one.csv'),[Text.Encoding]::UTF8.GetBytes('ID,Task'+"`r`n"+'1,日本語'))
 [IO.File]::WriteAllBytes((Join-Path $source 'Settings.json'),[Text.Encoding]::UTF8.GetBytes('{}'))
 [IO.File]::WriteAllBytes((Join-Path $source 'Backup/old.bin'),(New-Object byte[] 80))
-$lock=$null
+$lock=$null;$link=Join-Path $source 'linked';$linked=$false
 try{
  $snapshot=Get-TPMigrationSourceSnapshot -SourceRoot $source
  Assert-MigrationTest ($snapshot.Files.Count-eq2 -and $snapshot.Tree.Count-eq3) 'Selected cache vs full tree'
@@ -59,8 +59,18 @@ try{
  [IO.File]::WriteAllText((Join-Path $source 'Data/unsafe..json'),'{}')
  Reject-MigrationTest {Get-TPMigrationSourceSnapshot -SourceRoot $source} 'Unsafe metadata path refused'
  Remove-Item -LiteralPath (Join-Path $source 'Data/unsafe..json')
- $link=Join-Path $source 'linked';$linked=$false
  try{$null=New-Item -ItemType SymbolicLink -Path $link -Target (Join-Path $source 'Data') -ErrorAction Stop;$linked=$true}catch{}
- if($linked){Reject-MigrationTest {Get-TPMigrationSourceSnapshot -SourceRoot $source} 'Tree link refused';Remove-Item -LiteralPath $link}
+ if($linked){
+  Reject-MigrationTest {Get-TPMigrationSourceSnapshot -SourceRoot $source} 'Tree link refused'
+  # Delete only the known directory link, without recursion or PS5.1 prompts.
+  [IO.Directory]::Delete($link,$false);$linked=$false
+  Assert-MigrationTest ([IO.File]::Exists((Join-Path $source 'Data/one.csv'))) 'Link cleanup preserves target files'
+ }
  'PASS: selected/raw vs full tree; deterministic hash; size limit; exclusive source lock; verified copy incl emptydirs; no overwrite/nesting; nonselected mutation and emptydir detection; unsafe paths/links refused.'
-}finally{if($null-ne$lock){$lock.Dispose()};Remove-Item -LiteralPath $root -Recurse -Force -ErrorAction SilentlyContinue}
+}finally{
+ if($null-ne$lock){$lock.Dispose()}
+ # If an assertion failed, remove the still-owned link before recursive cleanup.
+ # A link deletion failure retains the fixture instead of traversing its target.
+ if($linked){[IO.Directory]::Delete($link,$false);$linked=$false}
+ Remove-Item -LiteralPath $root -Recurse -Force -ErrorAction SilentlyContinue
+}
