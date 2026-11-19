@@ -1,0 +1,84 @@
+name: Windows native development verification
+
+on:
+  push:
+    branches:
+      - 'development/**'
+    paths:
+      - '**/*.ps1'
+      - '**/*.psm1'
+      - '**/*.psd1'
+      - '**/*.cs'
+      - 'Modules/**'
+      - 'Adapters/**'
+      - 'Codec/**'
+      - 'schema/**'
+      - 'tests/**'
+      - 'build/**'
+      - 'Assets/**'
+      - 'docs/user/README.md'
+      - 'docs/build/THIRD-PARTY-NOTICES.md'
+      - '.github/workflows/windows-verify.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: taskpilot-windows-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  native-verification:
+    # This runner is Windows Server 2022. It cannot establish Windows 10/11
+    # acceptance, interactive WinForms behavior, or notification delivery.
+    if: startsWith(github.ref, 'refs/heads/development/')
+    runs-on: windows-2022
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: powershell
+    steps:
+      - name: Check out development source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4, official ref verified 2026-11-19
+        with:
+          persist-credentials: false
+
+      - name: Require native 64-bit Windows PowerShell 5.1
+        run: |
+          if ($PSVersionTable.PSEdition -ne 'Desktop' -or $PSVersionTable.PSVersion.Major -ne 5 -or $PSVersionTable.PSVersion.Minor -ne 1 -or -not [Environment]::Is64BitProcess) {
+            throw 'This workflow requires native 64-bit Windows PowerShell Desktop 5.1.'
+          }
+
+      - name: Run preserved legacy storage regression
+        run: |
+          & .\reference\Test-Storage.ps1
+
+      - name: Test native SQLite and compile an unsigned development candidate
+        run: |
+          $verificationRoot = Join-Path $env:RUNNER_TEMP ('TaskPilot-native-' + $env:GITHUB_RUN_ID + '-' + $env:GITHUB_RUN_ATTEMPT)
+          & .\tools\Invoke-TaskPilotWindowsVerification.ps1 -VerificationRoot $verificationRoot
+
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4, official ref verified 2026-11-19
+        with:
+          name: TaskPilot-Windows-Server-native-test-reports-${{ github.run_id }}-${{ github.run_attempt }}
+          path: TestResults/Commercial_*.json
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Upload development candidate and verification metadata
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4, official ref verified 2026-11-19
+        with:
+          name: TaskPilot-DEVELOPMENT-NOT-FOR-SALE-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/TaskPilot-native-${{ github.run_id }}-${{ github.run_attempt }}/Candidate/TaskPilot_0.4.0.1_DEVELOPMENT_NOT_FOR_SALE.zip
+            ${{ runner.temp }}/TaskPilot-native-${{ github.run_id }}-${{ github.run_attempt }}/Candidate/TaskPilot_0.4.0.1_DEVELOPMENT_NOT_FOR_SALE.zip.sha256
+            ${{ runner.temp }}/TaskPilot-native-${{ github.run_id }}-${{ github.run_attempt }}/Candidate/BuildInfo.json
+            ${{ runner.temp }}/TaskPilot-native-${{ github.run_id }}-${{ github.run_attempt }}/Candidate/SoftwareBillOfMaterials.json
+            ${{ runner.temp }}/TaskPilot-native-${{ github.run_id }}-${{ github.run_attempt }}/Candidate/FileHashes.json
+            ${{ runner.temp }}/TaskPilot-native-${{ github.run_id }}-${{ github.run_attempt }}/Candidate/WindowsVerification.json
+            ${{ runner.temp }}/TaskPilot-native-${{ github.run_id }}-${{ github.run_attempt }}/Candidate/DEVELOPMENT_NOT_FOR_SALE.txt
+          if-no-files-found: error
+          retention-days: 7
