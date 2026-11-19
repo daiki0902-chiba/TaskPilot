@@ -3,6 +3,8 @@
 作成日: 2026-11-16。対象は `work/step4c` の保存モジュールと schema 40001。
 この調査では既存コード・既存データを変更していない。Pythonは使用していない。
 
+この文書は実装前の設計案を保存したもの。現在は `TaskPilot.Protection.ps1` の `New-TaskPilotDatabaseBackup` による `.db` スナップショット、`Restore-TaskPilotDatabase` による新DB復元、GUI統合と `active-store.json` の切替を実装している。以下のZIP形式・公開API名・ディレクトリ構成は現行APIではない。スキーマ更新カタログと順次変換は未実装のままである。現行の実装・未完了判定は[販売判定](06-release-status.md)と[要件の達成状況](08-requirements-status.md)を参照する。
+
 ## 現在の実装と制約
 
 - `TaskPilot.Storage.psm1` は application_id `1414547788`、user_version `40001` を接続前のファイルヘッダーと接続後のPRAGMAで検査する。通常のOpenでは別アプリ・旧版・将来版を拒否し、自動更新しない。

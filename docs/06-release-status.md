@@ -10,13 +10,21 @@
 
 候補版の8コミットを取得済みmainの上へ適用し、アプリ・保存モジュール・テストは前回検証した版と同じであることを比較した。専用ブランチ `development/sqlite-commercial-20261116` をレビュー対象にする。mainへの直接push・マージ・販売リリースは行わない。[反映状況](07-github-sync.md) を参照。
 
-## Windowsで未検証の事項
+## Windows自動検証で確認した範囲
 
-- Windows 10/11、Windows PowerShell 5.1、同梱Windows native SQLiteでの全テスト。
+2026-11-19、開発ブランチの `9c7ad91674f7c47784b51305c080405f7c534d80` をGitHub ActionsのWindows Server 2022 x64 / Windows PowerShell 5.1.20348.5773で実行し、旧保存処理の回帰試験とnative SQLiteを使う8テスト群が成功した。固定依存から未署名の `0.4.0.1` EXEと配布候補ZIPの生成も成功した。[実行 #44640521434](https://github.com/daiki0902-chiba/TaskPilot/actions/runs/44640521434)、[試験結果](verification/windows-native-results.json)、[生成記録](verification/windows-native-verification.json)を参照。
+
+初回はテスト用ディレクトリリンクの削除がPowerShell 5.1で確認入力を求め、8群中1群が失敗した。テストが作ったリンクだけを非再帰で削除するよう修正し、リンク先を残す確認を追加して再試験した。[初回結果](verification/windows-native-first-attempt.json)も残した。native試験ではテスト専用providerに限定したトランザクション内改変フックのケースをSKIPしている。これらは別のLinuxテスト専用providerで実施した範囲であり、nativeで実施した扱いにはしない。
+
+生成EXEは起動していない。Windows Serverでの試験はWindows 10/11の受入を代行しない。配布候補ZIPのSHA-256は `e977b31a8f6eb25c66b8d6d0658b421db13b2db1849b00c33a3234d5d1b70795`。開発候補・未署名・販売用ではない。
+
+## Windows 10/11と製品として未検証の事項
+
+- Windows 10/11上でのWindows PowerShell 5.1・同梱Windows native SQLiteによる受入。
 - 実際のWinForms表示、入力、カレンダー、モーダル画面、通知・タイマー、フォーカス、DPI、長い日本語・パス。
 - 初回移行の承諾・取消・再試行、旧版との排他、フォルダー権限、起動失敗の案内、強制終了後の起動。
 - 実際のImportExcel/EPPlusによる3つのブック、グラフ、書式、更新、Excelで開いている場合の出力失敗。
-- ps2exeによるTaskPilot.exeの生成、STA実動作、ダブルクリック起動、x64、必要ファイルの探索。
+- 生成したTaskPilot.exeの起動、STA実動作、ダブルクリック起動、必要ファイルの探索。x64 PE・版情報のビルド検査は成功したが、実行は未確認。
 - 正規証明書のコード署名、タイムスタンプ、SmartScreen/Defenderでの判定、クリーンな購入者環境。
 - 実機の停電・強制終了・ディスク満杯・共有違反・WAL回復・中断後の復元。自動テストの障害注入は実機障害全体の代用ではない。
 

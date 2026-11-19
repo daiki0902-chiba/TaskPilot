@@ -1,6 +1,8 @@
 # TaskPilot SQLite統合・開発候補版
 
-PowerShell 5.1とWindows Formsを維持し、既存GUIの保存処理をSQLiteへ接続した開発用ソースです。Pythonは使いません。WindowsでのEXE生成・実機受入は未実施のため、現時点で販売可能と判定した製品ではありません。
+PowerShell 5.1とWindows Formsを維持し、既存GUIの保存処理をSQLiteへ接続した開発用ソースです。Pythonは使いません。Windows Server 2022上でnative SQLiteの自動試験と未署名EXE生成が成功しました。Windows 10/11での実機受入・購入者向け配布は未完了のため、現時点で販売可能と判定した製品ではありません。
+
+依頼全体の達成状況は[要件の達成状況](docs/08-requirements-status.md)を参照してください。成果物の作成と、Windows 10/11での受入・販売判定を区別して記録します。
 
 **GitHubへの反映先は開発ブランチ `development/sqlite-commercial-20261116` です。** main `a761e76fbe4c4335a1847dbfc4417516d205316f` の全ツリーにはREADMEと.gitattributesの2ファイルだけがあり、アプリ本体・テストが未登録だったため、以前確認したSTEP3本体とSTEP4Cを基準に候補版を作成しました。mainを親とする履歴を用い、mainへ直接反映しません。GitHub連携アプリの一時停止は解除され、開発ブランチの作成も成功しました。詳細は [GitHub反映状況](docs/07-github-sync.md) を参照してください。
 
@@ -37,4 +39,4 @@ DBのバックアップは `TaskPilot4\Backup`、Excelは `TaskPilot4\Export`、
 
 復元は新しいDB名へ行い、元DBを残します。`active-store.json` の切替後に再起動して使用します。手作業でDBや回復ファイルを削除しないでください。未知のスキーマは自動更新せず停止します。
 
-`reference/` は過去の確認済みソース・旧ビルド・旧STEP4Cの資料です。今回の実行・ビルドには使いません。実データ、ビルド依存のキャッシュ、購入者向けEXEはこの開発ソースに含めません。
+`reference/` は過去の確認済みソース・旧ビルド・旧STEP4Cの資料です。現行アプリの起動・製品ビルドの入力ではありません。`reference/Test-Storage.ps1` は旧保存処理の回帰試験として別途実行します。実データ、ビルド依存のキャッシュ、購入者向けEXEはこの開発ソースに含めません。

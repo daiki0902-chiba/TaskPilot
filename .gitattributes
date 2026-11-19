@@ -6,3 +6,6 @@ reference/TaskPilot_STEP3_6F_4.ps1 -text
 reference/Test-Storage.ps1 -text
 schema/001_initial.sql -text
 Modules/TaskPilot.Storage/provider/** -text
+
+# Preserve downloaded Windows CI evidence as captured.
+docs/verification/windows-*.json -text

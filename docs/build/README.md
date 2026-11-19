@@ -2,7 +2,7 @@
 
 この手順は新しい SQLite GUI `TaskPilot.ps1` から Windows x64 の顧客配布物を作るためのものです。旧 `Build_TaskPilot_STEP3_6F_4.ps1/.bat` と過去の配布物は保存し、この新しい手順には使用しません。購入者の起動処理は依存取得・インストールを行いません。
 
-この作業環境は Linux です。依存の実物・SHA-256・ライセンス・配布予定一覧・構文は検証できます。Windows 用 EXE の生成、コード署名、WinForms と Windows native SQLite の実行は **未実施** です。`-ValidateOnly` の成功は Windows 動作合格を意味しません。
+Linuxで依存の実物・SHA-256・ライセンス・配布予定一覧・構文を検証した後、GitHub ActionsのWindows Server 2022 / Windows PowerShell 5.1でnative SQLiteの自動試験と未署名EXE・配布候補ZIPの生成が成功しました。[証跡](../verification/windows-native-verification.json)を参照してください。生成EXEの起動、Windows 10/11の実機受入、WinForms、実際のExcel出力、コード署名は **未検証** です。`-ValidateOnly` やコンパイル成功は製品の動作合格を意味しません。
 
 ## 開発者側の前提
 

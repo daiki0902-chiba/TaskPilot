@@ -1,6 +1,6 @@
 # Windows 10 / 11 配布前受入試験
 
-この表は試験計画です。作成時点では Windows 上の EXE ビルド、GUI、通知、Excel、署名を実行していません。全項目の初期状態は **未実施** です。Linux の構文検査、`-ValidateOnly`、明示的なテスト専用 SQLite アダプターでの成功は、この表の合格に置き換えられません。
+この表はWindows 10/11の試験計画です。Windows Server 2022でnative SQLiteの自動試験と未署名EXE生成は成功しましたが、生成EXEの起動・GUI・通知・実際のExcel出力・署名は未検証です。この表のWindows 10/11項目はすべて **未実施** のままです。Server上の自動試験、Linuxの構文検査、`-ValidateOnly`、明示的なテスト専用SQLiteアダプターでの成功は、この表の合格に置き換えられません。
 
 Windows 10 x64 と Windows 11 x64 で、それぞれ記録を複製して実施してください。購入者向け ZIP の同じハッシュを試験します。試験は専用の標準ユーザーまたは復元可能な VM と合成データで行い、実データ・既存配布物を使用しません。故障注入は必ず別コピーで行います。開発依存物・試験スクリプトは購入者用 ZIP の外に置いてください。Python は使用しません。
 
@@ -96,6 +96,6 @@ Windows 10 x64 と Windows 11 x64 で、それぞれ記録を複製して実施�
 
 ## 開発側の補助試験と出荷判定
 
-Windows PowerShell 5.1 の新しいプロセスで、リポジトリ側の `Test-TaskPilotStep4C.ps1`、`tests/Test-CoreReview.ps1`、`tests/Test-Protection.ps1`、`tests/Test-GuiTasks.ps1`、`tests/Test-GuiDomainAdapters.ps1`、`tests/Test-GuiOperations.ps1`、`tests/Test-GuiStartup.ps1` を実行し、出力と終了コードを保存します。Step4C は移行テスト・Codec・Step4B を実行するため、これらと GUI/保護テストの範囲を区別します。Windows では `-TestProviderAssembly` を指定せず、同梱 System.Data.SQLite を使用してください。包装用試験がある場合は、その結果も添付します。これらは画面を開く試験を代行しません。Windows 実行結果は現時点ですべて **未実施** です。
+Windows PowerShell 5.1 の新しいプロセスで、リポジトリ側の `Test-TaskPilotCommercial.ps1` を固定依存付きで実行し、出力と終了コードを保存します。Step4C は移行テスト・Codec・Step4B を実行するため、これらと GUI/保護テストの範囲を区別します。Windows では `-TestProviderAssembly` を指定せず、同梱 System.Data.SQLite を使用してください。これらは画面を開く試験を代行しません。Server 2022での結果は[自動試験記録](../verification/README.md)に保存済みですが、この表のWindows 10/11での実行・受入結果はすべて **未実施** です。
 
 両 OS の必須項目の結果と証跡をそろえ、不合格・未実施の残る機能を販売可能と判定しないでください。修正後は新しい BuildId と成果物ハッシュで、影響する項目と配布物照合を再実施します。試験後に署名・ZIP・同梱ファイルを変更した場合も、変更した成果物の照合と必要な再試験を行います。最終記録には販売版 ZIP のハッシュ、残制約、ライセンス確認結果、承認者を記入します。
