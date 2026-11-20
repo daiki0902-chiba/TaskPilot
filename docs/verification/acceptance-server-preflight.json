@@ -1,0 +1,840 @@
+{
+    "Stage":  "Windows 10/11 acceptance preparation - NOT FOR SALE",
+    "CapturedAtUtc":  "2026-11-20T03:40:38.3513118Z",
+    "Status":  "BLOCKED",
+    "PackageRoot":  "D:\\a\\_temp\\TaskPilot-native-44669141894-1\\Acceptance\\TaskPilot_Acceptance_0.4.0.1",
+    "PackageManifestSha256":  "d9d89b31fd3ada9f8cbc16f007c0c4cc9ad751d44f62284f8d2691571f74b7cc",
+    "CandidateSourceCommit":  "f1c8c3a39034b37803f736a63a2542b034d03df3",
+    "CandidateZipSha256":  "97fb96c937462c18321198a1672ae1a99b4938292ca1a7439ae4d1472acde7c6",
+    "Environment":  {
+                        "OS":  "Microsoft Windows Server 2022 Datacenter",
+                        "ProductType":  3,
+                        "OSVersion":  "Microsoft Windows NT 10.0.20348.0",
+                        "CimVersion":  "10.0.20348",
+                        "CimBuildNumber":  "20348",
+                        "PowerShell":  "5.1.20348.5773",
+                        "PowerShellEdition":  "Desktop",
+                        "ProcessBits":  64,
+                        "Clr":  "4.0.30319.42000",
+                        "FrameworkRelease":  533509,
+                        "User":  "runneradmin",
+                        "UserSid":  "S-1-5-21-1280602335-643053282-3184619455-500",
+                        "LocalApplicationData":  "C:\\Users\\runneradmin\\AppData\\Local"
+                    },
+    "FirstUseRequested":  true,
+    "Isolation":  "NO_EXISTING_TASKPILOT_STATE_FOUND",
+    "Checks":  [
+                   {
+                       "Name":  "Windows10Or11Desktop51x64",
+                       "Passed":  false,
+                       "Detail":  "OS=Microsoft Windows Server 2022 Datacenter; ProductType=3; Version=10.0.20348; Build=20348; PowerShell=5.1.20348.5773; Edition=Desktop; ProcessBits=64; CIM error="
+                   },
+                   {
+                       "Name":  "DotNetFramework",
+                       "Passed":  true,
+                       "Detail":  "CLR=4.0.30319.42000; .NET Framework Release=533509"
+                   },
+                   {
+                       "Name":  "PackageIntegrity",
+                       "Passed":  true,
+                       "Detail":  "147 listed files match; no extra files or links. These hashes are QA evidence, not publisher authentication."
+                   },
+                   {
+                       "Name":  "DownloadOrigin",
+                       "Passed":  true,
+                       "Detail":  "Read-only stream inspection. ZoneId 3/4 or unreadable origin metadata blocks the test; nothing is unblocked automatically."
+                   },
+                   {
+                       "Name":  "FirstUseIsolation",
+                       "Passed":  true,
+                       "Detail":  "No known TaskPilot data, logs, backups or lock paths exist in this Windows profile. A dedicated test user/VM remains required."
+                   },
+                   {
+                       "Name":  "ReportDestination",
+                       "Passed":  true,
+                       "Detail":  "Only a new unique report directory will be created."
+                   }
+               ],
+    "Signatures":  [
+                       {
+                           "Path":  "Application/TaskPilot/TaskPilot.exe",
+                           "Status":  "NotSigned",
+                           "Signer":  null
+                       },
+                       {
+                           "Path":  "Application/TaskPilot/Modules/TaskPilot.Storage/provider/System.Data.SQLite.dll",
+                           "Status":  "Valid",
+                           "Signer":  "CN=Mistachkin Systems (Joseph Mistachkin), O=Mistachkin Systems (Joseph Mistachkin), L=Beaverton, S=Oregon, C=US, SERIALNUMBER=364617-96, OID.1.3.6.1.4.1.311.60.2.1.2=Oregon, OID.1.3.6.1.4.1.311.60.2.1.3=US, OID.2.5.4.15=Business Entity"
+                       },
+                       {
+                           "Path":  "Application/TaskPilot/Modules/TaskPilot.Storage/provider/x64/SQLite.Interop.dll",
+                           "Status":  "Valid",
+                           "Signer":  "CN=Mistachkin Systems (Joseph Mistachkin), O=Mistachkin Systems (Joseph Mistachkin), L=Beaverton, S=Oregon, C=US, SERIALNUMBER=364617-96, OID.1.3.6.1.4.1.311.60.2.1.2=Oregon, OID.1.3.6.1.4.1.311.60.2.1.3=US, OID.2.5.4.15=Business Entity"
+                       },
+                       {
+                           "Path":  "Application/TaskPilot/Modules/TaskPilot.Storage/provider/x86/SQLite.Interop.dll",
+                           "Status":  "Valid",
+                           "Signer":  "CN=Mistachkin Systems (Joseph Mistachkin), O=Mistachkin Systems (Joseph Mistachkin), L=Beaverton, S=Oregon, C=US, SERIALNUMBER=364617-96, OID.1.3.6.1.4.1.311.60.2.1.2=Oregon, OID.1.3.6.1.4.1.311.60.2.1.3=US, OID.2.5.4.15=Business Entity"
+                       },
+                       {
+                           "Path":  "Application/TaskPilot/Modules/ImportExcel/EPPlus.dll",
+                           "Status":  "NotSigned",
+                           "Signer":  null
+                       }
+                   ],
+    "DownloadOrigin":  [
+                           {
+                               "Path":  "Application/TaskPilot/Adapters/TaskPilot.GuiCommon.ps1",
+                               "State":  "NO_ZONE_STREAM",
+                               "ZoneIds":  [
+
+                                           ],
+                               "Blocked":  false
+                           },
+                           {
+                               "Path":  "Application/TaskPilot/Adapters/TaskPilot.GuiDomains.ps1",
+                               "State":  "NO_ZONE_STREAM",
+                               "ZoneIds":  [
+
+                                           ],
+                               "Blocked":  false
+                           },
+                           {
+                               "Path":  "Application/TaskPilot/Adapters/TaskPilot.GuiOperations.ps1",
+                               "State":  "NO_ZONE_STREAM",
+                               "ZoneIds":  [
+
+                                           ],
+                               "Blocked":  false
+                           },
+                           {
+                               "Path":  "Application/TaskPilot/Adapters/TaskPilot.GuiStartup.ps1",
+                               "State":  "NO_ZONE_STREAM",
+                               "ZoneIds":  [
+
+                                           ],
+                               "Blocked":  false
+                           },
+                           {
+                               "Path":  "Application/TaskPilot/Adapters/TaskPilot.GuiTasks.ps1",
+                               "State":  "NO_ZONE_STREAM",
+                               "ZoneIds":  [
+
+                                           ],
+                               "Blocked":  false
+                           },
+                           {
+                               "Path":  "Application/TaskPilot/Codec/Import-TaskPilotMigrationCodec.ps1",
+                               "State":  "NO_ZONE_STREAM",
+                               "ZoneIds":  [
+
+                                           ],
+                               "Blocked":  false
+                           },
+                           {
+                               "Path":  "Application/TaskPilot/Codec/TaskPilotMigrationCodec.cs",
+                               "State":  "NO_ZONE_STREAM",
+                               "ZoneIds":  [
+
+                                           ],
+                               "Blocked":  false
+                           },
+                           {
+                               "Path":  "Application/TaskPilot/Modules/ImportExcel/Add-Subtotals.ps1",
+                               "State":  "NO_ZONE_STREAM",
+                               "ZoneIds":  [
+
+                                           ],
+                               "Blocked":  false
+                           },
+                           {
+                               "Path":  "Application/TaskPilot/Modules/ImportExcel/Charting/Charting.ps1",
+                               "State":  "NO_ZONE_STREAM",
+                               "ZoneIds":  [
+
+                                           ],
+                               "Blocked":  false
+                           },
+                           {
+                               "Path":  "Application/TaskPilot/Modules/ImportExcel/EPPlus.dll",
+                               "State":  "NO_ZONE_STREAM",
+                               "ZoneIds":  [
+
+                                           ],
+                               "Blocked":  false
+                           },
+                           {
+                               "Path":  "Application/TaskPilot/Modules/ImportExcel/Export-StocksToExcel.ps1",
+                               "State":  "NO_ZONE_STREAM",
+                               "ZoneIds":  [
+
+                                           ],
+                               "Blocked":  false
+                           },
+                           {
+                               "Path":  "Application/TaskPilot/Modules/ImportExcel/Export-charts.ps1",
+                               "State":  "NO_ZONE_STREAM",
+                               "ZoneIds":  [
+
+                                           ],
+                               "Blocked":  false
+                           },
+                           {
+                               "Path":  "Application/TaskPilot/Modules/ImportExcel/GetExcelTable.ps1",
+                               "State":  "NO_ZONE_STREAM",
+                               "ZoneIds":  [
+
+                                           ],
+                               "Blocked":  false
+                           },
+                           {
+                               "Path":  "Application/TaskPilot/Modules/ImportExcel/ImportExcel.psd1",
+                               "State":  "NO_ZONE_STREAM",
+                               "ZoneIds":  [
+
+                                           ],
+                               "Blocked":  false
+                           },
+                           {
+                               "Path":  "Application/TaskPilot/Modules/ImportExcel/ImportExcel.psm1",
+                               "State":  "NO_ZONE_STREAM",
+                               "ZoneIds":  [
+
+                                           ],
+                               "Blocked":  false
+                           },
+                           {
+                               "Path":  "Application/TaskPilot/Modules/ImportExcel/InferData/InferData.ps1",
+                               "State":  "NO_ZONE_STREAM",
+                               "ZoneIds":  [
+
+                                           ],
+                               "Blocked":  false
+                           },
+                           {
+                               "Path":  "Application/TaskPilot/Modules/ImportExcel/Pivot/Pivot.ps1",
+                               "State":  "NO_ZONE_STREAM",
+                               "ZoneIds":  [
+
+                                           ],
+                               "Blocked":  false
+                           },
+                           {
+                               "Path":  "Application/TaskPilot/Modules/ImportExcel/Plot.ps1",
+                               "State":  "NO_ZONE_STREAM",
+                               "ZoneIds":  [
+
+                                           ],
+                               "Blocked":  false
+                           },
+                           {
+                               "Path":  "Application/TaskPilot/Modules/ImportExcel/Private/ArgumentCompletion.ps1",
+                               "State":  "NO_ZONE_STREAM",
+                               "ZoneIds":  [
+
+                                           ],
+                               "Blocked":  false
+                           },
+                           {
+                               "Path":  "Application/TaskPilot/Modules/ImportExcel/Private/Invoke-ExcelReZipFile.ps1",
+                               "State":  "NO_ZONE_STREAM",
+                               "ZoneIds":  [
+
+                                           ],
+                               "Blocked":  false
+                           },
+                           {
+                               "Path":  "Application/TaskPilot/Modules/ImportExcel/Public/Add-ConditionalFormatting.ps1",
+                               "State":  "NO_ZONE_STREAM",
+                               "ZoneIds":  [
+
+                                           ],
+                               "Blocked":  false
+                           },
+                           {
+                               "Path":  "Application/TaskPilot/Modules/ImportExcel/Public/Add-ExcelChart.ps1",
+                               "State":  "NO_ZONE_STREAM",
+                               "ZoneIds":  [
+
+                                           ],
+                               "Blocked":  false
+                           },
+                           {
+                               "Path":  "Application/TaskPilot/Modules/ImportExcel/Public/Add-ExcelDataValidationRule.ps1",
+                               "State":  "NO_ZONE_STREAM",
+                               "ZoneIds":  [
+
+                                           ],
+                               "Blocked":  false
+                           },
+                           {
+                               "Path":  "Application/TaskPilot/Modules/ImportExcel/Public/Add-ExcelName.ps1",
+                               "State":  "NO_ZONE_STREAM",
+                               "ZoneIds":  [
+
+                                           ],
+                               "Blocked":  false
+                           },
+                           {
+                               "Path":  "Application/TaskPilot/Modules/ImportExcel/Public/Add-ExcelTable.ps1",
+                               "State":  "NO_ZONE_STREAM",
+                               "ZoneIds":  [
+
+                                           ],
+                               "Blocked":  false
+                           },
+                           {
+                               "Path":  "Application/TaskPilot/Modules/ImportExcel/Public/Add-PivotTable.ps1",
+                               "State":  "NO_ZONE_STREAM",
+                               "ZoneIds":  [
+
+                                           ],
+                               "Blocked":  false
+                           },
+                           {
+                               "Path":  "Application/TaskPilot/Modules/ImportExcel/Public/Add-Worksheet.ps1",
+                               "State":  "NO_ZONE_STREAM",
+                               "ZoneIds":  [
+
+                                           ],
+                               "Blocked":  false
+                           },
+                           {
+                               "Path":  "Application/TaskPilot/Modules/ImportExcel/Public/Close-ExcelPackage.ps1",
+                               "State":  "NO_ZONE_STREAM",
+                               "ZoneIds":  [
+
+                                           ],
+                               "Blocked":  false
+                           },
+                           {
+                               "Path":  "Application/TaskPilot/Modules/ImportExcel/Public/Compare-Worksheet.ps1",
+                               "State":  "NO_ZONE_STREAM",
+                               "ZoneIds":  [
+
+                                           ],
+                               "Blocked":  false
+                           },
+                           {
+                               "Path":  "Application/TaskPilot/Modules/ImportExcel/Public/Convert-ExcelRangeToImage.ps1",
+                               "State":  "NO_ZONE_STREAM",
+                               "ZoneIds":  [
+
+                                           ],
+                               "Blocked":  false
+                           },
+                           {
+                               "Path":  "Application/TaskPilot/Modules/ImportExcel/Public/ConvertFrom-ExcelData.ps1",
+                               "State":  "NO_ZONE_STREAM",
+                               "ZoneIds":  [
+
+                                           ],
+                               "Blocked":  false
+                           },
+                           {
+                               "Path":  "Application/TaskPilot/Modules/ImportExcel/Public/ConvertFrom-ExcelSheet.ps1",
+                               "State":  "NO_ZONE_STREAM",
+                               "ZoneIds":  [
+
+                                           ],
+                               "Blocked":  false
+                           },
+                           {
+                               "Path":  "Application/TaskPilot/Modules/ImportExcel/Public/ConvertFrom-ExcelToSQLInsert.ps1",
+                               "State":  "NO_ZONE_STREAM",
+                               "ZoneIds":  [
+
+                                           ],
+                               "Blocked":  false
+                           },
+                           {
+                               "Path":  "Application/TaskPilot/Modules/ImportExcel/Public/ConvertTo-ExcelXlsx.ps1",
+                               "State":  "NO_ZONE_STREAM",
+                               "ZoneIds":  [
+
+                                           ],
+                               "Blocked":  false
+                           },
+                           {
+                               "Path":  "Application/TaskPilot/Modules/ImportExcel/Public/Copy-ExcelWorksheet.ps1",
+                               "State":  "NO_ZONE_STREAM",
+                               "ZoneIds":  [
+
+                                           ],
+                               "Blocked":  false
+                           },
+                           {
+                               "Path":  "Application/TaskPilot/Modules/ImportExcel/Public/Enable-ExcelAutoFilter.ps1",
+                               "State":  "NO_ZONE_STREAM",
+                               "ZoneIds":  [
+
+                                           ],
+                               "Blocked":  false
+                           },
+                           {
+                               "Path":  "Application/TaskPilot/Modules/ImportExcel/Public/Enable-ExcelAutofit.ps1",
+                               "State":  "NO_ZONE_STREAM",
+                               "ZoneIds":  [
+
+                                           ],
+                               "Blocked":  false
+                           },
+                           {
+                               "Path":  "Application/TaskPilot/Modules/ImportExcel/Public/Expand-NumberFormat.ps1",
+                               "State":  "NO_ZONE_STREAM",
+                               "ZoneIds":  [
+
+                                           ],
+                               "Blocked":  false
+                           },
+                           {
+                               "Path":  "Application/TaskPilot/Modules/ImportExcel/Public/Export-Excel.ps1",
+                               "State":  "NO_ZONE_STREAM",
+                               "ZoneIds":  [
+
+                                           ],
+                               "Blocked":  false
+                           },
+                           {
+                               "Path":  "Application/TaskPilot/Modules/ImportExcel/Public/Get-ExcelColumnName.ps1",
+                               "State":  "NO_ZONE_STREAM",
+                               "ZoneIds":  [
+
+                                           ],
+                               "Blocked":  false
+                           },
+                           {
+                               "Path":  "Application/TaskPilot/Modules/ImportExcel/Public/Get-ExcelFileSchema.ps1",
+                               "State":  "NO_ZONE_STREAM",
+                               "ZoneIds":  [
+
+                                           ],
+                               "Blocked":  false
+                           },
+                           {
+                               "Path":  "Application/TaskPilot/Modules/ImportExcel/Public/Get-ExcelFileSummary.ps1",
+                               "State":  "NO_ZONE_STREAM",
+                               "ZoneIds":  [
+
+                                           ],
+                               "Blocked":  false
+                           },
+                           {
+                               "Path":  "Application/TaskPilot/Modules/ImportExcel/Public/Get-ExcelSheetDimensionAddress.ps1",
+                               "State":  "NO_ZONE_STREAM",
+                               "ZoneIds":  [
+
+                                           ],
+                               "Blocked":  false
+                           },
+                           {
+                               "Path":  "Application/TaskPilot/Modules/ImportExcel/Public/Get-ExcelSheetInfo.ps1",
+                               "State":  "NO_ZONE_STREAM",
+                               "ZoneIds":  [
+
+                                           ],
+                               "Blocked":  false
+                           },
+                           {
+                               "Path":  "Application/TaskPilot/Modules/ImportExcel/Public/Get-ExcelWorkbookInfo.ps1",
+                               "State":  "NO_ZONE_STREAM",
+                               "ZoneIds":  [
+
+                                           ],
+                               "Blocked":  false
+                           },
+                           {
+                               "Path":  "Application/TaskPilot/Modules/ImportExcel/Public/Get-HtmlTable.ps1",
+                               "State":  "NO_ZONE_STREAM",
+                               "ZoneIds":  [
+
+                                           ],
+                               "Blocked":  false
+                           },
+                           {
+                               "Path":  "Application/TaskPilot/Modules/ImportExcel/Public/Get-Range.ps1",
+                               "State":  "NO_ZONE_STREAM",
+                               "ZoneIds":  [
+
+                                           ],
+                               "Blocked":  false
+                           },
+                           {
+                               "Path":  "Application/TaskPilot/Modules/ImportExcel/Public/Get-XYRange.ps1",
+                               "State":  "NO_ZONE_STREAM",
+                               "ZoneIds":  [
+
+                                           ],
+                               "Blocked":  false
+                           },
+                           {
+                               "Path":  "Application/TaskPilot/Modules/ImportExcel/Public/Import-Excel.ps1",
+                               "State":  "NO_ZONE_STREAM",
+                               "ZoneIds":  [
+
+                                           ],
+                               "Blocked":  false
+                           },
+                           {
+                               "Path":  "Application/TaskPilot/Modules/ImportExcel/Public/Import-Html.ps1",
+                               "State":  "NO_ZONE_STREAM",
+                               "ZoneIds":  [
+
+                                           ],
+                               "Blocked":  false
+                           },
+                           {
+                               "Path":  "Application/TaskPilot/Modules/ImportExcel/Public/Import-UPS.ps1",
+                               "State":  "NO_ZONE_STREAM",
+                               "ZoneIds":  [
+
+                                           ],
+                               "Blocked":  false
+                           },
+                           {
+                               "Path":  "Application/TaskPilot/Modules/ImportExcel/Public/Import-USPS.ps1",
+                               "State":  "NO_ZONE_STREAM",
+                               "ZoneIds":  [
+
+                                           ],
+                               "Blocked":  false
+                           },
+                           {
+                               "Path":  "Application/TaskPilot/Modules/ImportExcel/Public/Invoke-ExcelQuery.ps1",
+                               "State":  "NO_ZONE_STREAM",
+                               "ZoneIds":  [
+
+                                           ],
+                               "Blocked":  false
+                           },
+                           {
+                               "Path":  "Application/TaskPilot/Modules/ImportExcel/Public/Invoke-Sum.ps1",
+                               "State":  "NO_ZONE_STREAM",
+                               "ZoneIds":  [
+
+                                           ],
+                               "Blocked":  false
+                           },
+                           {
+                               "Path":  "Application/TaskPilot/Modules/ImportExcel/Public/Join-Worksheet.ps1",
+                               "State":  "NO_ZONE_STREAM",
+                               "ZoneIds":  [
+
+                                           ],
+                               "Blocked":  false
+                           },
+                           {
+                               "Path":  "Application/TaskPilot/Modules/ImportExcel/Public/Merge-MultipleSheets.ps1",
+                               "State":  "NO_ZONE_STREAM",
+                               "ZoneIds":  [
+
+                                           ],
+                               "Blocked":  false
+                           },
+                           {
+                               "Path":  "Application/TaskPilot/Modules/ImportExcel/Public/Merge-Worksheet.ps1",
+                               "State":  "NO_ZONE_STREAM",
+                               "ZoneIds":  [
+
+                                           ],
+                               "Blocked":  false
+                           },
+                           {
+                               "Path":  "Application/TaskPilot/Modules/ImportExcel/Public/New-ConditionalFormattingIconSet.ps1",
+                               "State":  "NO_ZONE_STREAM",
+                               "ZoneIds":  [
+
+                                           ],
+                               "Blocked":  false
+                           },
+                           {
+                               "Path":  "Application/TaskPilot/Modules/ImportExcel/Public/New-ConditionalText.ps1",
+                               "State":  "NO_ZONE_STREAM",
+                               "ZoneIds":  [
+
+                                           ],
+                               "Blocked":  false
+                           },
+                           {
+                               "Path":  "Application/TaskPilot/Modules/ImportExcel/Public/New-ExcelChartDefinition.ps1",
+                               "State":  "NO_ZONE_STREAM",
+                               "ZoneIds":  [
+
+                                           ],
+                               "Blocked":  false
+                           },
+                           {
+                               "Path":  "Application/TaskPilot/Modules/ImportExcel/Public/New-ExcelStyle.ps1",
+                               "State":  "NO_ZONE_STREAM",
+                               "ZoneIds":  [
+
+                                           ],
+                               "Blocked":  false
+                           },
+                           {
+                               "Path":  "Application/TaskPilot/Modules/ImportExcel/Public/New-PSItem.ps1",
+                               "State":  "NO_ZONE_STREAM",
+                               "ZoneIds":  [
+
+                                           ],
+                               "Blocked":  false
+                           },
+                           {
+                               "Path":  "Application/TaskPilot/Modules/ImportExcel/Public/New-PivotTableDefinition.ps1",
+                               "State":  "NO_ZONE_STREAM",
+                               "ZoneIds":  [
+
+                                           ],
+                               "Blocked":  false
+                           },
+                           {
+                               "Path":  "Application/TaskPilot/Modules/ImportExcel/Public/Open-ExcelPackage.ps1",
+                               "State":  "NO_ZONE_STREAM",
+                               "ZoneIds":  [
+
+                                           ],
+                               "Blocked":  false
+                           },
+                           {
+                               "Path":  "Application/TaskPilot/Modules/ImportExcel/Public/Read-Clipboard.ps1",
+                               "State":  "NO_ZONE_STREAM",
+                               "ZoneIds":  [
+
+                                           ],
+                               "Blocked":  false
+                           },
+                           {
+                               "Path":  "Application/TaskPilot/Modules/ImportExcel/Public/Read-OleDbData.ps1",
+                               "State":  "NO_ZONE_STREAM",
+                               "ZoneIds":  [
+
+                                           ],
+                               "Blocked":  false
+                           },
+                           {
+                               "Path":  "Application/TaskPilot/Modules/ImportExcel/Public/Remove-Worksheet.ps1",
+                               "State":  "NO_ZONE_STREAM",
+                               "ZoneIds":  [
+
+                                           ],
+                               "Blocked":  false
+                           },
+                           {
+                               "Path":  "Application/TaskPilot/Modules/ImportExcel/Public/Select-Worksheet.ps1",
+                               "State":  "NO_ZONE_STREAM",
+                               "ZoneIds":  [
+
+                                           ],
+                               "Blocked":  false
+                           },
+                           {
+                               "Path":  "Application/TaskPilot/Modules/ImportExcel/Public/Send-SQLDataToExcel.ps1",
+                               "State":  "NO_ZONE_STREAM",
+                               "ZoneIds":  [
+
+                                           ],
+                               "Blocked":  false
+                           },
+                           {
+                               "Path":  "Application/TaskPilot/Modules/ImportExcel/Public/Set-CellComment.ps1",
+                               "State":  "NO_ZONE_STREAM",
+                               "ZoneIds":  [
+
+                                           ],
+                               "Blocked":  false
+                           },
+                           {
+                               "Path":  "Application/TaskPilot/Modules/ImportExcel/Public/Set-CellStyle.ps1",
+                               "State":  "NO_ZONE_STREAM",
+                               "ZoneIds":  [
+
+                                           ],
+                               "Blocked":  false
+                           },
+                           {
+                               "Path":  "Application/TaskPilot/Modules/ImportExcel/Public/Set-ExcelColumn.ps1",
+                               "State":  "NO_ZONE_STREAM",
+                               "ZoneIds":  [
+
+                                           ],
+                               "Blocked":  false
+                           },
+                           {
+                               "Path":  "Application/TaskPilot/Modules/ImportExcel/Public/Set-ExcelRange.ps1",
+                               "State":  "NO_ZONE_STREAM",
+                               "ZoneIds":  [
+
+                                           ],
+                               "Blocked":  false
+                           },
+                           {
+                               "Path":  "Application/TaskPilot/Modules/ImportExcel/Public/Set-ExcelRow.ps1",
+                               "State":  "NO_ZONE_STREAM",
+                               "ZoneIds":  [
+
+                                           ],
+                               "Blocked":  false
+                           },
+                           {
+                               "Path":  "Application/TaskPilot/Modules/ImportExcel/Public/Set-WorksheetProtection.ps1",
+                               "State":  "NO_ZONE_STREAM",
+                               "ZoneIds":  [
+
+                                           ],
+                               "Blocked":  false
+                           },
+                           {
+                               "Path":  "Application/TaskPilot/Modules/ImportExcel/Public/Update-FirstObjectProperties.ps1",
+                               "State":  "NO_ZONE_STREAM",
+                               "ZoneIds":  [
+
+                                           ],
+                               "Blocked":  false
+                           },
+                           {
+                               "Path":  "Application/TaskPilot/Modules/ImportExcel/en/Strings.psd1",
+                               "State":  "NO_ZONE_STREAM",
+                               "ZoneIds":  [
+
+                                           ],
+                               "Blocked":  false
+                           },
+                           {
+                               "Path":  "Application/TaskPilot/Modules/TaskPilot.Storage/TaskPilot.Children.ps1",
+                               "State":  "NO_ZONE_STREAM",
+                               "ZoneIds":  [
+
+                                           ],
+                               "Blocked":  false
+                           },
+                           {
+                               "Path":  "Application/TaskPilot/Modules/TaskPilot.Storage/TaskPilot.Domain.ps1",
+                               "State":  "NO_ZONE_STREAM",
+                               "ZoneIds":  [
+
+                                           ],
+                               "Blocked":  false
+                           },
+                           {
+                               "Path":  "Application/TaskPilot/Modules/TaskPilot.Storage/TaskPilot.Migration.ps1",
+                               "State":  "NO_ZONE_STREAM",
+                               "ZoneIds":  [
+
+                                           ],
+                               "Blocked":  false
+                           },
+                           {
+                               "Path":  "Application/TaskPilot/Modules/TaskPilot.Storage/TaskPilot.MigrationDomains.ps1",
+                               "State":  "NO_ZONE_STREAM",
+                               "ZoneIds":  [
+
+                                           ],
+                               "Blocked":  false
+                           },
+                           {
+                               "Path":  "Application/TaskPilot/Modules/TaskPilot.Storage/TaskPilot.MigrationFiles.ps1",
+                               "State":  "NO_ZONE_STREAM",
+                               "ZoneIds":  [
+
+                                           ],
+                               "Blocked":  false
+                           },
+                           {
+                               "Path":  "Application/TaskPilot/Modules/TaskPilot.Storage/TaskPilot.MigrationNormalize.ps1",
+                               "State":  "NO_ZONE_STREAM",
+                               "ZoneIds":  [
+
+                                           ],
+                               "Blocked":  false
+                           },
+                           {
+                               "Path":  "Application/TaskPilot/Modules/TaskPilot.Storage/TaskPilot.Protection.ps1",
+                               "State":  "NO_ZONE_STREAM",
+                               "ZoneIds":  [
+
+                                           ],
+                               "Blocked":  false
+                           },
+                           {
+                               "Path":  "Application/TaskPilot/Modules/TaskPilot.Storage/TaskPilot.Storage.psd1",
+                               "State":  "NO_ZONE_STREAM",
+                               "ZoneIds":  [
+
+                                           ],
+                               "Blocked":  false
+                           },
+                           {
+                               "Path":  "Application/TaskPilot/Modules/TaskPilot.Storage/TaskPilot.Storage.psm1",
+                               "State":  "NO_ZONE_STREAM",
+                               "ZoneIds":  [
+
+                                           ],
+                               "Blocked":  false
+                           },
+                           {
+                               "Path":  "Application/TaskPilot/Modules/TaskPilot.Storage/provider/System.Data.SQLite.dll",
+                               "State":  "NO_ZONE_STREAM",
+                               "ZoneIds":  [
+
+                                           ],
+                               "Blocked":  false
+                           },
+                           {
+                               "Path":  "Application/TaskPilot/Modules/TaskPilot.Storage/provider/x64/SQLite.Interop.dll",
+                               "State":  "NO_ZONE_STREAM",
+                               "ZoneIds":  [
+
+                                           ],
+                               "Blocked":  false
+                           },
+                           {
+                               "Path":  "Application/TaskPilot/Modules/TaskPilot.Storage/provider/x86/SQLite.Interop.dll",
+                               "State":  "NO_ZONE_STREAM",
+                               "ZoneIds":  [
+
+                                           ],
+                               "Blocked":  false
+                           },
+                           {
+                               "Path":  "Application/TaskPilot/TaskPilot.exe",
+                               "State":  "NO_ZONE_STREAM",
+                               "ZoneIds":  [
+
+                                           ],
+                               "Blocked":  false
+                           },
+                           {
+                               "Path":  "Application/TaskPilot/TaskPilot.exe.config",
+                               "State":  "NO_ZONE_STREAM",
+                               "ZoneIds":  [
+
+                                           ],
+                               "Blocked":  false
+                           },
+                           {
+                               "Path":  "Tools/Collect-TaskPilotAcceptanceLogs.ps1",
+                               "State":  "NO_ZONE_STREAM",
+                               "ZoneIds":  [
+
+                                           ],
+                               "Blocked":  false
+                           },
+                           {
+                               "Path":  "Tools/Test-TaskPilotAcceptancePackage.ps1",
+                               "State":  "NO_ZONE_STREAM",
+                               "ZoneIds":  [
+
+                                           ],
+                               "Blocked":  false
+                           }
+                       ],
+    "ReportPath":  "D:\\a\\TaskPilot\\TaskPilot\\TestResults\\AcceptancePreparation_44669141894_1\\Preflight_1f3aeec5dc3b4d849a79df5078b54eee\\Preflight.json",
+    "Boundaries":  [
+                       "No application or provider code was executed.",
+                       "No user database or legacy data content was read or changed.",
+                       "No origin metadata, execution policy or OS security setting was changed.",
+                       "Unsigned development candidate; QA hashes do not authenticate its publisher.",
+                       "Windows 10/11 interactive UI, notifications and Excel output remain unverified by this checker.",
+                       "Without FirstUse, profile isolation has not been checked; do not use PACKAGE_CHECK_ONLY as launch approval."
+                   ]
+}

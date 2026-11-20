@@ -1,0 +1,10 @@
+{
+    "Passed":  true,
+    "Checks":  636,
+    "TestRoot":  "C:\\Users\\runneradmin\\AppData\\Local\\Temp\\TaskPilotAcceptancePackaging_f769ee7d6d0b4bd8a901b632ce115518",
+    "PackageRoot":  "C:\\Users\\runneradmin\\AppData\\Local\\Temp\\TaskPilotAcceptancePackaging_f769ee7d6d0b4bd8a901b632ce115518\\new-package\\TaskPilot_Acceptance_0.4.0.1",
+    "ApplicationFiles":  136,
+    "Windows10Verified":  false,
+    "Windows11Verified":  false,
+    "InteractiveGuiVerified":  false
+}

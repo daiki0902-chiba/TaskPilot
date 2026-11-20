@@ -1,0 +1,192 @@
+[
+  {
+    "path": "Codec/Import-TaskPilotMigrationCodec.ps1",
+    "bytes": 382,
+    "sha256": "2a9eceecf192d6ac99c050b6640ce8278117ffc97fc02dcc8277a59de9bd6ed3"
+  },
+  {
+    "path": "Codec/TaskPilotMigrationCodec.cs",
+    "bytes": 18905,
+    "sha256": "c3f72905357a96827a4f053b8b9160f277aea0fe67d605bcfc05090decae393b"
+  },
+  {
+    "path": "Codec/Test-Codec.ps1",
+    "bytes": 5534,
+    "sha256": "0111d0f5a66aaebd506376767aa9f008c8bc3b4fbd31f0943c4d1276a33cdd8e"
+  },
+  {
+    "path": "Import-TaskPilotLegacyData.ps1",
+    "bytes": 2715,
+    "sha256": "8ff2814269baec448e578e3c14a06c115aab085b7635278e3e2a5b59700803ba"
+  },
+  {
+    "path": "Inspect-TaskPilotLegacyData.ps1",
+    "bytes": 1132,
+    "sha256": "203de999af497c14ef8fa1f916af5fd4f3849bc5789588ac88fff405c00b2179"
+  },
+  {
+    "path": "Migration-CliSupport.ps1",
+    "bytes": 2507,
+    "sha256": "6fba2e9731b05e9bd94a5ee97dad160160f45ef71f95a431435fc5a833ccb5c1"
+  },
+  {
+    "path": "Modules/TaskPilot.Storage/provider/provider-files.sha256.json",
+    "bytes": 291,
+    "sha256": "cd4c900aaa48f535bd7178483132f97e59a4b8c7690a366f80eb62b14abf0956"
+  },
+  {
+    "path": "Modules/TaskPilot.Storage/provider/provider-manifest.json",
+    "bytes": 2173,
+    "sha256": "671a5f51946d628e3634a016f21913b6ed6eb1a5fbb919626d594eba340e7be0"
+  },
+  {
+    "path": "Modules/TaskPilot.Storage/provider/System.Data.SQLite.dll",
+    "bytes": 450232,
+    "sha256": "77dac4e1aa63161d6aff363030a801945d6b8d5b823a6b460b2c2be9ec38d3b7"
+  },
+  {
+    "path": "Modules/TaskPilot.Storage/provider/System.Data.SQLite.xml",
+    "bytes": 1245480,
+    "sha256": "1b6c751c39881f02db601b7cc7b2e54e122f4870955e06ddb521314c20d23016"
+  },
+  {
+    "path": "Modules/TaskPilot.Storage/provider/ThirdPartyNotices/SQLite-Copyright.txt",
+    "bytes": 642,
+    "sha256": "8997ecb18caa62a8a35ea1c112de9f194449f30a8bda6d8fcc7918fa9634f857"
+  },
+  {
+    "path": "Modules/TaskPilot.Storage/provider/ThirdPartyNotices/System.Data.SQLite-Copyright.txt",
+    "bytes": 1224,
+    "sha256": "fe19d7c766934548c74d56c776056be293ec2a6472238e2b34939b0af0374fc1"
+  },
+  {
+    "path": "Modules/TaskPilot.Storage/provider/ThirdPartyNotices/zlib-1.3.1-License.txt",
+    "bytes": 1432,
+    "sha256": "93276b39b3b6ec5e9b0a12f06f8e978910336313f4e2cb2ff09d94be3287a13e"
+  },
+  {
+    "path": "Modules/TaskPilot.Storage/provider/x64/SQLite.Interop.dll",
+    "bytes": 2005688,
+    "sha256": "1111916dc329a13bd627b2cd90c9b2263de9923fd0bb6059c69c52332f360c37"
+  },
+  {
+    "path": "Modules/TaskPilot.Storage/provider/x86/SQLite.Interop.dll",
+    "bytes": 1592504,
+    "sha256": "553693b15bda4bbf7788bee09b8bd325ffe4db151686f432194c58e15b9b4f1e"
+  },
+  {
+    "path": "Modules/TaskPilot.Storage/TaskPilot.Children.ps1",
+    "bytes": 9679,
+    "sha256": "765d83d25ad0a977b368721515bc54f5fddbd9e111ac2042748b3682a586e831"
+  },
+  {
+    "path": "Modules/TaskPilot.Storage/TaskPilot.Domain.ps1",
+    "bytes": 33414,
+    "sha256": "09b693c718480552250f4ab9477c264bf4b19a3833dc9c3abe70a2a401acab2f"
+  },
+  {
+    "path": "Modules/TaskPilot.Storage/TaskPilot.Migration.ps1",
+    "bytes": 16164,
+    "sha256": "d80495f274879882d9630bec80bb97f67225203d2529a3b7628d7a3194ca12cc"
+  },
+  {
+    "path": "Modules/TaskPilot.Storage/TaskPilot.MigrationDomains.ps1",
+    "bytes": 27661,
+    "sha256": "bff16dfe860a1e9c0742c7c711455e8c7a182a108f199634a14016ec8459cb18"
+  },
+  {
+    "path": "Modules/TaskPilot.Storage/TaskPilot.MigrationFiles.ps1",
+    "bytes": 17287,
+    "sha256": "eec9d09a957598f833f608fb3f359ac87233c702b894bf0f12ebd7e0a05f954b"
+  },
+  {
+    "path": "Modules/TaskPilot.Storage/TaskPilot.MigrationNormalize.ps1",
+    "bytes": 20887,
+    "sha256": "6577340b25c9de0d55a2b0a893f5c87f2a6f129d65b5b487252a4686599c48dd"
+  },
+  {
+    "path": "Modules/TaskPilot.Storage/TaskPilot.Storage.psd1",
+    "bytes": 464,
+    "sha256": "3a512889a31d745a7c56c1c221a9d36414324932df0d54dce869fcefcabb26ef"
+  },
+  {
+    "path": "Modules/TaskPilot.Storage/TaskPilot.Storage.psm1",
+    "bytes": 26803,
+    "sha256": "d46d40ebe5a4795f11874139326c636528d6af6ff7ee2cc7ae5e891de01c046d"
+  },
+  {
+    "path": "PACKAGE_CONTENTS_STEP4C.md",
+    "bytes": 2622,
+    "sha256": "27c2fea1b70b830e0b047d9c86fc277a7cf50dc4b677cf61de59c08cf11b40c7"
+  },
+  {
+    "path": "README_STEP4C.md",
+    "bytes": 13999,
+    "sha256": "f4d8c4482add9c654c514ed6b56e441a94dfd000b9a7b492be06d5c8c1eddaa9"
+  },
+  {
+    "path": "reference/TaskPilot_STEP3_6F_4.ps1",
+    "bytes": 186149,
+    "sha256": "ab0c5e2dbc31128563298d70adf51c59d3e081643899575aaba1d0183d47188d"
+  },
+  {
+    "path": "schema/001_initial.sql",
+    "bytes": 40370,
+    "sha256": "9e2974ad84f1aa9859aaf56433a6ce940081f058ca19371881fbe221f32f4ee8"
+  },
+  {
+    "path": "Test-TaskPilotStep4B.ps1",
+    "bytes": 4439,
+    "sha256": "4e8946cd8218265a7fd9c7806ab971372f936dd13ad13cd1752b3e5d86c6a9a3"
+  },
+  {
+    "path": "Test-TaskPilotStep4C.ps1",
+    "bytes": 3726,
+    "sha256": "91b3b38057af16703c58cecdacb3d5e28107ff0961aaa012ec273876dade93c6"
+  },
+  {
+    "path": "tests/MigrationDomainFixture.ps1",
+    "bytes": 5159,
+    "sha256": "7c843bd9cd4168b6661701c826033e535b3aff24623ecb9e3295eda8cfa28ca2"
+  },
+  {
+    "path": "tests/Test-CoreReview.ps1",
+    "bytes": 9343,
+    "sha256": "8c4103f21975e1cc4cd981b48816ff8ee8bc4f20549d305d8020f0f2ab1efcfc"
+  },
+  {
+    "path": "tests/Test-Domain.ps1",
+    "bytes": 9706,
+    "sha256": "5fe598c03112ee4eea40ef6078e05e400ce42d19595650d41726daf0fdfbe8b7"
+  },
+  {
+    "path": "tests/Test-Migration.ps1",
+    "bytes": 23221,
+    "sha256": "533ea2406b2c212de151e77f156530526bffdce6d3976a359661c5f567ee5a03"
+  },
+  {
+    "path": "tests/Test-MigrationDomains.ps1",
+    "bytes": 9889,
+    "sha256": "75792fc4c854ec42d4e3a4bb5edf0a20ff2de9afae5e77ba48d8cab98cf42a6d"
+  },
+  {
+    "path": "tests/Test-MigrationFiles.ps1",
+    "bytes": 5729,
+    "sha256": "a16cee02b8d8810f18f3bceab03adaaef5e615627777948ef918778b6cd024ab"
+  },
+  {
+    "path": "tests/Test-MigrationFullDomains.ps1",
+    "bytes": 14607,
+    "sha256": "382bca239c2bc81c097840348d1b5cb812a41d03e4b61edf5565081091664690"
+  },
+  {
+    "path": "tests/Test-StorageCore.ps1",
+    "bytes": 12146,
+    "sha256": "450b8c317cb7e0458032378288d0bfb06e95c3ecb3a36a208b031c9997396e5d"
+  },
+  {
+    "path": "検証結果.md",
+    "bytes": 5250,
+    "sha256": "75f6296674df5a3b5231b880265ca92398b8ba34fc6c79c1e738d8a16a5c46da"
+  }
+]

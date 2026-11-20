@@ -1,0 +1,55 @@
+{
+    "Stage":  "Windows Server acceptance preparation - NOT FOR SALE",
+    "CapturedAtUtc":  "2026-11-20T03:40:30.6210656Z",
+    "Status":  "PASSED_SERVER_PREPARATION_ONLY",
+    "SourceCommit":  "f1c8c3a39034b37803f736a63a2542b034d03df3",
+    "ServerRunUrl":  "https://github.com/daiki0902-chiba/TaskPilot/actions/runs/44669141894",
+    "ServerOnly":  true,
+    "Windows10AcceptanceVerified":  false,
+    "Windows11AcceptanceVerified":  false,
+    "InteractiveGuiVerified":  false,
+    "NotificationDeliveryVerified":  false,
+    "ActualExcelOutputVerified":  false,
+    "ApplicationLaunched":  false,
+    "SourceDataModified":  false,
+    "Package":  {
+                    "PackageRoot":  "D:\\a\\_temp\\TaskPilot-native-44669141894-1\\Acceptance\\TaskPilot_Acceptance_0.4.0.1",
+                    "Zip":  "D:\\a\\_temp\\TaskPilot-native-44669141894-1\\Acceptance\\TaskPilot_Windows_Acceptance_0.4.0.1.zip",
+                    "Sha256":  "8b239a37b83882b1f2bff0460335123c7791e74b6c0abfd00f533cd287093ffd",
+                    "ApplicationFiles":  136,
+                    "FileCount":  148,
+                    "Windows10Verified":  false,
+                    "Windows11Verified":  false
+                },
+    "PackagingTests":  {
+                           "Passed":  true,
+                           "Checks":  636,
+                           "TestRoot":  "C:\\Users\\runneradmin\\AppData\\Local\\Temp\\TaskPilotAcceptancePackaging_f769ee7d6d0b4bd8a901b632ce115518",
+                           "PackageRoot":  "C:\\Users\\runneradmin\\AppData\\Local\\Temp\\TaskPilotAcceptancePackaging_f769ee7d6d0b4bd8a901b632ce115518\\new-package\\TaskPilot_Acceptance_0.4.0.1",
+                           "ApplicationFiles":  136,
+                           "Windows10Verified":  false,
+                           "Windows11Verified":  false,
+                           "InteractiveGuiVerified":  false
+                       },
+    "ToolsTests":  {
+                       "Passed":  true,
+                       "Checks":  34,
+                       "SkippedDetails":  [
+
+                                          ],
+                       "TestRoot":  "D:\\a\\TaskPilot\\TaskPilot\\TestResults\\AcceptancePreparation_44669141894_1\\AcceptanceTools_39e896b72f9d4598bffb539b8ebe9ca4",
+                       "ClientAcceptanceVerified":  false,
+                       "ApplicationLaunched":  false,
+                       "OriginalPackageModified":  false
+                   },
+    "PreflightStatus":  "BLOCKED",
+    "Collector":  {
+                      "Directory":  "D:\\a\\TaskPilot\\TaskPilot\\TestResults\\AcceptancePreparation_44669141894_1\\TaskPilotDiagnostics_20261120T034042Z_c452d1cc741548b6a06cfd2c56c4bd73",
+                      "LogsSelected":  0,
+                      "CopiedLogBytes":  0,
+                      "Warnings":  0,
+                      "SourceDataModified":  false,
+                      "Uploaded":  false
+                  },
+    "Error":  null
+}

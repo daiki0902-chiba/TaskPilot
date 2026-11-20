@@ -1,0 +1,32 @@
+{
+  "FormatVersion": 1,
+  "Description": "Explicit customer runtime allowlist. Developer tools, tests and user data are never scanned into the product.",
+  "Files": [
+    "Adapters/TaskPilot.GuiCommon.ps1",
+    "Adapters/TaskPilot.GuiDomains.ps1",
+    "Adapters/TaskPilot.GuiOperations.ps1",
+    "Adapters/TaskPilot.GuiStartup.ps1",
+    "Adapters/TaskPilot.GuiTasks.ps1",
+    "Modules/TaskPilot.Storage/TaskPilot.Children.ps1",
+    "Modules/TaskPilot.Storage/TaskPilot.Domain.ps1",
+    "Modules/TaskPilot.Storage/TaskPilot.Migration.ps1",
+    "Modules/TaskPilot.Storage/TaskPilot.MigrationDomains.ps1",
+    "Modules/TaskPilot.Storage/TaskPilot.MigrationFiles.ps1",
+    "Modules/TaskPilot.Storage/TaskPilot.MigrationNormalize.ps1",
+    "Modules/TaskPilot.Storage/TaskPilot.Protection.ps1",
+    "Modules/TaskPilot.Storage/TaskPilot.Storage.psd1",
+    "Modules/TaskPilot.Storage/TaskPilot.Storage.psm1",
+    "Modules/TaskPilot.Storage/provider/System.Data.SQLite.dll",
+    "Modules/TaskPilot.Storage/provider/System.Data.SQLite.xml",
+    "Modules/TaskPilot.Storage/provider/ThirdPartyNotices/SQLite-Copyright.txt",
+    "Modules/TaskPilot.Storage/provider/ThirdPartyNotices/System.Data.SQLite-Copyright.txt",
+    "Modules/TaskPilot.Storage/provider/ThirdPartyNotices/zlib-1.3.1-License.txt",
+    "Modules/TaskPilot.Storage/provider/provider-files.sha256.json",
+    "Modules/TaskPilot.Storage/provider/provider-manifest.json",
+    "Modules/TaskPilot.Storage/provider/x64/SQLite.Interop.dll",
+    "Modules/TaskPilot.Storage/provider/x86/SQLite.Interop.dll",
+    "Codec/Import-TaskPilotMigrationCodec.ps1",
+    "Codec/TaskPilotMigrationCodec.cs",
+    "schema/001_initial.sql"
+  ]
+}

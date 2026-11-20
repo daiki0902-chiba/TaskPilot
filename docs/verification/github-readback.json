@@ -1,0 +1,101 @@
+{
+  "Head": "8abcc9e6367c54a9ea36e5983b805c0ec6cbbcfb",
+  "TrackedFileCount": 80,
+  "ComparedSHA256Count": 80,
+  "TrackedPathSetDifferenceCount": 0,
+  "SHA256MismatchCount": 0,
+  "SHA256Mismatches": [],
+  "FixedReferenceAndSchemaHashes": [
+    {
+      "Actual": "ab0c5e2dbc31128563298d70adf51c59d3e081643899575aaba1d0183d47188d",
+      "Expected": "ab0c5e2dbc31128563298d70adf51c59d3e081643899575aaba1d0183d47188d",
+      "Path": "reference/TaskPilot_STEP3_6F_4.ps1"
+    },
+    {
+      "Actual": "9e2974ad84f1aa9859aaf56433a6ce940081f058ca19371881fbe221f32f4ee8",
+      "Expected": "9e2974ad84f1aa9859aaf56433a6ce940081f058ca19371881fbe221f32f4ee8",
+      "Path": "schema/001_initial.sql"
+    }
+  ],
+  "ProviderManifestChecks": [
+    {
+      "Path": "System.Data.SQLite.dll",
+      "Bytes": 450232,
+      "SHA256": "77dac4e1aa63161d6aff363030a801945d6b8d5b823a6b460b2c2be9ec38d3b7",
+      "Passed": true
+    },
+    {
+      "Path": "System.Data.SQLite.xml",
+      "Bytes": 1245480,
+      "SHA256": "1b6c751c39881f02db601b7cc7b2e54e122f4870955e06ddb521314c20d23016",
+      "Passed": true
+    },
+    {
+      "Path": "ThirdPartyNotices/SQLite-Copyright.txt",
+      "Bytes": 642,
+      "SHA256": "8997ecb18caa62a8a35ea1c112de9f194449f30a8bda6d8fcc7918fa9634f857",
+      "Passed": true
+    },
+    {
+      "Path": "ThirdPartyNotices/System.Data.SQLite-Copyright.txt",
+      "Bytes": 1224,
+      "SHA256": "fe19d7c766934548c74d56c776056be293ec2a6472238e2b34939b0af0374fc1",
+      "Passed": true
+    },
+    {
+      "Path": "ThirdPartyNotices/zlib-1.3.1-License.txt",
+      "Bytes": 1432,
+      "SHA256": "93276b39b3b6ec5e9b0a12f06f8e978910336313f4e2cb2ff09d94be3287a13e",
+      "Passed": true
+    },
+    {
+      "Path": "x64/SQLite.Interop.dll",
+      "Bytes": 2005688,
+      "SHA256": "1111916dc329a13bd627b2cd90c9b2263de9923fd0bb6059c69c52332f360c37",
+      "Passed": true
+    },
+    {
+      "Path": "x86/SQLite.Interop.dll",
+      "Bytes": 1592504,
+      "SHA256": "553693b15bda4bbf7788bee09b8bd325ffe4db151686f432194c58e15b9b4f1e",
+      "Passed": true
+    }
+  ],
+  "ProviderDllPinChecks": [
+    {
+      "Path": "System.Data.SQLite.dll",
+      "Passed": true
+    },
+    {
+      "Path": "x64/SQLite.Interop.dll",
+      "Passed": true
+    },
+    {
+      "Path": "x86/SQLite.Interop.dll",
+      "Passed": true
+    }
+  ],
+  "BytePreservationAttributeChecks": 11,
+  "PowerShellFileCount": 44,
+  "UTF8BOMCount": 44,
+  "UTF8BOMMissing": [],
+  "InvalidUTF8Count": 0,
+  "ParseErrorCount": 0,
+  "ParseErrors": [],
+  "ForbiddenTrackedPathCount": 0,
+  "ForbiddenTrackedPaths": [],
+  "FailureCount": 0,
+  "Failures": [],
+  "WindowsExecutionVerified": false,
+  "RemoteMainHead": "a761e76fbe4c4335a1847dbfc4417516d205316f",
+  "ExpectedMainHead": "a761e76fbe4c4335a1847dbfc4417516d205316f",
+  "ChangePathsSinceTestedSource": [
+    ".gitattributes",
+    "README.md",
+    "docs/01-current-state.md",
+    "docs/06-release-status.md",
+    "docs/07-github-sync.md"
+  ],
+  "RuntimeChangesSinceTestedSource": 0,
+  "KnownSecretTokenAndPrivateKeyMarkerMatches": 0
+}
