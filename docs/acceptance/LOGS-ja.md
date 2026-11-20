@@ -17,14 +17,12 @@
 # 次の2つのパスは、実際に展開した場所へ置き換えてください。
 $tpApp = 'C:\Users\TaskPilotTest\Desktop\TaskPilotAcceptance\Application\TaskPilot'
 $tpTools = 'C:\Users\TaskPilotTest\Desktop\TaskPilotAcceptance\Tools'
-$tpEvidence = Join-Path ([Environment]::GetFolderPath('Desktop')) 'TaskPilotEvidence'
-if (-not (Test-Path -LiteralPath $tpEvidence)) {
-    New-Item -ItemType Directory -Path $tpEvidence | Out-Null
-}
+$tpEvidence = Join-Path ([Environment]::GetFolderPath('UserProfile')) ('TaskPilotEvidence_' + [guid]::NewGuid().ToString('N'))
+New-Item -ItemType Directory -Path $tpEvidence -ErrorAction Stop | Out-Null
 & (Join-Path $tpTools 'Collect-TaskPilotAcceptanceLogs.ps1') `
     -ApplicationDirectory $tpApp `
     -OutputRoot $tpEvidence `
-    -CaseId 'E03' `
+    -CaseId 'X03' `
     -Reproduction '合成データのタスクを保存。Excelで出力先を開いた状態で更新エラー。'
 ```
 
@@ -42,7 +40,7 @@ if (-not (Test-Path -LiteralPath $tpEvidence)) {
 | `Collection.json` | 採取・未採取・失敗したファイル、採取バイト数、ハッシュ、サイズ上限や読み取り失敗の理由。 |
 | `REVIEW-BEFORE-SHARING.txt` | 共有前の内容確認に関する注意。 |
 
-既定ではログ50件・各10MiB・合計50MiBまでです。上限超過、アクセス拒否、リンク／ジャンクション、読み取り中の変更などは成功とせず記録します。アプリ候補ファイルの診断読み取りも各32MiBまでです。必要なログが上限を超えた場合、元ログを切り詰めず、調査担当に採取方法を相談します。
+既定ではログ50件・各10MiB・合計50MiBまでです。上限超過、アクセス拒否、リンク／ジャンクション、途中で読み取れなくなった場合は理由を記録します。ログはベストエフォートのコピーであり、アプリ起動中の追記・変更を完全に検出する保証はありません。アプリ候補ファイルの診断読み取りも各32MiBまでです。必要なログが上限を超えた場合、元ログを切り詰めず、調査担当に採取方法を相談します。
 
 **DB、CSV、Excel、バックアップ、`active-store.json`、タスク・サブタスク等のユーザーデータを自動コピーしません。** `-LogDirectory`はテスト用コピーを調査する場合の明示指定用です。普段の業務ユーザーのフォルダーを指定しません。
 
