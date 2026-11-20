@@ -9,3 +9,5 @@ Modules/TaskPilot.Storage/provider/** -text
 
 # Preserve downloaded Windows CI evidence as captured.
 docs/verification/windows-*.json -text
+docs/verification/acceptance-*.json -text
+docs/verification/acceptance-*.tsv -text

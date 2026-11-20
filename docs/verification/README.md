@@ -1,5 +1,7 @@
 # 自動テスト実行結果
 
+2026-11-20に追加したWindows 10/11受入キットと補助ツールの検証は[受入準備結果](../09-windows-acceptance-preparation.md)を参照してください。Serverでのキット生成・検査の成功であり、Windows 10/11のGUI・通知・Excel実出力の合格ではありません。
+
 2026-11-18、LinuxのPowerShell 7.4.6 / SQLite 3.46.1に対する明示的な.NETテストアダプターで実行した。Pythonは使用していない。実ユーザーデータを使っていない。
 
 ```text
