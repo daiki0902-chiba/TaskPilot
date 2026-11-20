@@ -4,6 +4,8 @@ PowerShell 5.1とWindows Formsを維持し、既存GUIの保存処理をSQLite�
 
 依頼全体の達成状況は[要件の達成状況](docs/08-requirements-status.md)を参照してください。成果物の作成と、Windows 10/11での受入・販売判定を区別して記録します。
 
+Windows 10/11で試す場合は、[受入テスト用の日本語README](docs/acceptance/README-ja.md)を使用してください。専用の標準ユーザーまたはクリーンなVMを前提とし、アプリ136ファイルを保持したキットに全ファイル一覧、起動前検査、33項目の手順・記録用紙、限定した診断採取、DLLブロックの配布方式検討をまとめます。普段の業務用アカウントでテスト起動しません。
+
 **GitHubへの反映先は開発ブランチ `development/sqlite-commercial-20261116` です。** main `a761e76fbe4c4335a1847dbfc4417516d205316f` の全ツリーにはREADMEと.gitattributesの2ファイルだけがあり、アプリ本体・テストが未登録だったため、以前確認したSTEP3本体とSTEP4Cを基準に候補版を作成しました。mainを親とする履歴を用い、mainへ直接反映しません。GitHub連携アプリの一時停止は解除され、開発ブランチの作成も成功しました。詳細は [GitHub反映状況](docs/07-github-sync.md) を参照してください。
 
 ## 成果物

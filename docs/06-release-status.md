@@ -2,6 +2,8 @@
 
 現時点の判定は **販売判定保留**。SQLite統合の開発候補版と自動テストを作成した段階であり、Windows実機で全機能が合格した製品とは報告しない。
 
+Windows 10/11実機の受入準備として、[専用キットのREADME](acceptance/README-ja.md)、ファイル一覧を生成するパッケージツール、起動前検査、33項目のケースと記録用紙、限定ログ採取を追加した。これは実機受入の完了を意味しない。DLLブロックは[署名したユーザー単位MSIを最初の実証候補](acceptance/DISTRIBUTION-OPTIONS-ja.md)として検討し、OS保護を自動解除するコードは追加していない。
+
 ## GitHub接続の解決と反映方針
 
 2026-11-18、利用者が公開設定を変更した後の再試行で、GitHub連携から `daiki0902-chiba/TaskPilot` の詳細・contents・branchesを取得できた。main `a761e76fbe4c4335a1847dbfc4417516d205316f` の全ツリーにはREADMEと.gitattributesの2ファイルだけがあり、アプリ本体・テスト・CIは未登録である。過去の404から読み取り成功へ状況が変わっている。

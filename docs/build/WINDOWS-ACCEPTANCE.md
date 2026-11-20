@@ -1,5 +1,7 @@
 # Windows 10 / 11 配布前受入試験
 
+実機での操作は[受入テスト用README](../acceptance/README-ja.md)から開始します。[33項目の操作手順](../acceptance/TEST-CASES-ja.md)、[結果記録用紙](../acceptance/RESULT-TEMPLATE-ja.md)、[ログ採取](../acceptance/LOGS-ja.md)、[配布方式の検討](../acceptance/DISTRIBUTION-OPTIONS-ja.md)を用意しています。この表は追加の開発側条件も含む出荷判定用です。
+
 この表はWindows 10/11の試験計画です。Windows Server 2022でnative SQLiteの自動試験と未署名EXE生成は成功しましたが、生成EXEの起動・GUI・通知・実際のExcel出力・署名は未検証です。この表のWindows 10/11項目はすべて **未実施** のままです。Server上の自動試験、Linuxの構文検査、`-ValidateOnly`、明示的なテスト専用SQLiteアダプターでの成功は、この表の合格に置き換えられません。
 
 Windows 10 x64 と Windows 11 x64 で、それぞれ記録を複製して実施してください。購入者向け ZIP の同じハッシュを試験します。試験は専用の標準ユーザーまたは復元可能な VM と合成データで行い、実データ・既存配布物を使用しません。故障注入は必ず別コピーで行います。開発依存物・試験スクリプトは購入者用 ZIP の外に置いてください。Python は使用しません。
