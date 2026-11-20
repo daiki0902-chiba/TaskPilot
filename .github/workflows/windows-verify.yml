@@ -17,7 +17,9 @@ on:
       - 'build/**'
       - 'Assets/**'
       - 'docs/user/README.md'
+      - 'docs/acceptance/**'
       - 'docs/build/THIRD-PARTY-NOTICES.md'
+      - 'docs/acceptance/**'
       - '.github/workflows/windows-verify.yml'
   workflow_dispatch:
 
@@ -59,6 +61,11 @@ jobs:
           $verificationRoot = Join-Path $env:RUNNER_TEMP ('TaskPilot-native-' + $env:GITHUB_RUN_ID + '-' + $env:GITHUB_RUN_ATTEMPT)
           & .\tools\Invoke-TaskPilotWindowsVerification.ps1 -VerificationRoot $verificationRoot
 
+      - name: Prepare client acceptance kit without launching the application
+        run: |
+          $verificationRoot = Join-Path $env:RUNNER_TEMP ('TaskPilot-native-' + $env:GITHUB_RUN_ID + '-' + $env:GITHUB_RUN_ATTEMPT)
+          & .\tools\Invoke-TaskPilotAcceptancePreparation.ps1 -VerificationRoot $verificationRoot
+
       - name: Upload test reports
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4, official ref verified 2026-11-19
@@ -82,3 +89,30 @@ jobs:
             ${{ runner.temp }}/TaskPilot-native-${{ github.run_id }}-${{ github.run_attempt }}/Candidate/DEVELOPMENT_NOT_FOR_SALE.txt
           if-no-files-found: error
           retention-days: 7
+
+      - name: Upload Windows 10 and 11 acceptance preparation kit
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4, official ref verified 2026-11-19
+        with:
+          name: TaskPilot-Windows10-11-ACCEPTANCE-NOT-FOR-SALE-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/TaskPilot-native-${{ github.run_id }}-${{ github.run_attempt }}/Acceptance/TaskPilot_Windows_Acceptance_0.4.0.1.zip
+            ${{ runner.temp }}/TaskPilot-native-${{ github.run_id }}-${{ github.run_attempt }}/Acceptance/TaskPilot_Windows_Acceptance_0.4.0.1.zip.sha256
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload Server preparation reports
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4, official ref verified 2026-11-19
+        with:
+          name: TaskPilot-Windows-Server-acceptance-preparation-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            TestResults/AcceptancePreparation_${{ github.run_id }}_${{ github.run_attempt }}/PreparationSummary.json
+            TestResults/AcceptancePreparation_${{ github.run_id }}_${{ github.run_attempt }}/PackagingTests.json
+            TestResults/AcceptancePreparation_${{ github.run_id }}_${{ github.run_attempt }}/AcceptancePackage.json
+            TestResults/AcceptancePreparation_${{ github.run_id }}_${{ github.run_attempt }}/Preflight.json
+            TestResults/AcceptancePreparation_${{ github.run_id }}_${{ github.run_attempt }}/ToolsTests.json
+            TestResults/AcceptancePreparation_${{ github.run_id }}_${{ github.run_attempt }}/CollectorEnvironment.json
+            TestResults/AcceptancePreparation_${{ github.run_id }}_${{ github.run_attempt }}/CollectorCandidateFiles.json
+            TestResults/AcceptancePreparation_${{ github.run_id }}_${{ github.run_attempt }}/CollectorCollection.json
+          if-no-files-found: warn
+          retention-days: 14
