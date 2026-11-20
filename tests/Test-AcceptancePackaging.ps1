@@ -12,6 +12,7 @@ param(
 $ErrorActionPreference='Stop';Set-StrictMode -Version 2.0
 $repo=Split-Path -Parent $PSScriptRoot
 . (Join-Path $repo 'tools/TaskPilot.BuildSupport.ps1')
+Add-Type -AssemblyName System.IO.Compression
 Add-Type -AssemblyName System.IO.Compression.FileSystem
 $script:checks=0
 function Assert-AcceptancePackaging([bool]$Condition,[string]$Message){$script:checks++;if(-not$Condition){throw $Message}}

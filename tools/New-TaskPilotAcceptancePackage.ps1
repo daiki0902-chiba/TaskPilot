@@ -13,6 +13,7 @@ param(
 $ErrorActionPreference='Stop'
 Set-StrictMode -Version 2.0
 . (Join-Path $PSScriptRoot 'TaskPilot.BuildSupport.ps1')
+Add-Type -AssemblyName System.IO.Compression
 Add-Type -AssemblyName System.IO.Compression.FileSystem
 
 function Assert-TPAcceptanceRelative([string]$Name){
