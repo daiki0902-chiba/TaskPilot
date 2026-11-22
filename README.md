@@ -6,7 +6,7 @@ PowerShell 5.1とWindows Formsを維持し、既存GUIの保存処理をSQLite�
 
 **独立テストモードの公開停止は維持しています。** I25/I28の原因を修正し、Windows Serverで独立27件・追加保存8件・通常8群・停止措置12項目が合格しました。Windows 10/11実機と実ディスク障害は未検証のため、本体・検査・診断の入口とEXE・ZIPの公開は停止したままです。[修正内容・証跡・配布判定](docs/11-isolation-safety-fix.md)を参照してください。既存データがあるユーザーで起動してよいとは案内しません。
 
-Windows 10/11の実機確認に向けた[初心者向け準備ガイド](docs/desktop-acceptance/README-ja.md)、[開始条件と未達条件](docs/desktop-acceptance/READINESS-ja.md)、[31件の確認表](docs/desktop-acceptance/CHECKLIST-ja.md)、[OS別結果票](docs/desktop-acceptance/RESULT-TEMPLATE-ja.md)を用意しています。受入専用ビルド・専用検査・署名付き取得経路は未実装で、現在できるのはPC情報と計画の確認までです。本体の起動許可ではありません。
+Windows 10/11の実機確認に向けた[受入専用入口の実装と制限](docs/12-desktop-acceptance-build.md)、[初心者向け準備ガイド](docs/desktop-acceptance/README-ja.md)、[開始条件と未達条件](docs/desktop-acceptance/READINESS-ja.md)、[31件の確認表](docs/desktop-acceptance/CHECKLIST-ja.md)、[OS別結果票](docs/desktop-acceptance/RESULT-TEMPLATE-ja.md)を用意しています。専用の入口・検査・内部コンパイルを実装していますが、署名・保護された導入・対象PCの事前安全性検査が未整備で、受入GUIとEXE・ZIPの配布は引き続き停止しています。
 
 [受入用README](docs/acceptance/README-ja.md)と[テストモード計画](docs/acceptance/TEST-MODE-ja.md)は未検証項目を含む資料です。[以前の準備結果](docs/09-windows-acceptance-preparation.md)は0.4.0.1の履歴で、独立モードには対応しません。旧ZIPへ新しい引数を渡して代用しないでください。
 

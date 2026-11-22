@@ -5,7 +5,7 @@ $ErrorActionPreference='Stop'
 Set-StrictMode -Version 2.0
 $repo=Split-Path -Parent $PSScriptRoot
 if(-not$OutputPath){$OutputPath=Join-Path $repo 'acceptance/TaskPilot.Acceptance.ps1'}
-$source=[IO.File]::ReadAllText((Join-Path $repo 'TaskPilot.ps1'))
+$source=([IO.File]::ReadAllText((Join-Path $repo 'TaskPilot.ps1')))-replace"`r?`n","`r`n"
 $bodyMarker='$LocalAppData = $script:TPRuntimeContext.ProfileRoot'
 $index=$source.IndexOf($bodyMarker,[StringComparison]::Ordinal)
 if($index-lt0-or$source.IndexOf($bodyMarker,$index+1,[StringComparison]::Ordinal)-ge0){throw 'Acceptance entry generation requires exactly one known runtime body marker.'}

@@ -1,0 +1,65 @@
+{
+    "Stage":  "Separate desktop acceptance synthetic namespace",
+    "Passed":  false,
+    "Cases":  [
+                  {
+                      "Id":  "A01",
+                      "Name":  "The same ID selects different fixed namespaces and purpose markers",
+                      "Passed":  false,
+                      "Error":  "System.Management.Automation.MethodInvocationException: Exception calling \"Create\" with \"2\" argument(s): \"TestEnvironmentId must be exactly 32 lowercase hexadecimal characters.\" ---\u003e System.ArgumentException: TestEnvironmentId must be exactly 32 lowercase hexadecimal characters.\r\n   at TaskPilot.Runtime.Sandbox.OpenCore(String profileRoot, String environmentId, Boolean initialize, SandboxPurpose purpose)\r\n   at CallSite.Target(Closure , CallSite , Type , Object , Object )\r\n   --- End of inner exception stack trace ---\r\n   at System.Management.Automation.ExceptionHandlingOps.CheckActionPreference(FunctionContext funcContext, Exception exception)\r\n   at System.Management.Automation.Interpreter.ActionCallInstruction`2.Run(InterpretedFrame frame)\r\n   at System.Management.Automation.Interpreter.EnterTryCatchFinallyInstruction.Run(InterpretedFrame frame)\r\n   at System.Management.Automation.Interpreter.EnterTryCatchFinallyInstruction.Run(InterpretedFrame frame)",
+                      "Stack":  "at \u003cScriptBlock\u003e, D:\\a\\TaskPilot\\TaskPilot\\tests\\Test-DesktopAcceptanceSandbox.ps1: line 47\r\nat Case-AcceptanceSandbox, D:\\a\\TaskPilot\\TaskPilot\\tests\\Test-DesktopAcceptanceSandbox.ps1: line 22\r\nat \u003cScriptBlock\u003e, D:\\a\\TaskPilot\\TaskPilot\\tests\\Test-DesktopAcceptanceSandbox.ps1: line 46\r\nat \u003cScriptBlock\u003e, D:\\a\\TaskPilot\\TaskPilot\\tools\\Invoke-TaskPilotDesktopAcceptanceVerification.ps1: line 30\r\nat \u003cScriptBlock\u003e, D:\\a\\_temp\\7c2d068b-1c12-4510-8d32-1f2d61cd4a0d.ps1: line 3\r\nat \u003cScriptBlock\u003e, \u003cNo file\u003e: line 1"
+                  },
+                  {
+                      "Id":  "A02",
+                      "Name":  "Every synthetic output stays in the acceptance namespace and lock is independent",
+                      "Passed":  false,
+                      "Error":  "System.Management.Automation.PropertyNotFoundException: The property \u0027Data\u0027 cannot be found on this object. Verify that the property exists.\r\n   at System.Management.Automation.ExceptionHandlingOps.CheckActionPreference(FunctionContext funcContext, Exception exception)\r\n   at System.Management.Automation.Interpreter.ActionCallInstruction`2.Run(InterpretedFrame frame)\r\n   at System.Management.Automation.Interpreter.EnterTryCatchFinallyInstruction.Run(InterpretedFrame frame)\r\n   at System.Management.Automation.Interpreter.EnterTryCatchFinallyInstruction.Run(InterpretedFrame frame)",
+                      "Stack":  "at \u003cScriptBlock\u003e, D:\\a\\TaskPilot\\TaskPilot\\tests\\Test-DesktopAcceptanceSandbox.ps1: line 60\r\nat Case-AcceptanceSandbox, D:\\a\\TaskPilot\\TaskPilot\\tests\\Test-DesktopAcceptanceSandbox.ps1: line 22\r\nat \u003cScriptBlock\u003e, D:\\a\\TaskPilot\\TaskPilot\\tests\\Test-DesktopAcceptanceSandbox.ps1: line 59\r\nat \u003cScriptBlock\u003e, D:\\a\\TaskPilot\\TaskPilot\\tools\\Invoke-TaskPilotDesktopAcceptanceVerification.ps1: line 30\r\nat \u003cScriptBlock\u003e, D:\\a\\_temp\\7c2d068b-1c12-4510-8d32-1f2d61cd4a0d.ps1: line 3\r\nat \u003cScriptBlock\u003e, \u003cNo file\u003e: line 1"
+                  },
+                  {
+                      "Id":  "A03",
+                      "Name":  "Neither purpose can read the other purpose or ordinary data",
+                      "Passed":  false,
+                      "Error":  "System.Management.Automation.RuntimeException: A required boundary refusal was missing: outside this test environment",
+                      "Stack":  "at Assert-AcceptanceSandbox, D:\\a\\TaskPilot\\TaskPilot\\tests\\Test-DesktopAcceptanceSandbox.ps1: line 16\r\nat Reject-AcceptanceSandbox, D:\\a\\TaskPilot\\TaskPilot\\tests\\Test-DesktopAcceptanceSandbox.ps1: line 19\r\nat \u003cScriptBlock\u003e, D:\\a\\TaskPilot\\TaskPilot\\tests\\Test-DesktopAcceptanceSandbox.ps1: line 75\r\nat Case-AcceptanceSandbox, D:\\a\\TaskPilot\\TaskPilot\\tests\\Test-DesktopAcceptanceSandbox.ps1: line 22\r\nat \u003cScriptBlock\u003e, D:\\a\\TaskPilot\\TaskPilot\\tests\\Test-DesktopAcceptanceSandbox.ps1: line 74\r\nat \u003cScriptBlock\u003e, D:\\a\\TaskPilot\\TaskPilot\\tools\\Invoke-TaskPilotDesktopAcceptanceVerification.ps1: line 30\r\nat \u003cScriptBlock\u003e, D:\\a\\_temp\\7c2d068b-1c12-4510-8d32-1f2d61cd4a0d.ps1: line 3\r\nat \u003cScriptBlock\u003e, \u003cNo file\u003e: line 1"
+                  },
+                  {
+                      "Id":  "A04",
+                      "Name":  "Read-only reopening is purpose specific and cannot write",
+                      "Passed":  false,
+                      "Error":  "System.Management.Automation.MethodInvocationException: Exception calling \"OpenExistingAcceptance\" with \"2\" argument(s): \"TestEnvironmentId must be exactly 32 lowercase hexadecimal characters.\" ---\u003e System.ArgumentException: TestEnvironmentId must be exactly 32 lowercase hexadecimal characters.\r\n   at TaskPilot.Runtime.Sandbox.OpenCore(String profileRoot, String environmentId, Boolean initialize, SandboxPurpose purpose)\r\n   at CallSite.Target(Closure , CallSite , Type , Object , Object )\r\n   --- End of inner exception stack trace ---\r\n   at System.Management.Automation.ExceptionHandlingOps.CheckActionPreference(FunctionContext funcContext, Exception exception)\r\n   at System.Management.Automation.Interpreter.ActionCallInstruction`2.Run(InterpretedFrame frame)\r\n   at System.Management.Automation.Interpreter.EnterTryCatchFinallyInstruction.Run(InterpretedFrame frame)\r\n   at System.Management.Automation.Interpreter.EnterTryCatchFinallyInstruction.Run(InterpretedFrame frame)",
+                      "Stack":  "at \u003cScriptBlock\u003e, D:\\a\\TaskPilot\\TaskPilot\\tests\\Test-DesktopAcceptanceSandbox.ps1: line 86\r\nat Case-AcceptanceSandbox, D:\\a\\TaskPilot\\TaskPilot\\tests\\Test-DesktopAcceptanceSandbox.ps1: line 22\r\nat \u003cScriptBlock\u003e, D:\\a\\TaskPilot\\TaskPilot\\tests\\Test-DesktopAcceptanceSandbox.ps1: line 85\r\nat \u003cScriptBlock\u003e, D:\\a\\TaskPilot\\TaskPilot\\tools\\Invoke-TaskPilotDesktopAcceptanceVerification.ps1: line 30\r\nat \u003cScriptBlock\u003e, D:\\a\\_temp\\7c2d068b-1c12-4510-8d32-1f2d61cd4a0d.ps1: line 3\r\nat \u003cScriptBlock\u003e, \u003cNo file\u003e: line 1"
+                  },
+                  {
+                      "Id":  "A05",
+                      "Name":  "A mismatched purpose marker is preserved and blocks both reopening and creation",
+                      "Passed":  false,
+                      "Error":  "System.Management.Automation.MethodInvocationException: Exception calling \"CreateAcceptance\" with \"2\" argument(s): \"TestEnvironmentId must be exactly 32 lowercase hexadecimal characters.\" ---\u003e System.ArgumentException: TestEnvironmentId must be exactly 32 lowercase hexadecimal characters.\r\n   at TaskPilot.Runtime.Sandbox.OpenCore(String profileRoot, String environmentId, Boolean initialize, SandboxPurpose purpose)\r\n   at CallSite.Target(Closure , CallSite , Type , Object , Object )\r\n   --- End of inner exception stack trace ---\r\n   at System.Management.Automation.ExceptionHandlingOps.CheckActionPreference(FunctionContext funcContext, Exception exception)\r\n   at System.Management.Automation.Interpreter.ActionCallInstruction`2.Run(InterpretedFrame frame)\r\n   at System.Management.Automation.Interpreter.EnterTryCatchFinallyInstruction.Run(InterpretedFrame frame)\r\n   at System.Management.Automation.Interpreter.EnterTryCatchFinallyInstruction.Run(InterpretedFrame frame)",
+                      "Stack":  "at \u003cScriptBlock\u003e, D:\\a\\TaskPilot\\TaskPilot\\tests\\Test-DesktopAcceptanceSandbox.ps1: line 92\r\nat Case-AcceptanceSandbox, D:\\a\\TaskPilot\\TaskPilot\\tests\\Test-DesktopAcceptanceSandbox.ps1: line 22\r\nat \u003cScriptBlock\u003e, D:\\a\\TaskPilot\\TaskPilot\\tests\\Test-DesktopAcceptanceSandbox.ps1: line 91\r\nat \u003cScriptBlock\u003e, D:\\a\\TaskPilot\\TaskPilot\\tools\\Invoke-TaskPilotDesktopAcceptanceVerification.ps1: line 30\r\nat \u003cScriptBlock\u003e, D:\\a\\_temp\\7c2d068b-1c12-4510-8d32-1f2d61cd4a0d.ps1: line 3\r\nat \u003cScriptBlock\u003e, \u003cNo file\u003e: line 1"
+                  },
+                  {
+                      "Id":  "A06",
+                      "Name":  "A previous independent ID alone is never adopted by the acceptance opener",
+                      "Passed":  false,
+                      "Error":  "System.Management.Automation.ItemNotFoundException: Cannot find path \u0027D:\\a\\TaskPilot\\TaskPilot\\TestResults\\AcceptanceSandbox_3531f6b5e5994690b4d8a6effa6def1f\\SyntheticLocalAppData\\TaskPilotTest\u0027 because it does not exist.",
+                      "Stack":  "at Snapshot-AcceptanceSandbox, D:\\a\\TaskPilot\\TaskPilot\\tests\\Test-DesktopAcceptanceSandbox.ps1: line 27\r\nat \u003cScriptBlock\u003e, D:\\a\\TaskPilot\\TaskPilot\\tests\\Test-DesktopAcceptanceSandbox.ps1: line 103\r\nat Case-AcceptanceSandbox, D:\\a\\TaskPilot\\TaskPilot\\tests\\Test-DesktopAcceptanceSandbox.ps1: line 22\r\nat \u003cScriptBlock\u003e, D:\\a\\TaskPilot\\TaskPilot\\tests\\Test-DesktopAcceptanceSandbox.ps1: line 102\r\nat \u003cScriptBlock\u003e, D:\\a\\TaskPilot\\TaskPilot\\tools\\Invoke-TaskPilotDesktopAcceptanceVerification.ps1: line 30\r\nat \u003cScriptBlock\u003e, D:\\a\\_temp\\7c2d068b-1c12-4510-8d32-1f2d61cd4a0d.ps1: line 3\r\nat \u003cScriptBlock\u003e, \u003cNo file\u003e: line 1"
+                  }
+              ],
+    "FailedCases":  6,
+    "Checks":  1,
+    "RuntimeAssemblySha256":  "6f739d48427b04530c3bb8a380377ca64166f8470b112f18d51d87a0cf2503ac",
+    "SnapshotIncludes":  [
+                             "DirectoryStructure",
+                             "FileLength",
+                             "FileSha256",
+                             "OwnerGroupAndDaclSddl"
+                         ],
+    "NormalFixtureUnchanged":  true,
+    "PreviousIndependentFixtureUnchanged":  false,
+    "ProductionProfileAccessed":  false,
+    "ApplicationLaunched":  false,
+    "Windows10And11Verified":  false,
+    "SkippedDetails":  [
+
+                       ]
+}
