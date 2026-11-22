@@ -1,0 +1,1060 @@
+{
+    "FormatVersion":  1,
+    "SourceCommit":  "b15e153d385cb81fb3b089861ee266131454d5b4",
+    "Status":  "A_FOLLOWUP_AUTOMATED_TESTS_PASSED_DESKTOP_BLOCKED",
+    "Platform":  "Windows Server 2022 / Windows PowerShell Desktop 5.1 x64",
+    "Suites":  [
+                   {
+                       "Stage":  "Acceptance package native reparse and pre-content boundary",
+                       "Passed":  true,
+                       "Cases":  [
+                                     {
+                                         "Id":  "PB01",
+                                         "Name":  "All eight file and empty/nonempty directory native controls execute",
+                                         "Passed":  true
+                                     },
+                                     {
+                                         "Id":  "PB02",
+                                         "Name":  "Pinned zero-byte package files reject all in-place symbolic reparse requests",
+                                         "Passed":  true
+                                     },
+                                     {
+                                         "Id":  "PB03",
+                                         "Name":  "PinnedRootJunction rejects every native access variant",
+                                         "Passed":  true
+                                     },
+                                     {
+                                         "Id":  "PB04",
+                                         "Name":  "PinnedAncestorJunction rejects every native access variant",
+                                         "Passed":  true
+                                     },
+                                     {
+                                         "Id":  "PB05",
+                                         "Name":  "PinnedLeafJunction rejects every native access variant",
+                                         "Passed":  true
+                                     },
+                                     {
+                                         "Id":  "PB06",
+                                         "Name":  "PinnedRootSymbolic rejects every native access variant",
+                                         "Passed":  true
+                                     },
+                                     {
+                                         "Id":  "PB07",
+                                         "Name":  "PinnedAncestorSymbolic rejects every native access variant",
+                                         "Passed":  true
+                                     },
+                                     {
+                                         "Id":  "PB08",
+                                         "Name":  "PinnedLeafSymbolic rejects every native access variant",
+                                         "Passed":  true
+                                     },
+                                     {
+                                         "Id":  "PB09",
+                                         "Name":  "Preexisting file symbolic links are refused before reading a locked normal target",
+                                         "Passed":  true
+                                     },
+                                     {
+                                         "Id":  "PB10",
+                                         "Name":  "Preexisting package-root junction and directory symbolic links cannot be opened",
+                                         "Passed":  true
+                                     },
+                                     {
+                                         "Id":  "PB11",
+                                         "Name":  "Lazy pinning refuses preexisting intermediate junctions and symbolic directories",
+                                         "Passed":  true
+                                     },
+                                     {
+                                         "Id":  "PB12",
+                                         "Name":  "Hard links are refused before payload content is returned",
+                                         "Passed":  true
+                                     },
+                                     {
+                                         "Id":  "PB13",
+                                         "Name":  "Weak and noncanonical file policies cannot be adopted",
+                                         "Passed":  true
+                                     },
+                                     {
+                                         "Id":  "PB14",
+                                         "Name":  "Traversal absolute shared device ADS and environment-expanded paths are refused",
+                                         "Passed":  true
+                                     },
+                                     {
+                                         "Id":  "PB15",
+                                         "Name":  "Pinned executable and payload cannot be deleted renamed or externally overwritten",
+                                         "Passed":  true
+                                     }
+                                 ],
+                       "Checks":  182,
+                       "NativeProbes":  96,
+                       "NativeProbeResults":  [
+                                                  {
+                                                      "Vector":  "FileSymbolicControl",
+                                                      "Protected":  false,
+                                                      "Access":  "GenericWrite",
+                                                      "HandleOpened":  true,
+                                                      "ReparseSet":  true,
+                                                      "Win32Error":  0
+                                                  },
+                                                  {
+                                                      "Vector":  "EmptyDirectoryJunctionControl",
+                                                      "Protected":  false,
+                                                      "Access":  "GenericWrite",
+                                                      "HandleOpened":  true,
+                                                      "ReparseSet":  true,
+                                                      "Win32Error":  0
+                                                  },
+                                                  {
+                                                      "Vector":  "NonemptyDirectoryJunctionControl",
+                                                      "Protected":  false,
+                                                      "Access":  "GenericWrite",
+                                                      "HandleOpened":  true,
+                                                      "ReparseSet":  false,
+                                                      "Win32Error":  145
+                                                  },
+                                                  {
+                                                      "Vector":  "EmptyDirectorySymbolicControl",
+                                                      "Protected":  false,
+                                                      "Access":  "GenericWrite",
+                                                      "HandleOpened":  true,
+                                                      "ReparseSet":  true,
+                                                      "Win32Error":  0
+                                                  },
+                                                  {
+                                                      "Vector":  "NonemptyDirectorySymbolicControl",
+                                                      "Protected":  false,
+                                                      "Access":  "GenericWrite",
+                                                      "HandleOpened":  true,
+                                                      "ReparseSet":  false,
+                                                      "Win32Error":  145
+                                                  },
+                                                  {
+                                                      "Vector":  "FileSymbolicControl",
+                                                      "Protected":  false,
+                                                      "Access":  "WriteData",
+                                                      "HandleOpened":  true,
+                                                      "ReparseSet":  true,
+                                                      "Win32Error":  0
+                                                  },
+                                                  {
+                                                      "Vector":  "EmptyDirectoryJunctionControl",
+                                                      "Protected":  false,
+                                                      "Access":  "WriteData",
+                                                      "HandleOpened":  true,
+                                                      "ReparseSet":  true,
+                                                      "Win32Error":  0
+                                                  },
+                                                  {
+                                                      "Vector":  "NonemptyDirectoryJunctionControl",
+                                                      "Protected":  false,
+                                                      "Access":  "WriteData",
+                                                      "HandleOpened":  true,
+                                                      "ReparseSet":  false,
+                                                      "Win32Error":  145
+                                                  },
+                                                  {
+                                                      "Vector":  "EmptyDirectorySymbolicControl",
+                                                      "Protected":  false,
+                                                      "Access":  "WriteData",
+                                                      "HandleOpened":  true,
+                                                      "ReparseSet":  true,
+                                                      "Win32Error":  0
+                                                  },
+                                                  {
+                                                      "Vector":  "NonemptyDirectorySymbolicControl",
+                                                      "Protected":  false,
+                                                      "Access":  "WriteData",
+                                                      "HandleOpened":  true,
+                                                      "ReparseSet":  false,
+                                                      "Win32Error":  145
+                                                  },
+                                                  {
+                                                      "Vector":  "FileSymbolicControl",
+                                                      "Protected":  false,
+                                                      "Access":  "WriteAttributes",
+                                                      "HandleOpened":  true,
+                                                      "ReparseSet":  true,
+                                                      "Win32Error":  0
+                                                  },
+                                                  {
+                                                      "Vector":  "EmptyDirectoryJunctionControl",
+                                                      "Protected":  false,
+                                                      "Access":  "WriteAttributes",
+                                                      "HandleOpened":  true,
+                                                      "ReparseSet":  true,
+                                                      "Win32Error":  0
+                                                  },
+                                                  {
+                                                      "Vector":  "NonemptyDirectoryJunctionControl",
+                                                      "Protected":  false,
+                                                      "Access":  "WriteAttributes",
+                                                      "HandleOpened":  true,
+                                                      "ReparseSet":  false,
+                                                      "Win32Error":  145
+                                                  },
+                                                  {
+                                                      "Vector":  "EmptyDirectorySymbolicControl",
+                                                      "Protected":  false,
+                                                      "Access":  "WriteAttributes",
+                                                      "HandleOpened":  true,
+                                                      "ReparseSet":  true,
+                                                      "Win32Error":  0
+                                                  },
+                                                  {
+                                                      "Vector":  "NonemptyDirectorySymbolicControl",
+                                                      "Protected":  false,
+                                                      "Access":  "WriteAttributes",
+                                                      "HandleOpened":  true,
+                                                      "ReparseSet":  false,
+                                                      "Win32Error":  145
+                                                  },
+                                                  {
+                                                      "Vector":  "FileSymbolicControl",
+                                                      "Protected":  false,
+                                                      "Access":  "ReadAttributes",
+                                                      "HandleOpened":  true,
+                                                      "ReparseSet":  false,
+                                                      "Win32Error":  5
+                                                  },
+                                                  {
+                                                      "Vector":  "EmptyDirectoryJunctionControl",
+                                                      "Protected":  false,
+                                                      "Access":  "ReadAttributes",
+                                                      "HandleOpened":  true,
+                                                      "ReparseSet":  false,
+                                                      "Win32Error":  5
+                                                  },
+                                                  {
+                                                      "Vector":  "NonemptyDirectoryJunctionControl",
+                                                      "Protected":  false,
+                                                      "Access":  "ReadAttributes",
+                                                      "HandleOpened":  true,
+                                                      "ReparseSet":  false,
+                                                      "Win32Error":  5
+                                                  },
+                                                  {
+                                                      "Vector":  "EmptyDirectorySymbolicControl",
+                                                      "Protected":  false,
+                                                      "Access":  "ReadAttributes",
+                                                      "HandleOpened":  true,
+                                                      "ReparseSet":  false,
+                                                      "Win32Error":  5
+                                                  },
+                                                  {
+                                                      "Vector":  "NonemptyDirectorySymbolicControl",
+                                                      "Protected":  false,
+                                                      "Access":  "ReadAttributes",
+                                                      "HandleOpened":  true,
+                                                      "ReparseSet":  false,
+                                                      "Win32Error":  5
+                                                  },
+                                                  {
+                                                      "Vector":  "FileSymbolicControl",
+                                                      "Protected":  false,
+                                                      "Access":  "Zero",
+                                                      "HandleOpened":  true,
+                                                      "ReparseSet":  false,
+                                                      "Win32Error":  5
+                                                  },
+                                                  {
+                                                      "Vector":  "EmptyDirectoryJunctionControl",
+                                                      "Protected":  false,
+                                                      "Access":  "Zero",
+                                                      "HandleOpened":  true,
+                                                      "ReparseSet":  false,
+                                                      "Win32Error":  5
+                                                  },
+                                                  {
+                                                      "Vector":  "NonemptyDirectoryJunctionControl",
+                                                      "Protected":  false,
+                                                      "Access":  "Zero",
+                                                      "HandleOpened":  true,
+                                                      "ReparseSet":  false,
+                                                      "Win32Error":  5
+                                                  },
+                                                  {
+                                                      "Vector":  "EmptyDirectorySymbolicControl",
+                                                      "Protected":  false,
+                                                      "Access":  "Zero",
+                                                      "HandleOpened":  true,
+                                                      "ReparseSet":  false,
+                                                      "Win32Error":  5
+                                                  },
+                                                  {
+                                                      "Vector":  "NonemptyDirectorySymbolicControl",
+                                                      "Protected":  false,
+                                                      "Access":  "Zero",
+                                                      "HandleOpened":  true,
+                                                      "ReparseSet":  false,
+                                                      "Win32Error":  5
+                                                  },
+                                                  {
+                                                      "Vector":  "FileSymbolicControl",
+                                                      "Protected":  false,
+                                                      "Access":  "WriteEa",
+                                                      "HandleOpened":  true,
+                                                      "ReparseSet":  false,
+                                                      "Win32Error":  5
+                                                  },
+                                                  {
+                                                      "Vector":  "EmptyDirectoryJunctionControl",
+                                                      "Protected":  false,
+                                                      "Access":  "WriteEa",
+                                                      "HandleOpened":  true,
+                                                      "ReparseSet":  false,
+                                                      "Win32Error":  5
+                                                  },
+                                                  {
+                                                      "Vector":  "NonemptyDirectoryJunctionControl",
+                                                      "Protected":  false,
+                                                      "Access":  "WriteEa",
+                                                      "HandleOpened":  true,
+                                                      "ReparseSet":  false,
+                                                      "Win32Error":  5
+                                                  },
+                                                  {
+                                                      "Vector":  "EmptyDirectorySymbolicControl",
+                                                      "Protected":  false,
+                                                      "Access":  "WriteEa",
+                                                      "HandleOpened":  true,
+                                                      "ReparseSet":  false,
+                                                      "Win32Error":  5
+                                                  },
+                                                  {
+                                                      "Vector":  "NonemptyDirectorySymbolicControl",
+                                                      "Protected":  false,
+                                                      "Access":  "WriteEa",
+                                                      "HandleOpened":  true,
+                                                      "ReparseSet":  false,
+                                                      "Win32Error":  5
+                                                  },
+                                                  {
+                                                      "Vector":  "FileSymbolicControl",
+                                                      "Protected":  false,
+                                                      "Access":  "AppendData",
+                                                      "HandleOpened":  true,
+                                                      "ReparseSet":  true,
+                                                      "Win32Error":  0
+                                                  },
+                                                  {
+                                                      "Vector":  "EmptyDirectoryJunctionControl",
+                                                      "Protected":  false,
+                                                      "Access":  "AppendData",
+                                                      "HandleOpened":  true,
+                                                      "ReparseSet":  true,
+                                                      "Win32Error":  0
+                                                  },
+                                                  {
+                                                      "Vector":  "NonemptyDirectoryJunctionControl",
+                                                      "Protected":  false,
+                                                      "Access":  "AppendData",
+                                                      "HandleOpened":  true,
+                                                      "ReparseSet":  false,
+                                                      "Win32Error":  145
+                                                  },
+                                                  {
+                                                      "Vector":  "EmptyDirectorySymbolicControl",
+                                                      "Protected":  false,
+                                                      "Access":  "AppendData",
+                                                      "HandleOpened":  true,
+                                                      "ReparseSet":  true,
+                                                      "Win32Error":  0
+                                                  },
+                                                  {
+                                                      "Vector":  "NonemptyDirectorySymbolicControl",
+                                                      "Protected":  false,
+                                                      "Access":  "AppendData",
+                                                      "HandleOpened":  true,
+                                                      "ReparseSet":  false,
+                                                      "Win32Error":  145
+                                                  },
+                                                  {
+                                                      "Vector":  "FileSymbolicControl",
+                                                      "Protected":  false,
+                                                      "Access":  "MaximumAllowed",
+                                                      "HandleOpened":  true,
+                                                      "ReparseSet":  true,
+                                                      "Win32Error":  0
+                                                  },
+                                                  {
+                                                      "Vector":  "EmptyDirectoryJunctionControl",
+                                                      "Protected":  false,
+                                                      "Access":  "MaximumAllowed",
+                                                      "HandleOpened":  true,
+                                                      "ReparseSet":  true,
+                                                      "Win32Error":  0
+                                                  },
+                                                  {
+                                                      "Vector":  "NonemptyDirectoryJunctionControl",
+                                                      "Protected":  false,
+                                                      "Access":  "MaximumAllowed",
+                                                      "HandleOpened":  true,
+                                                      "ReparseSet":  false,
+                                                      "Win32Error":  145
+                                                  },
+                                                  {
+                                                      "Vector":  "EmptyDirectorySymbolicControl",
+                                                      "Protected":  false,
+                                                      "Access":  "MaximumAllowed",
+                                                      "HandleOpened":  true,
+                                                      "ReparseSet":  true,
+                                                      "Win32Error":  0
+                                                  },
+                                                  {
+                                                      "Vector":  "NonemptyDirectorySymbolicControl",
+                                                      "Protected":  false,
+                                                      "Access":  "MaximumAllowed",
+                                                      "HandleOpened":  true,
+                                                      "ReparseSet":  false,
+                                                      "Win32Error":  145
+                                                  },
+                                                  {
+                                                      "Vector":  "PinnedFileSymbolic",
+                                                      "Protected":  true,
+                                                      "Access":  "GenericWrite",
+                                                      "HandleOpened":  false,
+                                                      "ReparseSet":  false,
+                                                      "Win32Error":  5
+                                                  },
+                                                  {
+                                                      "Vector":  "PinnedFileSymbolic",
+                                                      "Protected":  true,
+                                                      "Access":  "WriteData",
+                                                      "HandleOpened":  false,
+                                                      "ReparseSet":  false,
+                                                      "Win32Error":  32
+                                                  },
+                                                  {
+                                                      "Vector":  "PinnedFileSymbolic",
+                                                      "Protected":  true,
+                                                      "Access":  "WriteAttributes",
+                                                      "HandleOpened":  false,
+                                                      "ReparseSet":  false,
+                                                      "Win32Error":  5
+                                                  },
+                                                  {
+                                                      "Vector":  "PinnedFileSymbolic",
+                                                      "Protected":  true,
+                                                      "Access":  "ReadAttributes",
+                                                      "HandleOpened":  true,
+                                                      "ReparseSet":  false,
+                                                      "Win32Error":  5
+                                                  },
+                                                  {
+                                                      "Vector":  "PinnedFileSymbolic",
+                                                      "Protected":  true,
+                                                      "Access":  "Zero",
+                                                      "HandleOpened":  true,
+                                                      "ReparseSet":  false,
+                                                      "Win32Error":  5
+                                                  },
+                                                  {
+                                                      "Vector":  "PinnedFileSymbolic",
+                                                      "Protected":  true,
+                                                      "Access":  "WriteEa",
+                                                      "HandleOpened":  false,
+                                                      "ReparseSet":  false,
+                                                      "Win32Error":  5
+                                                  },
+                                                  {
+                                                      "Vector":  "PinnedFileSymbolic",
+                                                      "Protected":  true,
+                                                      "Access":  "AppendData",
+                                                      "HandleOpened":  false,
+                                                      "ReparseSet":  false,
+                                                      "Win32Error":  32
+                                                  },
+                                                  {
+                                                      "Vector":  "PinnedFileSymbolic",
+                                                      "Protected":  true,
+                                                      "Access":  "MaximumAllowed",
+                                                      "HandleOpened":  false,
+                                                      "ReparseSet":  false,
+                                                      "Win32Error":  32
+                                                  },
+                                                  {
+                                                      "Vector":  "PinnedRootJunction",
+                                                      "Protected":  true,
+                                                      "Access":  "GenericWrite",
+                                                      "HandleOpened":  false,
+                                                      "ReparseSet":  false,
+                                                      "Win32Error":  5
+                                                  },
+                                                  {
+                                                      "Vector":  "PinnedRootJunction",
+                                                      "Protected":  true,
+                                                      "Access":  "WriteData",
+                                                      "HandleOpened":  true,
+                                                      "ReparseSet":  false,
+                                                      "Win32Error":  145
+                                                  },
+                                                  {
+                                                      "Vector":  "PinnedRootJunction",
+                                                      "Protected":  true,
+                                                      "Access":  "WriteAttributes",
+                                                      "HandleOpened":  false,
+                                                      "ReparseSet":  false,
+                                                      "Win32Error":  5
+                                                  },
+                                                  {
+                                                      "Vector":  "PinnedRootJunction",
+                                                      "Protected":  true,
+                                                      "Access":  "ReadAttributes",
+                                                      "HandleOpened":  true,
+                                                      "ReparseSet":  false,
+                                                      "Win32Error":  5
+                                                  },
+                                                  {
+                                                      "Vector":  "PinnedRootJunction",
+                                                      "Protected":  true,
+                                                      "Access":  "Zero",
+                                                      "HandleOpened":  true,
+                                                      "ReparseSet":  false,
+                                                      "Win32Error":  5
+                                                  },
+                                                  {
+                                                      "Vector":  "PinnedRootJunction",
+                                                      "Protected":  true,
+                                                      "Access":  "WriteEa",
+                                                      "HandleOpened":  false,
+                                                      "ReparseSet":  false,
+                                                      "Win32Error":  5
+                                                  },
+                                                  {
+                                                      "Vector":  "PinnedRootJunction",
+                                                      "Protected":  true,
+                                                      "Access":  "AppendData",
+                                                      "HandleOpened":  true,
+                                                      "ReparseSet":  false,
+                                                      "Win32Error":  145
+                                                  },
+                                                  {
+                                                      "Vector":  "PinnedRootJunction",
+                                                      "Protected":  true,
+                                                      "Access":  "MaximumAllowed",
+                                                      "HandleOpened":  false,
+                                                      "ReparseSet":  false,
+                                                      "Win32Error":  32
+                                                  },
+                                                  {
+                                                      "Vector":  "PinnedAncestorJunction",
+                                                      "Protected":  true,
+                                                      "Access":  "GenericWrite",
+                                                      "HandleOpened":  true,
+                                                      "ReparseSet":  false,
+                                                      "Win32Error":  145
+                                                  },
+                                                  {
+                                                      "Vector":  "PinnedAncestorJunction",
+                                                      "Protected":  true,
+                                                      "Access":  "WriteData",
+                                                      "HandleOpened":  true,
+                                                      "ReparseSet":  false,
+                                                      "Win32Error":  145
+                                                  },
+                                                  {
+                                                      "Vector":  "PinnedAncestorJunction",
+                                                      "Protected":  true,
+                                                      "Access":  "WriteAttributes",
+                                                      "HandleOpened":  true,
+                                                      "ReparseSet":  false,
+                                                      "Win32Error":  145
+                                                  },
+                                                  {
+                                                      "Vector":  "PinnedAncestorJunction",
+                                                      "Protected":  true,
+                                                      "Access":  "ReadAttributes",
+                                                      "HandleOpened":  true,
+                                                      "ReparseSet":  false,
+                                                      "Win32Error":  5
+                                                  },
+                                                  {
+                                                      "Vector":  "PinnedAncestorJunction",
+                                                      "Protected":  true,
+                                                      "Access":  "Zero",
+                                                      "HandleOpened":  true,
+                                                      "ReparseSet":  false,
+                                                      "Win32Error":  5
+                                                  },
+                                                  {
+                                                      "Vector":  "PinnedAncestorJunction",
+                                                      "Protected":  true,
+                                                      "Access":  "WriteEa",
+                                                      "HandleOpened":  true,
+                                                      "ReparseSet":  false,
+                                                      "Win32Error":  5
+                                                  },
+                                                  {
+                                                      "Vector":  "PinnedAncestorJunction",
+                                                      "Protected":  true,
+                                                      "Access":  "AppendData",
+                                                      "HandleOpened":  true,
+                                                      "ReparseSet":  false,
+                                                      "Win32Error":  145
+                                                  },
+                                                  {
+                                                      "Vector":  "PinnedAncestorJunction",
+                                                      "Protected":  true,
+                                                      "Access":  "MaximumAllowed",
+                                                      "HandleOpened":  false,
+                                                      "ReparseSet":  false,
+                                                      "Win32Error":  32
+                                                  },
+                                                  {
+                                                      "Vector":  "PinnedLeafJunction",
+                                                      "Protected":  true,
+                                                      "Access":  "GenericWrite",
+                                                      "HandleOpened":  false,
+                                                      "ReparseSet":  false,
+                                                      "Win32Error":  5
+                                                  },
+                                                  {
+                                                      "Vector":  "PinnedLeafJunction",
+                                                      "Protected":  true,
+                                                      "Access":  "WriteData",
+                                                      "HandleOpened":  true,
+                                                      "ReparseSet":  false,
+                                                      "Win32Error":  145
+                                                  },
+                                                  {
+                                                      "Vector":  "PinnedLeafJunction",
+                                                      "Protected":  true,
+                                                      "Access":  "WriteAttributes",
+                                                      "HandleOpened":  false,
+                                                      "ReparseSet":  false,
+                                                      "Win32Error":  5
+                                                  },
+                                                  {
+                                                      "Vector":  "PinnedLeafJunction",
+                                                      "Protected":  true,
+                                                      "Access":  "ReadAttributes",
+                                                      "HandleOpened":  true,
+                                                      "ReparseSet":  false,
+                                                      "Win32Error":  5
+                                                  },
+                                                  {
+                                                      "Vector":  "PinnedLeafJunction",
+                                                      "Protected":  true,
+                                                      "Access":  "Zero",
+                                                      "HandleOpened":  true,
+                                                      "ReparseSet":  false,
+                                                      "Win32Error":  5
+                                                  },
+                                                  {
+                                                      "Vector":  "PinnedLeafJunction",
+                                                      "Protected":  true,
+                                                      "Access":  "WriteEa",
+                                                      "HandleOpened":  false,
+                                                      "ReparseSet":  false,
+                                                      "Win32Error":  5
+                                                  },
+                                                  {
+                                                      "Vector":  "PinnedLeafJunction",
+                                                      "Protected":  true,
+                                                      "Access":  "AppendData",
+                                                      "HandleOpened":  true,
+                                                      "ReparseSet":  false,
+                                                      "Win32Error":  145
+                                                  },
+                                                  {
+                                                      "Vector":  "PinnedLeafJunction",
+                                                      "Protected":  true,
+                                                      "Access":  "MaximumAllowed",
+                                                      "HandleOpened":  false,
+                                                      "ReparseSet":  false,
+                                                      "Win32Error":  32
+                                                  },
+                                                  {
+                                                      "Vector":  "PinnedRootSymbolic",
+                                                      "Protected":  true,
+                                                      "Access":  "GenericWrite",
+                                                      "HandleOpened":  false,
+                                                      "ReparseSet":  false,
+                                                      "Win32Error":  5
+                                                  },
+                                                  {
+                                                      "Vector":  "PinnedRootSymbolic",
+                                                      "Protected":  true,
+                                                      "Access":  "WriteData",
+                                                      "HandleOpened":  true,
+                                                      "ReparseSet":  false,
+                                                      "Win32Error":  145
+                                                  },
+                                                  {
+                                                      "Vector":  "PinnedRootSymbolic",
+                                                      "Protected":  true,
+                                                      "Access":  "WriteAttributes",
+                                                      "HandleOpened":  false,
+                                                      "ReparseSet":  false,
+                                                      "Win32Error":  5
+                                                  },
+                                                  {
+                                                      "Vector":  "PinnedRootSymbolic",
+                                                      "Protected":  true,
+                                                      "Access":  "ReadAttributes",
+                                                      "HandleOpened":  true,
+                                                      "ReparseSet":  false,
+                                                      "Win32Error":  5
+                                                  },
+                                                  {
+                                                      "Vector":  "PinnedRootSymbolic",
+                                                      "Protected":  true,
+                                                      "Access":  "Zero",
+                                                      "HandleOpened":  true,
+                                                      "ReparseSet":  false,
+                                                      "Win32Error":  5
+                                                  },
+                                                  {
+                                                      "Vector":  "PinnedRootSymbolic",
+                                                      "Protected":  true,
+                                                      "Access":  "WriteEa",
+                                                      "HandleOpened":  false,
+                                                      "ReparseSet":  false,
+                                                      "Win32Error":  5
+                                                  },
+                                                  {
+                                                      "Vector":  "PinnedRootSymbolic",
+                                                      "Protected":  true,
+                                                      "Access":  "AppendData",
+                                                      "HandleOpened":  true,
+                                                      "ReparseSet":  false,
+                                                      "Win32Error":  145
+                                                  },
+                                                  {
+                                                      "Vector":  "PinnedRootSymbolic",
+                                                      "Protected":  true,
+                                                      "Access":  "MaximumAllowed",
+                                                      "HandleOpened":  false,
+                                                      "ReparseSet":  false,
+                                                      "Win32Error":  32
+                                                  },
+                                                  {
+                                                      "Vector":  "PinnedAncestorSymbolic",
+                                                      "Protected":  true,
+                                                      "Access":  "GenericWrite",
+                                                      "HandleOpened":  true,
+                                                      "ReparseSet":  false,
+                                                      "Win32Error":  145
+                                                  },
+                                                  {
+                                                      "Vector":  "PinnedAncestorSymbolic",
+                                                      "Protected":  true,
+                                                      "Access":  "WriteData",
+                                                      "HandleOpened":  true,
+                                                      "ReparseSet":  false,
+                                                      "Win32Error":  145
+                                                  },
+                                                  {
+                                                      "Vector":  "PinnedAncestorSymbolic",
+                                                      "Protected":  true,
+                                                      "Access":  "WriteAttributes",
+                                                      "HandleOpened":  true,
+                                                      "ReparseSet":  false,
+                                                      "Win32Error":  145
+                                                  },
+                                                  {
+                                                      "Vector":  "PinnedAncestorSymbolic",
+                                                      "Protected":  true,
+                                                      "Access":  "ReadAttributes",
+                                                      "HandleOpened":  true,
+                                                      "ReparseSet":  false,
+                                                      "Win32Error":  5
+                                                  },
+                                                  {
+                                                      "Vector":  "PinnedAncestorSymbolic",
+                                                      "Protected":  true,
+                                                      "Access":  "Zero",
+                                                      "HandleOpened":  true,
+                                                      "ReparseSet":  false,
+                                                      "Win32Error":  5
+                                                  },
+                                                  {
+                                                      "Vector":  "PinnedAncestorSymbolic",
+                                                      "Protected":  true,
+                                                      "Access":  "WriteEa",
+                                                      "HandleOpened":  true,
+                                                      "ReparseSet":  false,
+                                                      "Win32Error":  5
+                                                  },
+                                                  {
+                                                      "Vector":  "PinnedAncestorSymbolic",
+                                                      "Protected":  true,
+                                                      "Access":  "AppendData",
+                                                      "HandleOpened":  true,
+                                                      "ReparseSet":  false,
+                                                      "Win32Error":  145
+                                                  },
+                                                  {
+                                                      "Vector":  "PinnedAncestorSymbolic",
+                                                      "Protected":  true,
+                                                      "Access":  "MaximumAllowed",
+                                                      "HandleOpened":  false,
+                                                      "ReparseSet":  false,
+                                                      "Win32Error":  32
+                                                  },
+                                                  {
+                                                      "Vector":  "PinnedLeafSymbolic",
+                                                      "Protected":  true,
+                                                      "Access":  "GenericWrite",
+                                                      "HandleOpened":  false,
+                                                      "ReparseSet":  false,
+                                                      "Win32Error":  5
+                                                  },
+                                                  {
+                                                      "Vector":  "PinnedLeafSymbolic",
+                                                      "Protected":  true,
+                                                      "Access":  "WriteData",
+                                                      "HandleOpened":  true,
+                                                      "ReparseSet":  false,
+                                                      "Win32Error":  145
+                                                  },
+                                                  {
+                                                      "Vector":  "PinnedLeafSymbolic",
+                                                      "Protected":  true,
+                                                      "Access":  "WriteAttributes",
+                                                      "HandleOpened":  false,
+                                                      "ReparseSet":  false,
+                                                      "Win32Error":  5
+                                                  },
+                                                  {
+                                                      "Vector":  "PinnedLeafSymbolic",
+                                                      "Protected":  true,
+                                                      "Access":  "ReadAttributes",
+                                                      "HandleOpened":  true,
+                                                      "ReparseSet":  false,
+                                                      "Win32Error":  5
+                                                  },
+                                                  {
+                                                      "Vector":  "PinnedLeafSymbolic",
+                                                      "Protected":  true,
+                                                      "Access":  "Zero",
+                                                      "HandleOpened":  true,
+                                                      "ReparseSet":  false,
+                                                      "Win32Error":  5
+                                                  },
+                                                  {
+                                                      "Vector":  "PinnedLeafSymbolic",
+                                                      "Protected":  true,
+                                                      "Access":  "WriteEa",
+                                                      "HandleOpened":  false,
+                                                      "ReparseSet":  false,
+                                                      "Win32Error":  5
+                                                  },
+                                                  {
+                                                      "Vector":  "PinnedLeafSymbolic",
+                                                      "Protected":  true,
+                                                      "Access":  "AppendData",
+                                                      "HandleOpened":  true,
+                                                      "ReparseSet":  false,
+                                                      "Win32Error":  145
+                                                  },
+                                                  {
+                                                      "Vector":  "PinnedLeafSymbolic",
+                                                      "Protected":  true,
+                                                      "Access":  "MaximumAllowed",
+                                                      "HandleOpened":  false,
+                                                      "ReparseSet":  false,
+                                                      "Win32Error":  32
+                                                  }
+                                              ],
+                       "PinnedMutationChecks":  6,
+                       "CompleteNativeCoverage":  true,
+                       "UnsafeVectorConfirmed":  false,
+                       "NormalFixtureUnchanged":  true,
+                       "SnapshotIncludes":  [
+                                                "FileSha256",
+                                                "FileLength",
+                                                "DirectoryStructure",
+                                                "OwnerGroupAndDaclSddl"
+                                            ],
+                       "PackageGuardSourceSha256":  "7a2fa88cf87c832a9d6862ea4c3da8ddc881ac62a947c2dfe6cecabd9fd1ced2",
+                       "ProbeSourceSha256":  "3e7818509b4c01e430094d61da316ed17dd4c883d3abce48af5b44eed30d3523",
+                       "Errors":  [
+
+                                  ],
+                       "SkippedDetails":  [
+
+                                          ],
+                       "ProductionProfileAccessed":  false,
+                       "ApplicationLaunched":  false,
+                       "PrivilegesEnabled":  false,
+                       "OSProtectionSettingsChanged":  false,
+                       "Windows10And11Verified":  false,
+                       "TestRoot":  "D:\\a\\TaskPilot\\TaskPilot\\TestResults\\AcceptancePackageBoundary_9b6f324d20ee4f7bab5017dec915d092"
+                   },
+                   {
+                       "Suite":  "DesktopAcceptanceDiagnostics",
+                       "Passed":  true,
+                       "Checks":  42,
+                       "NativeReadonlyReopenExecuted":  true,
+                       "NativeReadonlyChecks":  29,
+                       "NativeCases":  [
+                                           {
+                                               "Id":  "D01",
+                                               "Passed":  true
+                                           },
+                                           {
+                                               "Id":  "D02",
+                                               "Passed":  true
+                                           },
+                                           {
+                                               "Id":  "D03",
+                                               "Passed":  true
+                                           },
+                                           {
+                                               "Id":  "D04",
+                                               "Passed":  true
+                                           },
+                                           {
+                                               "Id":  "D05",
+                                               "Passed":  true
+                                           },
+                                           {
+                                               "Id":  "D06",
+                                               "Passed":  true
+                                           },
+                                           {
+                                               "Id":  "D07",
+                                               "Passed":  true
+                                           },
+                                           {
+                                               "Id":  "D08",
+                                               "Passed":  true
+                                           },
+                                           {
+                                               "Id":  "D09",
+                                               "Passed":  true
+                                           },
+                                           {
+                                               "Id":  "D10",
+                                               "Passed":  true
+                                           },
+                                           {
+                                               "Id":  "D11",
+                                               "Passed":  true
+                                           }
+                                       ],
+                       "RuntimeAssemblySha256":  "c70ea2897a5e3a313caf7da685dd70b7dc9491f1da9dc0ab35a41df387fcd288",
+                       "NormalFixtureUnchanged":  true,
+                       "ProductionProfileAccessed":  false,
+                       "GuiExecuted":  false,
+                       "PositiveProductionAuthorizationVerified":  false
+                   },
+                   {
+                       "Stage":  "Acceptance backend qualification core",
+                       "Passed":  true,
+                       "Checks":  25,
+                       "NativeExecuted":  true,
+                       "NativeCases":  [
+                                           {
+                                               "Id":  "Q01",
+                                               "Passed":  true,
+                                               "Code":  "TP-QUALIFICATION-Q01-PASSED"
+                                           },
+                                           {
+                                               "Id":  "Q02",
+                                               "Passed":  true,
+                                               "Code":  "TP-QUALIFICATION-Q02-PASSED"
+                                           },
+                                           {
+                                               "Id":  "Q03",
+                                               "Passed":  true,
+                                               "Code":  "TP-QUALIFICATION-Q03-PASSED"
+                                           },
+                                           {
+                                               "Id":  "Q04",
+                                               "Passed":  true,
+                                               "Code":  "TP-QUALIFICATION-Q04-PASSED"
+                                           },
+                                           {
+                                               "Id":  "Q05",
+                                               "Passed":  true,
+                                               "Code":  "TP-QUALIFICATION-Q05-PASSED"
+                                           },
+                                           {
+                                               "Id":  "Q06",
+                                               "Passed":  true,
+                                               "Code":  "TP-QUALIFICATION-Q06-PASSED"
+                                           }
+                                       ],
+                       "NativeProbeChecks":  28,
+                       "NormalFixtureUnchanged":  true,
+                       "PreviousIndependentFixtureUnchanged":  true,
+                       "RuntimeAssemblySha256":  "c70ea2897a5e3a313caf7da685dd70b7dc9491f1da9dc0ab35a41df387fcd288",
+                       "FullClientQualificationImplemented":  false,
+                       "ProductionProfileAccessed":  false,
+                       "ApplicationLaunched":  false,
+                       "Windows10And11Verified":  false
+                   },
+                   {
+                       "Stage":  "Acceptance immutable MSIX planning",
+                       "Passed":  true,
+                       "Checks":  44,
+                       "Kind":  "PLAN_ONLY",
+                       "Status":  "NOT_READY",
+                       "ProductionProfileAccessed":  false,
+                       "PackageCreated":  false,
+                       "Signed":  false,
+                       "Installed":  false,
+                       "Windows10And11Verified":  false
+                   },
+                   {
+                       "Stage":  "Default PowerShell SDK host policy observation",
+                       "Passed":  true,
+                       "Checks":  10,
+                       "Status":  "OBSERVED_CURRENT_HOST_POLICY",
+                       "NativeExecuted":  true,
+                       "AuthorizationManagerIntrospectionAvailable":  false,
+                       "AuthorizationManagerType":  null,
+                       "EffectivePolicy":  "Unrestricted",
+                       "PolicyScopes":  [
+                                            {
+                                                "Scope":  "MachinePolicy",
+                                                "Policy":  "Undefined"
+                                            },
+                                            {
+                                                "Scope":  "UserPolicy",
+                                                "Policy":  "Undefined"
+                                            },
+                                            {
+                                                "Scope":  "Process",
+                                                "Policy":  "Undefined"
+                                            },
+                                            {
+                                                "Scope":  "CurrentUser",
+                                                "Policy":  "Undefined"
+                                            },
+                                            {
+                                                "Scope":  "LocalMachine",
+                                                "Policy":  "Unrestricted"
+                                            }
+                                        ],
+                       "LocalUnsignedProbeAllowed":  true,
+                       "PolicyChanged":  false,
+                       "AuthorizationManagerChanged":  false,
+                       "CertificateInstalled":  false,
+                       "OtherExecutionPoliciesVerified":  false,
+                       "Windows10And11HostVerified":  false,
+                       "ProductionProfileAccessed":  false,
+                       "ApplicationLaunched":  false,
+                       "CanAuthorizeAcceptance":  false
+                   }
+               ],
+    "RuntimeAssemblySha256":  "c70ea2897a5e3a313caf7da685dd70b7dc9491f1da9dc0ab35a41df387fcd288",
+    "AcceptanceBinaryMemoryCases":  8,
+    "AcceptanceBinaryIndependentCases":  27,
+    "GeneralReleaseBlocked":  true,
+    "IndependentModeReleaseBlocked":  true,
+    "DesktopAcceptanceReleaseBlocked":  true,
+    "ExecutableUploaded":  false,
+    "DistributionZipCreated":  false,
+    "ProductionProfileAccessed":  false,
+    "Windows10GuiVerified":  false,
+    "Windows11GuiVerified":  false,
+    "CanLaunch":  false,
+    "RemainingA":  [
+                       "Host compatibility design without policy overrides",
+                       "OS-enforced installation integrated with package verifier",
+                       "Provider-specific signing/authorization adapter after developer selection",
+                       "End-to-end client qualification orchestration"
+                   ]
+}

@@ -19,7 +19,24 @@
 
 Linuxでは診断13、バックエンド開始条件8、MSIX計画44、専用入口30、同梱構成318検査が合格した。PowerShell構文とC#の構文コンパイルも確認した。ネイティブWindows専用の試験はLinuxでは実施していない。
 
-Windows Server CIの新規結果は確定後にここへ保存する。今回のCIでは、通常版の既存回帰に加え、受入パッケージに入った実際のRuntime DLLへ独立27件・追加保存8件も再実行する。報告以外のEXE・配布ZIPはアップロードしない。
+[Windows Server CI 45082243912・試行2](https://github.com/daiki0902-chiba/TaskPilot/actions/runs/45082243912/attempts/2)が成功した。対象コードは`b15e153d385cb81fb3b089861ee266131454d5b4`で、状態は`A_FOLLOWUP_AUTOMATED_TESTS_PASSED_DESKTOP_BLOCKED`。EXE・配布ZIPのアップロードはスキップされ、報告だけを保存した。
+
+| 検査 | 実測結果 |
+| --- | --- |
+| 基本の受入専用6群 | 693検査合格。旧690から、診断と同梱構成の追加分が増えた |
+| 新しいPackageGuard | 15ケース・96ネイティブ試行・182検査合格。固定変更拒否6項目、必須正例成立、SKIPなし、突破なし |
+| 限定診断 | ネイティブ11ケースを含む42検査合格。読取専用・64KiB上限・既存ロック・競合拒否・合成通常領域不変 |
+| バックエンド検査 | 6ケース・内部28検査と外側25検査が合格。合成通常領域と旧独立領域の内容・構成・所有者/DACLが不変 |
+| MSIX計画 | 44検査合格。計画出力のみで、パッケージ生成・署名・インストールはしていない |
+| 標準ホスト観測 | 10検査合格。Serverの既存有効ポリシーは`Unrestricted`。変更なし。他ポリシーやWindowsクライアントの合格ではない |
+| 通常版の回帰 | 既存8群合格。テスト用プロバイダー限定の改変フック1項目は明示的SKIP |
+| 受入実物DLLの回帰 | 実際に同梱した同一DLLのハッシュを要求し、独立27件・追加保存8件を再実行して合格。両方SKIPなし |
+
+検査群で同じ準備・検証が重複するため、表の数値を単純合計して一意な試験件数とはしない。受入DLLのSHA-256は`c70ea2897a5e3a313caf7da685dd70b7dc9491f1da9dc0ab35a41df387fcd288`。
+
+[CI情報・ハッシュ一覧](verification/acceptance-followup-ci-20261122.json)、[追加群の生レポート](verification/acceptance-followup-server-20261122.json)、[受入DLLの独立検査](verification/acceptance-followup-isolation-actual-20261122.json)、[保存検査](verification/acceptance-followup-memory-actual-20261122.json)を固定した。合成通常領域の[事前](verification/acceptance-followup-normal-before-20261122.txt)・[事後](verification/acceptance-followup-normal-after-20261122.txt)記録はバイト一致する。Artifact IDは`14778027283`（報告のみ、期限2026-12-06）。
+
+途中の失敗も隠さず、[部分不合格の記録](verification/acceptance-followup-partial-failure-20261122.json)と履歴に残した。主因は試験側のReflection引数、保護前後のfixture作成順、予約変数、ケース間の変数スコープ、ソース内への計画出力、結果ファイルの選択であり、試験・集約処理を修正した。検査項目や製品の保護は緩めていない。最終コードの初回は固定依存取得先への接続失敗で中断したため、同じコード・URL・ハッシュのまま再実行して成功した。
 
 Windows 10/11のGUI、通知、実Excel、正式署名、ブラウザー取得から導入・DLLロードまでの確認は未検証である。
 
