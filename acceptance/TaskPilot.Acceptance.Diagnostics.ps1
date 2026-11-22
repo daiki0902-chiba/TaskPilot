@@ -12,7 +12,7 @@ function Write-TPAcceptanceEvent {
     # Bound total log size without reading existing application text. Overflow
     # stops further collection; it does not delete or rotate any other file.
     $line='{"FormatVersion":1,"Code":"'+$Code+'"}'+[Environment]::NewLine
-    $currentLength=if($context.Sandbox.Exists($path)){$context.Sandbox.GetLength($path)}else{0}
+    $currentLength=if($context.Sandbox.Exists($path)){$context.Sandbox.GetFileLength($path)}else{0}
     if($currentLength+[Text.Encoding]::UTF8.GetByteCount($line)-gt65536){return}
     $context.Sandbox.AppendText($path,$line)
 }
@@ -23,19 +23,47 @@ function Get-TPAcceptanceDiagnosticSummary {
     if($null-eq$variable-or$null-eq$variable.Value-or-not$variable.Value.IsAcceptance-or-not$variable.Value.IsTestMode){throw 'TP-ACCEPTANCE-DIAGNOSTIC-CONTEXT'}
     $context=$variable.Value
     if($null-eq$context.Sandbox-or$context.Sandbox.IsFaulted){throw 'TP-ACCEPTANCE-DIAGNOSTIC-BOUNDARY'}
+    return Read-TPAcceptanceDiagnosticSummaryFromBroker -Sandbox $context.Sandbox
+}
+function ConvertFrom-TPAcceptanceDiagnosticContent {
+    [CmdletBinding()]
+    param([AllowEmptyString()][Parameter(Mandatory=$true)][string]$Content)
+    if([Text.Encoding]::UTF8.GetByteCount($Content)-gt65536){throw 'TP-ACCEPTANCE-DIAGNOSTIC-SIZE'}
     $counts=[ordered]@{ACTION=0;OPERATION_FAILED=0;SESSION_STARTED=0;SESSION_ENDED=0;BOUNDARY_STOPPED=0}
-    $path=Join-Path ([string]$context.Sandbox.Logs) 'acceptance-events.jsonl'
-    if($context.Sandbox.Exists($path)){
-        if($context.Sandbox.GetLength($path)-gt65536){throw 'TP-ACCEPTANCE-DIAGNOSTIC-SIZE'}
-        $content=$context.Sandbox.ReadText($path)
-        foreach($line in @($content-split'\r?\n')){
+    foreach($line in @($Content-split'\r?\n')){
             if($line-eq''){continue}
             # Exact grammar rejects injected fields, paths and multiline content.
             if($line-cnotmatch'^\{"FormatVersion":1,"Code":"(ACTION|OPERATION_FAILED|SESSION_STARTED|SESSION_ENDED|BOUNDARY_STOPPED)"\}$'){throw 'TP-ACCEPTANCE-DIAGNOSTIC-FORMAT'}
             $counts[$Matches[1]]++
-        }
     }
     return [pscustomobject][ordered]@{FormatVersion=1;Purpose='DesktopAcceptanceSyntheticOnly';Version='0.4.0.2';EventCounts=[pscustomobject]$counts;RawLogsIncluded=$false;UserDataIncluded=$false;Uploaded=$false}
+}
+function Read-TPAcceptanceDiagnosticSummaryFromBroker {
+    # Internal live-session reader. Its sole path is obtained from the selected
+    # broker; neither a caller filename nor a normal log location is accepted.
+    [CmdletBinding()]
+    param([Parameter(Mandatory=$true)]$Sandbox)
+    if($Sandbox.IsFaulted){throw 'TP-ACCEPTANCE-DIAGNOSTIC-BOUNDARY'}
+    $path=Join-Path ([string]$Sandbox.Logs) 'acceptance-events.jsonl'
+    if(-not$Sandbox.Exists($path)){return ConvertFrom-TPAcceptanceDiagnosticContent -Content ''}
+    if($Sandbox.GetFileLength($path)-gt65536){throw 'TP-ACCEPTANCE-DIAGNOSTIC-SIZE'}
+    # The bounded native reader checks length before allocation and excludes
+    # data writers through the same held handle. The parser checks again.
+    return ConvertFrom-TPAcceptanceDiagnosticContent -Content ($Sandbox.ReadAllTextLimited($path,65536))
+}
+function Get-TPAcceptanceDiagnosticSummaryFromSandbox {
+    # Post-exit reading requires the native read-only acceptance opener. This
+    # helper cannot initialize an environment or use an independent-mode root.
+    [CmdletBinding()]
+    param([Parameter(Mandatory=$true)]$Sandbox)
+    if($null-eq$Sandbox-or$Sandbox.GetType().FullName-cne'TaskPilot.Runtime.Sandbox'-or
+       -not$Sandbox.IsReadOnly-or$Sandbox.IsDisposed-or$Sandbox.IsFaulted-or-not$Sandbox.HasAcceptanceDiagnosticLock){throw 'TP-ACCEPTANCE-DIAGNOSTIC-READONLY-REQUIRED'}
+    if([IO.Path]::GetFileName([string]$Sandbox.MarkerPath)-cne'.taskpilot-acceptance-environment'-or
+       $Sandbox.EnvironmentId-cnotmatch'^[a-f0-9]{32}$'-or
+       -not[string]::Equals([string]$Sandbox.Root,(Join-Path (Join-Path ([string]$Sandbox.ProfileRoot) 'TaskPilotAcceptance') ([string]$Sandbox.EnvironmentId)),[StringComparison]::OrdinalIgnoreCase)){
+        throw 'TP-ACCEPTANCE-DIAGNOSTIC-PURPOSE'
+    }
+    return Read-TPAcceptanceDiagnosticSummaryFromBroker -Sandbox $Sandbox
 }
 # These overrides are loaded LAST, after all original GUI adapters. Parameters
 # are intentionally ignored; no detail from callers can reach persistent logs.

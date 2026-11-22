@@ -106,6 +106,7 @@ namespace TaskPilot.Runtime
         public bool IsFaulted { get { lock (sync) { return faulted; } } }
         public bool IsDisposed { get { lock (sync) { return disposed; } } }
         public bool IsReadOnly { get { return readOnly; } }
+        public bool HasAcceptanceDiagnosticLock { get { lock (sync) { return !disposed && readOnly && sandboxNamespace == "TaskPilotAcceptance" && locks.ContainsKey(LockPath); } } }
         public string FaultReason { get { lock (sync) { return faultReason; } } }
         public string[] InfrastructurePaths { get { return new string[] { MarkerPath, LockPath }; } }
 
@@ -654,6 +655,24 @@ namespace TaskPilot.Runtime
             byte[] data = ReadAllBytes(path); int offset = data.Length >= 3 && data[0] == 239 && data[1] == 187 && data[2] == 191 ? 3 : 0;
             return new UTF8Encoding(false, true).GetString(data, offset, data.Length - offset);
         }
+        public string ReadAllTextLimited(string path, int maximumBytes)
+        {
+            if (maximumBytes < 0 || maximumBytes > 65536) throw new ArgumentOutOfRangeException("maximumBytes");
+            lock (sync)
+            {
+                string full = AssertPath(path);
+                // OpenFile intentionally permits shared normal reads. Limited
+                // diagnostics instead exclude existing/future data writers for
+                // the entire size check and read, using one native handle.
+                using (SafeFileHandle handle = OpenRelative(full, 1 | 0x20000, OpenExistingFile, ShareRead, false, null))
+                {
+                    Information(handle, full, false); VerifyProtection(full, handle, false);
+                    byte[] data = ReadHandle(handle, maximumBytes);
+                    int offset = data.Length >= 3 && data[0] == 239 && data[1] == 187 && data[2] == 191 ? 3 : 0;
+                    return new UTF8Encoding(false, true).GetString(data, offset, data.Length - offset);
+                }
+            }
+        }
         public void WriteNew(string path, byte[] data)
         {
             if (data == null || data.Length > 268435456) throw new ArgumentException("Invalid or oversized file image.");
@@ -709,6 +728,25 @@ namespace TaskPilot.Runtime
                 handle.Dispose(); handle = OpenRelative(full, 1 | 2 | 4 | DeleteAccess | 0x20000, OpenExistingFile, 0, false, null);
                 Information(handle, full, false); VerifyProtection(full, handle, false);
                 LockLease lease = new LockLease(this, full, handle); locks.Add(full, lease); return lease;
+            }
+        }
+        public IDisposable AcquireExistingAcceptanceDiagnosticLock()
+        {
+            lock (sync)
+            {
+                CheckLive();
+                if (!readOnly || sandboxNamespace != "TaskPilotAcceptance") throw new InvalidOperationException("Read-only acceptance diagnostics are required.");
+                string full = AssertPath(LockPath);
+                if (locks.ContainsKey(full)) throw new IOException("This diagnostic lock is already held.");
+                // FILE_OPEN only: a missing lock means no authorized GUI session
+                // prepared this environment. Never create or repair it here.
+                SafeFileHandle handle = OpenRelative(full, 1 | 0x20000, OpenExistingFile, 0, false, null);
+                try
+                {
+                    Information(handle, full, false); VerifyProtection(full, handle, false);
+                    LockLease lease = new LockLease(this, full, handle); locks.Add(full, lease); handle = null; return lease;
+                }
+                finally { if (handle != null) handle.Dispose(); }
             }
         }
         public IDisposable AcquireDatabaseWriter(string path)
