@@ -48,7 +48,7 @@ function Reject-Isolated([scriptblock]$Action,[string]$Message){
 }
 function Case-Isolated([string]$Id,[string]$Name,[scriptblock]$Action){
     try{&$Action;$script:isoCases.Add([pscustomobject]@{Id=$Id;Name=$Name;Passed=$true;Error=$null});Write-Host ('PASS: '+$Id+' '+$Name)}
-    catch{$script:isoCases.Add([pscustomobject]@{Id=$Id;Name=$Name;Passed=$false;Error=$_.Exception.Message;Stack=$_.ScriptStackTrace});Write-Host ('FAIL: '+$Id+' '+$Name+' : '+$_.Exception.Message)}
+    catch{$script:isoCases.Add([pscustomobject]@{Id=$Id;Name=$Name;Passed=$false;Error=$_.Exception.Message;ErrorDetail=$_.Exception.ToString();Stack=$_.ScriptStackTrace});Write-Host ('FAIL: '+$Id+' '+$Name+' : '+$_.Exception.Message)}
 }
 function Get-IsolatedHash([string]$Path){
     $read=[IO.File]::Open($Path,[IO.FileMode]::Open,[IO.FileAccess]::Read,[IO.FileShare]::ReadWrite)
@@ -147,8 +147,15 @@ function Test-IsolatedWorkbook([string]$Path,[int]$MinimumCharts,[string[]]$Requ
 }
 function Initialize-IsolatedReparseProbe {
     if($null-ne('TaskPilot.IsolationTests.ReparseAttack'-as[type])){return}
-    # Test-only compilation runs after Set-IsolatedContext selects this new
-    # fixture's TEMP. The application runtime never compiles this helper.
+    # Compilation belongs to the developer harness, not the protected app.
+    # Give the test-only compiler its own new synthetic TEMP because the app's
+    # directory attribute policy intentionally rejects compiler directory I/O.
+    $probeCompilerDirectory=Join-Path $suiteRoot ('ProbeCompiler_'+[guid]::NewGuid().ToString('N'))
+    $null=[IO.Directory]::CreateDirectory($probeCompilerDirectory)
+    $probeCompilerEnvironment=@{}
+    foreach($probeVariable in @('TEMP','TMP')){$probeCompilerEnvironment[$probeVariable]=[Environment]::GetEnvironmentVariable($probeVariable,'Process')}
+    try{
+    $env:TEMP=$probeCompilerDirectory;$env:TMP=$probeCompilerDirectory
     Add-Type -TypeDefinition @'
 using System;
 using System.IO;
@@ -196,6 +203,9 @@ namespace TaskPilot.IsolationTests {
     }
 }
 '@ -ErrorAction Stop
+    }finally{
+        foreach($probeVariable in $probeCompilerEnvironment.Keys){[Environment]::SetEnvironmentVariable($probeVariable,$probeCompilerEnvironment[$probeVariable],'Process')}
+    }
 }
 
 $normalSnapshot=$null
@@ -421,11 +431,23 @@ try{
         Case-Isolated $(if($linkType-eq'Junction'){'I15'}else{'I16'}) ($linkType+' to normal state is refused without traversal') {
             Set-IsolatedContext ([guid]::NewGuid().ToString('N')) -NoStartup
             $link=Join-Path $script:isoSandbox.Input ('unsafe_'+$linkType)
+            $stagedLink=Join-Path $suiteRoot ('Staged_'+$linkType+'_'+[guid]::NewGuid().ToString('N'))
+            $normalSentinel=Join-Path $profile 'TaskPilot4/Backup/original.bin'
+            $normalSentinelHash=Get-IsolatedHash $normalSentinel
             try{
-                $null=New-Item -ItemType $linkType -Path $link -Target (Join-Path $profile 'TaskPilot4') -ErrorAction Stop
+                # Build the attack fixture outside the app's inherited deny
+                # policy, then rename the link itself into the guarded tree.
+                # Direct junction creation inside Input is correctly prevented
+                # before validation and would not exercise link detection.
+                $null=New-Item -ItemType $linkType -Path $stagedLink -Target (Join-Path $profile 'TaskPilot4') -ErrorAction Stop
+                [IO.Directory]::Move($stagedLink,$link)
                 $null=Reject-Isolated {$script:isoSandbox.ValidateTree()} ('An unsafe '+$linkType+' was accepted.')
                 Assert-Isolated $script:isoSandbox.IsFaulted 'A reparse point must invalidate the context.'
-            }finally{Close-IsolatedContext;if([IO.Directory]::Exists($link)){[IO.Directory]::Delete($link,$false)}}
+                Assert-Isolated ((Get-IsolatedHash $normalSentinel)-ceq$normalSentinelHash) 'Link detection changed the synthetic normal target.'
+            }finally{
+                Close-IsolatedContext
+                foreach($fixtureLink in @($link,$stagedLink)){if([IO.Directory]::Exists($fixtureLink)){[IO.Directory]::Delete($fixtureLink,$false)}}
+            }
         }
     }
     Case-Isolated 'I17' 'Hardlinked normal file is refused before content access' {
@@ -480,6 +502,25 @@ try{
         $changed.AddAccessRule($rule)
         try{Set-Acl -LiteralPath $denied -AclObject $changed;$null=Reject-Isolated {[TaskPilot.Runtime.Sandbox]::Create($denied,[guid]::NewGuid().ToString('N'))} 'An inaccessible root was accepted.'}
         finally{Set-Acl -LiteralPath $denied -AclObject $originalAcl}
+    }
+    Case-Isolated 'I27' 'Existing grants cannot precede the required directory protection' {
+        Close-IsolatedContext
+        $unsafeProfile=Join-Path $suiteRoot ('NoncanonicalPolicy_'+[guid]::NewGuid().ToString('N'))
+        $null=[IO.Directory]::CreateDirectory($unsafeProfile)
+        $anchor=Join-Path $unsafeProfile 'TaskPilotTest'
+        $ownerSid=[Security.Principal.WindowsIdentity]::GetCurrent().User.Value
+        # All objects are newly-created fixtures. The early FullControl grant
+        # must actually permit attributes despite the later matching denials.
+        $unsafeAcl=New-Object Security.AccessControl.DirectorySecurity
+        $unsafeAcl.SetSecurityDescriptorSddlForm(('O:'+ $ownerSid +'D:P(A;OICI;FA;;;'+$ownerSid+')(D;CI;0x100;;;S-1-1-0)(D;CI;0xc0000;;;S-1-3-4)(A;OICI;FA;;;SY)(A;OICI;FA;;;BA)'))
+        $null=[IO.Directory]::CreateDirectory($anchor,$unsafeAcl)
+        [IO.File]::SetAttributes($anchor,([IO.FileAttributes]::Directory-bor[IO.FileAttributes]::Hidden))
+        Assert-Isolated (([IO.File]::GetAttributes($anchor)-band[IO.FileAttributes]::Hidden)-ne0) 'The permissive-policy positive control did not permit attribute changes.'
+        $beforePolicy=(Get-Acl -LiteralPath $anchor).Sddl
+        $id=[guid]::NewGuid().ToString('N')
+        $null=Reject-Isolated {[TaskPilot.Runtime.Sandbox]::Create($unsafeProfile,$id)} 'An early grant bypassed directory protection validation.'
+        Assert-Isolated ((Get-Acl -LiteralPath $anchor).Sddl-ceq$beforePolicy) 'The unsafe existing policy was rewritten instead of rejected.'
+        Assert-Isolated (-not[IO.Directory]::Exists((Join-Path $anchor $id))) 'A test child was created under an unsafe parent policy.'
     }
     Case-Isolated 'I22' 'Test scope cannot be opened by the ordinary storage process' {
         Close-IsolatedContext

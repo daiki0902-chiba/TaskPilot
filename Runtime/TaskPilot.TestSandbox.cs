@@ -322,6 +322,17 @@ namespace TaskPilot.Runtime
                 foreach (GenericAce raw in policy.DiscretionaryAcl)
                 {
                     CommonAce ace = raw as CommonAce;
+                    // Merely finding deny ACEs is insufficient: an earlier
+                    // explicit allow can satisfy an access check before a
+                    // later inherited deny is reached. Reject such policies
+                    // rather than rewriting an existing directory's ACL.
+                    if (ace == null || (ace.AceQualifier != AceQualifier.AccessDenied && ace.AceQualifier != AceQualifier.AccessAllowed))
+                        throw Violation("Unsupported test-directory access policy. No policy was changed.");
+                    if (ace.AceQualifier == AceQualifier.AccessAllowed && (ace.AceFlags & AceFlags.InheritOnly) == 0)
+                    {
+                        if ((!attributesDenied && (ace.AccessMask & 0x100) != 0) || (!ownerChangeDenied && (ace.AccessMask & 0xc0000) != 0))
+                            throw Violation("Test-directory grants precede the required denials. No policy was changed.");
+                    }
                     if (ace == null || ace.AceQualifier != AceQualifier.AccessDenied || (ace.AceFlags & AceFlags.InheritOnly) != 0 || (ace.AceFlags & AceFlags.ContainerInherit) == 0) continue;
                     if (ace.SecurityIdentifier.Value == "S-1-1-0" && (ace.AccessMask & 0x100) == 0x100) attributesDenied = true;
                     if (ace.SecurityIdentifier.Value == "S-1-3-4" && (ace.AccessMask & 0xc0000) == 0xc0000) ownerChangeDenied = true;
