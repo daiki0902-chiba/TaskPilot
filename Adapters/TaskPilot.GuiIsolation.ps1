@@ -81,6 +81,53 @@ function Replace-FileSafely([string]$source,[string]$destination){
     try{[IO.File]::Replace($source,$destination,$backup)}
     finally{if(Test-Path -LiteralPath $backup){Remove-Item -LiteralPath $backup -Force -ErrorAction SilentlyContinue}}
 }
+function Get-TPGuiReportMemoryContext {
+    param([string]$Path,$Package)
+    $sandbox=Get-TPGuiSandbox
+    $entry=Get-Variable -Name TPGuiReportMemoryContext -Scope Script -ErrorAction SilentlyContinue
+    if($null-eq$entry-or$null-eq$entry.Value){throw '独立テスト用Excelの生成処理が開始されていません。'}
+    $context=$entry.Value
+    $null=$sandbox.AssertPath([string]$context.LogicalPath)
+    if($PSBoundParameters.ContainsKey('Path')-and-not[string]::Equals($Path,[string]$context.LogicalPath,[StringComparison]::OrdinalIgnoreCase)){throw '独立テスト用Excelの論理出力先が一致しません。'}
+    if($PSBoundParameters.ContainsKey('Package')-and-not[object]::ReferenceEquals($Package,$context.Package)){throw '独立テスト用Excelの生成オブジェクトが一致しません。'}
+    if($null-ne$context.Package.File){throw '独立テスト用Excelはメモリ内で生成する必要があります。'}
+    return $context
+}
+function Export-TPGuiReportRows {
+    [CmdletBinding()]
+    param([Parameter(ValueFromPipeline=$true)]$InputObject,[string]$Path,[string]$WorksheetName,[switch]$AutoSize,[switch]$BoldTopRow,[int]$StartRow,[int]$StartColumn,[switch]$PassThru)
+    begin{$rows=New-Object 'Collections.Generic.List[object]'}
+    process{$rows.Add($InputObject)}
+    end{
+        $arguments=@{};foreach($key in $PSBoundParameters.Keys){if($key-cne'InputObject'){$arguments[$key]=$PSBoundParameters[$key]}}
+        if(-not(Test-TPGuiIsolatedMode)){$rows.ToArray()|Export-Excel @arguments;return}
+        $context=Get-TPGuiReportMemoryContext -Path $Path
+        $null=$arguments.Remove('Path');$null=$arguments.Remove('PassThru')
+        # EPPlus must never receive a filename in isolated mode. Export-Excel
+        # with an existing package and PassThru only edits the in-memory book.
+        $package=$rows.ToArray()|Export-Excel @arguments -ExcelPackage $context.Package -PassThru
+        $null=Get-TPGuiReportMemoryContext -Package $package
+        if($PassThru){return $package}
+    }
+}
+function Open-TPGuiReportPackage {
+    [CmdletBinding()]param([string]$Path)
+    if(-not(Test-TPGuiIsolatedMode)){return Open-ExcelPackage -Path $Path -ErrorAction Stop}
+    return (Get-TPGuiReportMemoryContext -Path $Path).Package
+}
+function Close-TPGuiReportPackage {
+    [CmdletBinding()]param($Package)
+    if(-not(Test-TPGuiIsolatedMode)){Close-ExcelPackage $Package -ErrorAction Stop;return}
+    $null=Get-TPGuiReportMemoryContext -Package $Package
+}
+function Save-TPGuiReportPackage($Package){
+    if(-not(Test-TPGuiIsolatedMode)){$Package.Save();return}
+    $null=Get-TPGuiReportMemoryContext -Package $Package
+}
+function Dispose-TPGuiReportPackage($Package){
+    if(-not(Test-TPGuiIsolatedMode)){$Package.Dispose();return}
+    $null=Get-TPGuiReportMemoryContext -Package $Package
+}
 function Publish-ExcelReport([string]$name,[scriptblock]$writer){
     if($name-notin@('TaskList.xlsx','CompletedTask.xlsx','Dashboard.xlsx')){throw '未対応のExcelレポート名です。'}
     $target=Join-Path $ExportDir $name
@@ -89,16 +136,21 @@ function Publish-ExcelReport([string]$name,[scriptblock]$writer){
         $sandbox=Get-TPGuiSandbox
         $null=$sandbox.AssertPath($target)
         $null=$sandbox.AssertPath($temporary)
-        # Pin the fresh entry before EPPlus opens its pathname. Parent handles
-        # and the no-delete file handle prevent directory/file substitution.
-        $sandbox.ReserveFile($temporary)
+        $active=Get-Variable -Name TPGuiReportMemoryContext -Scope Script -ErrorAction SilentlyContinue
+        if($null-ne$active-and$null-ne$active.Value){throw '独立テスト用Excelの生成処理を入れ子にはできません。'}
+        $package=New-Object OfficeOpenXml.ExcelPackage
+        $script:TPGuiReportMemoryContext=[pscustomobject]@{LogicalPath=$temporary;Package=$package}
         try{
             & $writer $temporary
-            if($sandbox.GetFileLength($temporary)-eq0){throw "Excel出力ファイルが空です: $name"}
-            if($sandbox.Exists($target)){Replace-FileSafely $temporary $target}
-            else{$sandbox.MoveNew($temporary,$target)}
+            $null=Get-TPGuiReportMemoryContext -Path $temporary -Package $package
+            $bytes=$package.GetAsByteArray()
+            if($bytes.Length-eq0){throw "Excel出力ファイルが空です: $name"}
+            # Only the checked broker opens a pathname. Its atomic writer
+            # validates and pins directories and renames the owned file handle.
+            $sandbox.AtomicWrite($target,$bytes,$null)
         }finally{
-            if(-not$sandbox.IsFaulted-and$sandbox.Exists($temporary)){$sandbox.DeleteFile($temporary)}
+            $script:TPGuiReportMemoryContext=$null
+            $package.Dispose()
         }
         return
     }

@@ -6,7 +6,7 @@ $ErrorActionPreference='Stop';Set-StrictMode -Version 2
 $project=Split-Path -Parent $PSScriptRoot
 $modulePath=Join-Path $project 'Modules/TaskPilot.Storage/TaskPilot.Storage.psm1'
 $null=Import-Module $modulePath -Force
-foreach($name in @('Common','Tasks','Domains','Operations')){. (Join-Path $project ('Adapters/TaskPilot.Gui'+$name+'.ps1'))}
+foreach($name in @('Common','Tasks','Domains','Operations','Startup','Isolation')){. (Join-Path $project ('Adapters/TaskPilot.Gui'+$name+'.ps1'))}
 $TaskFile='TaskList.csv';$ArchiveFile='CompletedTask.csv';$script:AutoReportsReady=$false
 $script:passed=0;$script:failed=0;$script:checks=0
 $providerArgs=@{};if($TestProviderAssembly){$providerArgs.TestProviderAssembly=$TestProviderAssembly}

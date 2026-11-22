@@ -15,6 +15,29 @@ foreach($file in Get-ChildItem -LiteralPath (Join-Path $project 'Adapters') -Fil
 $tokens=$null;$errors=$null;$ast=[Management.Automation.Language.Parser]::ParseInput($text,[ref]$tokens,[ref]$errors)
 $definitions=@($ast.FindAll({param($node) $node-is[Management.Automation.Language.FunctionDefinitionAst]},$true)|Where-Object {$overrides.Contains($_.Name)}|Sort-Object {$_.Extent.StartOffset} -Descending)
 foreach($function in $definitions){$text=$text.Remove($function.Extent.StartOffset,$function.Extent.EndOffset-$function.Extent.StartOffset)}
+# Preserve report formatting/calculations while routing their package I/O
+# through an explicit normal-file or independent-memory boundary. Rewrite
+# only these four reviewed functions, never arbitrary commands or strings.
+$reportAst=[Management.Automation.Language.Parser]::ParseInput($text,[ref]$tokens,[ref]$errors)
+if($errors.Count){throw ($errors|Out-String)}
+$reportNames=@('Add-ExtendedExcelSheets','Add-AnalyticsExcelSheets','Write-ExcelReport','Write-CompletedReport')
+$reportFunctions=@($reportAst.FindAll({param($node)$node-is[Management.Automation.Language.FunctionDefinitionAst]-and$node.Name-in$reportNames},$true))
+if($reportFunctions.Count-ne4){throw 'The four reviewed Excel report functions were not found.'}
+$reportChanges=New-Object 'Collections.Generic.List[object]'
+foreach($function in $reportFunctions){
+    foreach($command in $function.FindAll({param($node)$node-is[Management.Automation.Language.CommandAst]-and$node.GetCommandName()-in@('Export-Excel','Open-ExcelPackage','Close-ExcelPackage')},$true)){
+        $replacement=switch($command.GetCommandName()){'Export-Excel'{'Export-TPGuiReportRows'}'Open-ExcelPackage'{'Open-TPGuiReportPackage'}'Close-ExcelPackage'{'Close-TPGuiReportPackage'}}
+        $extent=$command.CommandElements[0].Extent
+        $reportChanges.Add([pscustomobject]@{Start=$extent.StartOffset;Length=$extent.EndOffset-$extent.StartOffset;Text=$replacement})
+    }
+    foreach($call in $function.FindAll({param($node)$node-is[Management.Automation.Language.InvokeMemberExpressionAst]-and$node.Expression.Extent.Text-ceq'$package'-and$node.Member.Value-in@('Save','Dispose')},$true)){
+        if($call.Arguments.Count-ne0){throw 'An unreviewed Excel package invocation was found.'}
+        $replacement=if($call.Member.Value-ceq'Save'){'(Save-TPGuiReportPackage $package)'}else{'(Dispose-TPGuiReportPackage $package)'}
+        $extent=$call.Extent
+        $reportChanges.Add([pscustomobject]@{Start=$extent.StartOffset;Length=$extent.EndOffset-$extent.StartOffset;Text=$replacement})
+    }
+}
+foreach($change in @($reportChanges|Sort-Object Start -Descending)){$text=$text.Remove($change.Start,$change.Length).Insert($change.Start,$change.Text)}
 $parameterBlock=@'
 [CmdletBinding(PositionalBinding=$false)]
 param([switch]$TestMode,[string]$TestEnvironmentId)

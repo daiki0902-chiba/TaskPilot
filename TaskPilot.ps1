@@ -1022,11 +1022,11 @@ function Add-ExtendedExcelSheets([string]$path) {
     $logs = @(Read-WorkLogs)
     $logRows = @($logs | ForEach-Object { [pscustomobject]@{ 記録ID=$_.EntryId; タスクID=$_.TaskId; 作業日=$_.WorkDate; 作業時間_h=$_.Hours; 作業内容=$_.Memo } })
     if ($logRows.Count -eq 0) { $logRows = @([pscustomobject]@{ 記録ID=''; タスクID=''; 作業日=''; 作業時間_h=$null; 作業内容='' }) }
-    $logRows | ConvertTo-SafeExcelRows | Export-Excel -Path $path -WorksheetName '作業記録' -AutoSize -BoldTopRow -ErrorAction Stop
+    $logRows | ConvertTo-SafeExcelRows | Export-TPGuiReportRows -Path $path -WorksheetName '作業記録' -AutoSize -BoldTopRow -ErrorAction Stop
     $children = @(Read-Subtasks)
     $subRows = @($children | ForEach-Object { [pscustomobject]@{ 親タスクID=$_.ParentId; サブタスク名=$_.Title; 完了=$_.Done; ID=$_.Id } })
     if ($subRows.Count -eq 0) { $subRows = @([pscustomobject]@{ 親タスクID=''; サブタスク名=''; 完了=''; ID='' }) }
-    $subRows | ConvertTo-SafeExcelRows | Export-Excel -Path $path -WorksheetName 'サブタスク' -AutoSize -BoldTopRow -ErrorAction Stop
+    $subRows | ConvertTo-SafeExcelRows | Export-TPGuiReportRows -Path $path -WorksheetName 'サブタスク' -AutoSize -BoldTopRow -ErrorAction Stop
     $cfg = Read-CapacitySettings
     $holidays = Get-CapacityHolidayKeys
     $month = Get-Date -Day 1
@@ -1034,7 +1034,7 @@ function Add-ExtendedExcelSheets([string]$path) {
     $remaining = Get-RemainingMonthCapacity $month (Get-Date) $cfg $holidays
     $planned = Get-MonthPlanTotal $month $cfg $holidays
     $monthly = @([pscustomobject]@{ 対象月=$month.ToString('yyyy/MM'); 総稼働日数=$capacity.Workdays; 総稼働可能時間_h=$capacity.Hours; 残り稼働日数=$remaining.Workdays; 残り稼働可能時間_h=$remaining.Hours; 未完了予定工数_h=[math]::Round($planned,2); 追加受入目安_h=[math]::Round(($remaining.Hours-$planned),2); 当月作業記録_h=(Get-MonthLoggedHours $month).Hours })
-    $monthly | ConvertTo-SafeExcelRows | Export-Excel -Path $path -WorksheetName '月間稼働' -AutoSize -BoldTopRow -ErrorAction Stop
+    $monthly | ConvertTo-SafeExcelRows | Export-TPGuiReportRows -Path $path -WorksheetName '月間稼働' -AutoSize -BoldTopRow -ErrorAction Stop
 }
 # STEP 3.6E: historical analytics. Data remains in TaskPilot's existing storage.
 
@@ -1184,7 +1184,7 @@ function Add-AnalyticsExcelSheets([string]$path) {
             確定状態=$(if ($null -ne $snapshot) { '確定済み' } else { '未確定（参考）' })
         }
     }
-    $months | ConvertTo-SafeExcelRows | Export-Excel -Path $path -WorksheetName '月別分析' -AutoSize -BoldTopRow -ErrorAction Stop
+    $months | ConvertTo-SafeExcelRows | Export-TPGuiReportRows -Path $path -WorksheetName '月別分析' -AutoSize -BoldTopRow -ErrorAction Stop
     $comparisons = @()
     foreach ($t in $distinct) {
         $id=[string]$t.ID
@@ -1203,8 +1203,8 @@ function Add-AnalyticsExcelSheets([string]$path) {
         }
     }
     if ($comparisons.Count -eq 0) { $comparisons=@([pscustomobject]@{ ID=''; タスク名=''; 状態=''; 予定工数_h=$null; 日別作業記録_h=$null; 完了時申告実績_h=$null; 予定対完了実績差_h=$null; 完了日='' }) }
-    $comparisons | ConvertTo-SafeExcelRows | Export-Excel -Path $path -WorksheetName 'タスク工数比較' -AutoSize -BoldTopRow -ErrorAction Stop
-    $package = Open-ExcelPackage -Path $path -ErrorAction Stop
+    $comparisons | ConvertTo-SafeExcelRows | Export-TPGuiReportRows -Path $path -WorksheetName 'タスク工数比較' -AutoSize -BoldTopRow -ErrorAction Stop
+    $package = Open-TPGuiReportPackage -Path $path -ErrorAction Stop
     try {
         $ws = $package.Workbook.Worksheets['月別分析']
         $ws.View.FreezePanes(2,2)
@@ -1246,9 +1246,9 @@ function Add-AnalyticsExcelSheets([string]$path) {
             $actualSeries.Header = '完了時申告実績'
             $c.SetPosition(3,0,10,0); $c.SetSize(1250,750)
         }
-        Close-ExcelPackage $package -ErrorAction Stop
+        Close-TPGuiReportPackage $package -ErrorAction Stop
     } catch {
-        try { $package.Dispose() } catch {}
+        try { (Dispose-TPGuiReportPackage $package) } catch {}
         throw
     }
 }
@@ -1258,7 +1258,7 @@ function Write-ExcelReport([bool]$dashboard, [string]$path) {
     $archive = @(Read-Tasks $ArchiveFile)
     if (-not $dashboard) {
         $rows = if ($items.Count -gt 0) { $items } else { @([pscustomobject]@{ ID=''; Date=''; Task=''; Priority=''; DueDate=''; Status=''; Memo='' }) }
-        Get-TaskExcelRows $rows | ConvertTo-SafeExcelRows | Export-Excel -Path $path -WorksheetName 'TaskList' -AutoSize -BoldTopRow -ErrorAction Stop
+        Get-TaskExcelRows $rows | ConvertTo-SafeExcelRows | Export-TPGuiReportRows -Path $path -WorksheetName 'TaskList' -AutoSize -BoldTopRow -ErrorAction Stop
         Add-ExtendedExcelSheets $path
         Add-AnalyticsExcelSheets $path
         return
@@ -1290,7 +1290,7 @@ function Write-ExcelReport([bool]$dashboard, [string]$path) {
         [pscustomobject]@{ Priority=$priority; Count=@($items | Where-Object { $_.Priority -eq $priority -and $_.Status -ne '完了' }).Count }
     }
     # 一つのシートに集計値を配置し、グラフは集計セルを参照する。
-    $package = $summary | ConvertTo-SafeExcelRows | Export-Excel -Path $path -WorksheetName 'Dashboard' -StartRow 4 -StartColumn 1 -AutoSize -BoldTopRow -PassThru
+    $package = $summary | ConvertTo-SafeExcelRows | Export-TPGuiReportRows -Path $path -WorksheetName 'Dashboard' -StartRow 4 -StartColumn 1 -AutoSize -BoldTopRow -PassThru
     try {
         $ws = $package.Workbook.Worksheets['Dashboard']
         $ws.Cells['A1'].Value = 'タスク管理ダッシュボード'
@@ -1396,10 +1396,10 @@ function Write-ExcelReport([bool]$dashboard, [string]$path) {
         $prioritySeries = $priorityChart.Series.Add($ws.Cells['H5:H7'], $ws.Cells['G5:G7'])
         $prioritySeries.Header = '未完了件数'
         $priorityChart.Legend.Remove()
-        $package.Save()
-    } finally { $package.Dispose() }
-    if ($items.Count -gt 0) { $items | ConvertTo-SafeExcelRows | Export-Excel -Path $path -WorksheetName 'TaskList' -AutoSize -BoldTopRow }
-    if ($archive.Count -gt 0) { $archive | ConvertTo-SafeExcelRows | Export-Excel -Path $path -WorksheetName 'CompletedTask' -AutoSize -BoldTopRow }
+        (Save-TPGuiReportPackage $package)
+    } finally { (Dispose-TPGuiReportPackage $package) }
+    if ($items.Count -gt 0) { $items | ConvertTo-SafeExcelRows | Export-TPGuiReportRows -Path $path -WorksheetName 'TaskList' -AutoSize -BoldTopRow }
+    if ($archive.Count -gt 0) { $archive | ConvertTo-SafeExcelRows | Export-TPGuiReportRows -Path $path -WorksheetName 'CompletedTask' -AutoSize -BoldTopRow }
 }
 
 
@@ -1420,7 +1420,7 @@ function Write-CompletedReport([string]$path) {
     if ($completed.Count -eq 0) {
         $completed = @([pscustomobject]@{ ID=''; Date=''; Task=''; Priority=''; DueDate=''; Status=''; Memo='' })
     }
-    Get-TaskExcelRows $completed | ConvertTo-SafeExcelRows | Export-Excel -Path $path -WorksheetName 'CompletedTask' -AutoSize -BoldTopRow -ErrorAction Stop
+    Get-TaskExcelRows $completed | ConvertTo-SafeExcelRows | Export-TPGuiReportRows -Path $path -WorksheetName 'CompletedTask' -AutoSize -BoldTopRow -ErrorAction Stop
 }
 
 
