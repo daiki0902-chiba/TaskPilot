@@ -32,6 +32,10 @@ namespace TaskPilot.Runtime
         private readonly Dictionary<string, WriterLease> writers = new Dictionary<string, WriterLease>(StringComparer.OrdinalIgnoreCase);
         private const string DirectoryGuardName = ".taskpilot-directory-guard";
         private static readonly byte[] DirectoryGuardBytes = Encoding.UTF8.GetBytes("TaskPilot pinned directory guard v2\n");
+        private enum SandboxPurpose { IndependentTest, DesktopAcceptance }
+        private readonly string sandboxNamespace;
+        private readonly string markerHeading;
+        private readonly string markerFileName;
         private bool disposed, faulted, readOnly;
         private string faultReason;
         private string ownerSid;
@@ -148,19 +152,27 @@ namespace TaskPilot.Runtime
 
         public static Sandbox Create(string profileRoot, string environmentId)
         {
-            return OpenCore(profileRoot, environmentId, true);
+            return OpenCore(profileRoot, environmentId, true, SandboxPurpose.IndependentTest);
         }
         public static Sandbox OpenExisting(string profileRoot, string environmentId)
         {
-            return OpenCore(profileRoot, environmentId, false);
+            return OpenCore(profileRoot, environmentId, false, SandboxPurpose.IndependentTest);
         }
-        private static Sandbox OpenCore(string profileRoot, string environmentId, bool initialize)
+        public static Sandbox CreateAcceptance(string profileRoot, string environmentId)
+        {
+            return OpenCore(profileRoot, environmentId, true, SandboxPurpose.DesktopAcceptance);
+        }
+        public static Sandbox OpenExistingAcceptance(string profileRoot, string environmentId)
+        {
+            return OpenCore(profileRoot, environmentId, false, SandboxPurpose.DesktopAcceptance);
+        }
+        private static Sandbox OpenCore(string profileRoot, string environmentId, bool initialize, SandboxPurpose purpose)
         {
             if (Environment.OSVersion.Platform != PlatformID.Win32NT || IntPtr.Size != 8)
                 throw new PlatformNotSupportedException("Independent test mode requires native 64-bit Windows.");
             if (environmentId == null || !Regex.IsMatch(environmentId, "\\A[a-f0-9]{32}\\z"))
                 throw new ArgumentException("TestEnvironmentId must be exactly 32 lowercase hexadecimal characters.");
-            Sandbox context = new Sandbox();
+            Sandbox context = new Sandbox(purpose);
             context.readOnly = !initialize;
             try
             {
@@ -177,18 +189,18 @@ namespace TaskPilot.Runtime
                 if (!String.Equals(filesystem.ToString(), "NTFS", StringComparison.OrdinalIgnoreCase))
                     throw context.Violation("Test mode currently supports NTFS only.");
                 context.EnvironmentId = environmentId;
-                context.Root = Path.Combine(context.ProfileRoot, "TaskPilotTest", environmentId);
-                context.MarkerPath = Path.Combine(context.Root, ".taskpilot-test-environment");
+                context.Root = Path.Combine(context.ProfileRoot, context.sandboxNamespace, environmentId);
+                context.MarkerPath = Path.Combine(context.Root, context.markerFileName);
                 context.LockPath = Path.Combine(context.Root, "test.storage.lock");
                 context.PinDirectoryChain(context.ProfileRoot, false);
-                context.PinDirectoryChain(Path.Combine(context.ProfileRoot, "TaskPilotTest"), initialize);
+                context.PinDirectoryChain(Path.Combine(context.ProfileRoot, context.sandboxNamespace), initialize);
                 bool existed = context.TryPinDirectory(context.Root);
                 if (!existed)
                 {
                     if (!initialize) throw new DirectoryNotFoundException("The existing test environment was not found.");
                     context.PinDirectoryChain(context.Root, true);
                 }
-                string marker = "TaskPilot independent test environment v2\n" + environmentId + "\n";
+                string marker = context.markerHeading + environmentId + "\n";
                 if (context.Exists(context.MarkerPath))
                 {
                     if (!String.Equals(context.ReadAllText(context.MarkerPath), marker, StringComparison.Ordinal))
@@ -220,7 +232,15 @@ namespace TaskPilot.Runtime
             catch { context.Dispose(); throw; }
         }
 
-        private Sandbox() { }
+        private Sandbox(SandboxPurpose purpose)
+        {
+            // Namespace and purpose are chosen exclusively by fixed public
+            // factories. They are never caller-supplied paths or settings.
+            bool acceptance = purpose == SandboxPurpose.DesktopAcceptance;
+            sandboxNamespace = acceptance ? "TaskPilotAcceptance" : "TaskPilotTest";
+            markerFileName = acceptance ? ".taskpilot-acceptance-environment" : ".taskpilot-test-environment";
+            markerHeading = acceptance ? "TaskPilot desktop acceptance synthetic-only environment v1\n" : "TaskPilot independent test environment v2\n";
+        }
         private static IOException NativeError(string action)
         {
             int code = Marshal.GetLastWin32Error();
@@ -376,7 +396,7 @@ namespace TaskPilot.Runtime
         private bool RequiresDirectoryPolicy(string path)
         {
             if (ProfileRoot == null) return false;
-            string home = Path.Combine(ProfileRoot, "TaskPilotTest");
+            string home = Path.Combine(ProfileRoot, sandboxNamespace);
             return String.Equals(path, home, StringComparison.OrdinalIgnoreCase) || path.StartsWith(home + "\\", StringComparison.OrdinalIgnoreCase);
         }
         private bool RequiresGuard(string path)
@@ -403,7 +423,7 @@ namespace TaskPilot.Runtime
                 if (size == 0 || size > 1048576) throw Violation("Invalid test-entry security descriptor.");
                 byte[] bytes = new byte[size]; Marshal.Copy(descriptor, bytes, 0, bytes.Length);
                 RawSecurityDescriptor policy = new RawSecurityDescriptor(bytes, 0);
-                bool anchor = String.Equals(path, Path.Combine(ProfileRoot, "TaskPilotTest"), StringComparison.OrdinalIgnoreCase);
+                bool anchor = String.Equals(path, Path.Combine(ProfileRoot, sandboxNamespace), StringComparison.OrdinalIgnoreCase);
                 if (policy.Owner == null || (policy.Owner.Value != ownerSid && policy.Owner.Value != defaultOwnerSid) || policy.DiscretionaryAcl == null || (anchor && (policy.ControlFlags & ControlFlags.DiscretionaryAclProtected) == 0))
                     throw Violation("An existing entry does not have the required protected policy. It will not be modified or adopted.");
                 bool attributesDenied = false, ownerChangeDenied = false;
