@@ -120,7 +120,7 @@ function Load-IsolatedAlgorithms {
         $definition=$nodes[0]
         $body=$definition.Body.Extent.Text
         $body=$body.Substring(1,$body.Length-2)
-        if(@($definition.Parameters).Count-gt0){$body='param('+((@($definition.Parameters|ForEach-Object {$_.Extent.Text}))-join',')+")`n"+$body}
+        if($null-ne$definition.Parameters-and$definition.Parameters.Count-gt0){$body='param('+((@($definition.Parameters|ForEach-Object {$_.Extent.Text}))-join',')+")`n"+$body}
         Set-Item -Path ('Function:script:'+$name) -Value ([scriptblock]::Create($body))
     }
 }
