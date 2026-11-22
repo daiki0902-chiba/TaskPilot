@@ -32,6 +32,7 @@ $script:isoSkipped=New-Object 'Collections.Generic.List[string]'
 $script:isoReparseAttempts=New-Object 'Collections.Generic.List[object]'
 $script:isoSandbox=$null
 $script:isoActualExcel=$false
+$script:isoFileBoundary=$null
 $script:isoNormalUnchanged=$false
 $script:isoActiveId=$null
 $script:isoPrimaryId=[guid]::NewGuid().ToString('N')
@@ -522,6 +523,11 @@ try{
         Assert-Isolated ((Get-Acl -LiteralPath $anchor).Sddl-ceq$beforePolicy) 'The unsafe existing policy was rewritten instead of rejected.'
         Assert-Isolated (-not[IO.Directory]::Exists((Join-Path $anchor $id))) 'A test child was created under an unsafe parent policy.'
     }
+    Case-Isolated 'I28' 'Native file and nonempty ancestor boundaries have complete positive controls' {
+        Close-IsolatedContext
+        $script:isoFileBoundary=& (Join-Path $PSScriptRoot 'Test-IsolatedFileBoundary.ps1') -RuntimeAssembly $assembly -OutputRoot $output
+        Assert-Isolated ($null-ne$script:isoFileBoundary-and$script:isoFileBoundary.Passed-and-not$script:isoFileBoundary.UnsafeVectorConfirmed-and$script:isoFileBoundary.NormalFixtureUnchanged) ('File/ancestor boundary is not verified: '+[string]$script:isoFileBoundary.Status+' '+($script:isoFileBoundary.UnverifiedVectors-join'; ')+' '+($script:isoFileBoundary.Errors-join'; '))
+    }
     Case-Isolated 'I22' 'Test scope cannot be opened by the ordinary storage process' {
         Close-IsolatedContext
         $probe=Join-Path $suiteRoot 'normal-open-probe.db';[IO.File]::Copy($script:isoBackup,$probe,$false)
@@ -553,7 +559,7 @@ $report=[pscustomobject][ordered]@{
     CapturedAtUtc=[datetime]::UtcNow.ToString('o')
     PowerShell=$PSVersionTable.PSVersion.ToString();Platform=[Environment]::OSVersion.ToString();ProcessBits=[IntPtr]::Size*8
     Passed=($failures.Count-eq0-and$script:isoActualExcel-and$script:isoNormalUnchanged-and$script:isoSkipped.Count-eq0)
-    Checks=$script:isoChecks;Cases=$script:isoCases.ToArray();FailedCases=$failures.Count;SkippedDetails=$script:isoSkipped.ToArray();DirectoryReparseAttempts=$script:isoReparseAttempts.ToArray()
+    Checks=$script:isoChecks;Cases=$script:isoCases.ToArray();FailedCases=$failures.Count;SkippedDetails=$script:isoSkipped.ToArray();DirectoryReparseAttempts=$script:isoReparseAttempts.ToArray();FileAndAncestorBoundary=$script:isoFileBoundary
     TestRoot=$suiteRoot;RuntimeAssemblySha256=(Get-IsolatedHash $assembly)
     WindowsClientGUIVerified=$false;NormalFixtureUnchanged=$script:isoNormalUnchanged;ActualExcelFilesGenerated=$script:isoActualExcel;ApplicationRunCalled=$false
     ProductionProfileAccessed=$false;SyntheticNormalProcessAndLocksHeld=$true
