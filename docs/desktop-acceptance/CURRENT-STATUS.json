@@ -1,0 +1,116 @@
+{
+  "stage": "TaskPilot 0.4.0.2 Windows 10/11 desktop acceptance preparation",
+  "capturedAtUtc": "2026-11-22T08:20:51Z",
+  "readiness": "NOT_READY",
+  "applicationLaunchAuthorized": false,
+  "dedicatedAcceptanceBuildAvailable": false,
+  "acceptanceStateProposal": {
+    "name": "READY_FOR_DESKTOP_ACCEPTANCE",
+    "implemented": false
+  },
+  "repository": "daiki0902-chiba/TaskPilot",
+  "repositoryVisibility": "public",
+  "pullRequest": {
+    "number": 1,
+    "url": "https://github.com/daiki0902-chiba/TaskPilot/pull/1",
+    "draft": true,
+    "investigatedHead": "d7fb1ba2b8c9240dccbdb3e8d76c16e3376aab30"
+  },
+  "mainUnchanged": "a761e76fbe4c4335a1847dbfc4417516d205316f",
+  "validatedApplicationSource": "16711174fc285b3adcb872a5d5fd4bae1f087c73",
+  "changesInThisPreparation": {
+    "documentsOnly": true,
+    "applicationCodeChanged": false,
+    "releaseControlsChanged": false,
+    "mainChanged": false,
+    "userDataAccessed": false,
+    "userDataModified": false,
+    "existingDataUsed": false
+  },
+  "currentPublication": {
+    "releaseCount": 0,
+    "currentRunId": 45000222885,
+    "currentRunUrl": "https://github.com/daiki0902-chiba/TaskPilot/actions/runs/45000222885",
+    "conclusion": "success",
+    "artifacts": [
+      {
+        "id": 14745373186,
+        "name": "TaskPilot-Windows-Server-native-test-reports-45000222885-1",
+        "reportsOnly": true,
+        "expired": false,
+        "expiresAt": "2026-12-06T07:54:33Z"
+      }
+    ],
+    "candidateAndAcceptanceUploadSteps": "skipped",
+    "executableAndDistributionZipPublished": false,
+    "olderArtifactsAreNotThisBuild": [
+      {
+        "id": 14598983164,
+        "version": "0.4.0.1",
+        "independentModeSupported": false
+      },
+      {
+        "id": 14598594048,
+        "version": "0.4.0.1",
+        "independentModeSupported": false
+      },
+      {
+        "id": 14586141354,
+        "version": "0.4.0.1",
+        "independentModeSupported": false
+      }
+    ]
+  },
+  "enforcedStops": [
+    "Runtime Initialize-TPRuntime rejects TestMode before resolving user storage.",
+    "Independent preflight rejects requests before inspecting package contents or loading its DLL.",
+    "Independent diagnostics rejects requests before opening application contents or logs.",
+    "BuildInfo IndependentTestModeSupported=false and IndependentTestModeReleaseBlocked=true.",
+    "CI initializes publication to false and uploads reports only while release is blocked."
+  ],
+  "priorServerEvidence": {
+    "platform": "Windows Server 2022 / Windows PowerShell Desktop 5.1 x64",
+    "normalGroupsPassed": 8,
+    "independentCasesPassed": 27,
+    "memoryCasesPassed": 8,
+    "releaseGateChecksPassed": 12,
+    "boundaryProbes": 80,
+    "guardMutationChecks": 40,
+    "normalProviderSpecificCasesSkipped": true,
+    "windows10And11GuiVerified": false
+  },
+  "verificationInThisPreparation": {
+    "platform": "Linux PowerShell 7.4.6",
+    "publicStopChecksPassed": 12,
+    "applicationLaunched": false,
+    "windows10And11Verified": false
+  },
+  "readinessRequirementsOutstanding": [
+    "Separate acceptance-only executable and runtime entry that cannot enter normal startup or migration.",
+    "Purpose/source/payload/publisher-bound acceptance authorization; failures stop before storage access.",
+    "Dedicated acceptance preflight and restricted diagnostics; current tools stay blocked.",
+    "Signed delivery and DLL loading verified with OS protections enabled.",
+    "Actual recipient access control; public Actions artifacts are not a restricted distribution channel.",
+    "Native Windows 10/11 synthetic safety qualification before first GUI launch, without treating GUI acceptance as its own prerequisite.",
+    "New dedicated-build regressions, packaging evidence and novice usability verification."
+  ],
+  "plannedDesktopCases": {
+    "count": 31,
+    "windows10": {
+      "performed": 0,
+      "status": "NOT_STARTED_BLOCKED"
+    },
+    "windows11": {
+      "performed": 0,
+      "status": "NOT_STARTED_BLOCKED"
+    }
+  },
+  "generalDistributionResumeAllowed": false,
+  "documentationChecks": {
+    "uniqueCaseIds": 31,
+    "unexecutedOsRows": 62,
+    "localLinksVerified": 19,
+    "monthlyResidualHours": 4,
+    "applicationAndWorkflowChanges": false
+  }
+}
