@@ -96,6 +96,12 @@ namespace TaskPilot.Runtime
         private static extern bool CreateDirectoryW(string path, IntPtr security);
         [DllImport("kernel32.dll", SetLastError = true)]
         private static extern bool SetFileInformationByHandle(SafeFileHandle handle, int informationClass, IntPtr information, uint size);
+        [StructLayout(LayoutKind.Sequential)]
+        private struct IoStatusBlock { public IntPtr Status; public UIntPtr Information; }
+        [DllImport("ntdll.dll")]
+        private static extern int NtSetInformationFile(SafeFileHandle handle, out IoStatusBlock status, IntPtr information, uint size, int informationClass);
+        [DllImport("ntdll.dll")]
+        private static extern uint RtlNtStatusToDosError(int status);
 
         public static Sandbox Create(string profileRoot, string environmentId)
         {
@@ -248,7 +254,9 @@ namespace TaskPilot.Runtime
             // alone permits an empty directory to become a junction in place
             // through FSCTL_SET_REPARSE_POINT, without renaming that directory.
             // Child creation opens the child file/directory, not this object.
-            SafeFileHandle handle = CreateFileW(path, ReadAttributes, ShareRead, IntPtr.Zero, OpenExistingFile, BackupSemantics | OpenReparsePoint, IntPtr.Zero);
+            // FILE_LIST_DIRECTORY participates in Windows sharing checks;
+            // FILE_READ_ATTRIBUTES alone does not establish a sharing lease.
+            SafeFileHandle handle = CreateFileW(path, ReadAttributes | 1, ShareRead, IntPtr.Zero, OpenExistingFile, BackupSemantics | OpenReparsePoint, IntPtr.Zero);
             if (handle.IsInvalid)
             {
                 int code = Marshal.GetLastWin32Error(); handle.Dispose();
@@ -542,7 +550,11 @@ namespace TaskPilot.Runtime
                     Marshal.WriteInt32(buffer, 0, replace ? 1 : 0);
                     Marshal.WriteIntPtr(buffer, 8, targetDirectory.DangerousGetHandle());
                     Marshal.WriteInt32(buffer, 16, name.Length); Marshal.Copy(name, 0, IntPtr.Add(buffer, 20), name.Length);
-                    if (!SetFileInformationByHandle(handle, 3, buffer, (uint)(20 + name.Length))) throw NativeError("Cannot atomically rename a test file");
+                    // Use the native relative-directory contract directly;
+                    // the Win32 wrapper rejects this form on Server 2022.
+                    IoStatusBlock result;
+                    int status = NtSetInformationFile(handle, out result, buffer, (uint)(20 + name.Length), 10);
+                    if (status < 0) { int code = unchecked((int)RtlNtStatusToDosError(status)); throw new IOException("Cannot atomically rename a test file: " + new Win32Exception(code).Message + " (" + code.ToString() + ")", new Win32Exception(code)); }
                 }
                 finally { Marshal.FreeHGlobal(buffer); }
             }
