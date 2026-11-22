@@ -134,10 +134,17 @@ if($proof.Commit-cne$binaryCommit-or$proof.CandidateSha256-cne$expectedSha-or$pr
 if($test.Passed-ne8-or$test.Failed-ne0-or$test.TestOnlyProvider-or$test.PowerShell-notlike'5.1.*'-or$test.ProcessBits-ne64){throw 'Native test evidence is incompatible.'}
 if($proof.TestReport-cne[IO.Path]::GetFileName($WindowsTestReportPath)){throw 'Native verification refers to a different test report.'}
 foreach($field in @('Passed','NormalFixtureUnchanged','ActualExcelFilesGenerated')){Assert-TPAcceptanceBoolean $isolated $field $true}
-foreach($field in @('ApplicationRunCalled','WindowsClientGUIVerified')){Assert-TPAcceptanceBoolean $isolated $field $false}
+foreach($field in @('ApplicationRunCalled','WindowsClientGUIVerified','ProductionProfileAccessed')){Assert-TPAcceptanceBoolean $isolated $field $false}
 if($isolated.SourceCommit-cne$binaryCommit-or($isolated.Checks-isnot[int]-and$isolated.Checks-isnot[long])-or$isolated.Checks-lt1){throw 'Independent test-mode evidence does not identify this source and successful native checks.'}
 if(@($isolated.SkippedDetails).Count-ne0){throw 'Independent test-mode safety checks were skipped; do not publish an acceptance kit as verified.'}
-if(@($isolated.Cases).Count-lt14-or@($isolated.Cases|Where-Object {$_.Passed-isnot[bool]-or-not$_.Passed}).Count-ne0){throw 'Independent mode evidence must cover at least 14 passed native cases.'}
+$requiredIsolatedIds=@('I01','I02','I03','I04','I05','I06','I07','I08','I09','I10','I11','I12','I13','I14','I15','I16','I17','I18','I19','I20','I21','I22','I24','I25','I26','I27','I28')
+$seenIsolatedIds=New-Object 'Collections.Generic.HashSet[string]' ([StringComparer]::Ordinal)
+foreach($case in @($isolated.Cases)){
+    if($case.Id-isnot[string]-or$requiredIsolatedIds-cnotcontains$case.Id-or-not$seenIsolatedIds.Add($case.Id)-or$case.Passed-isnot[bool]-or-not$case.Passed){throw 'Independent mode evidence must contain the required unique native cases, all passed.'}
+}
+if($seenIsolatedIds.Count-ne$requiredIsolatedIds.Count-or($isolated.FailedCases-isnot[int]-and$isolated.FailedCases-isnot[long])-or$isolated.FailedCases-ne0){throw 'Independent mode evidence must contain the required unique native cases, all passed.'}
+foreach($field in @('Passed','CompleteNativeCoverage','NormalFixtureUnchanged')){Assert-TPAcceptanceBoolean $isolated.FileAndAncestorBoundary $field $true}
+Assert-TPAcceptanceBoolean $isolated.FileAndAncestorBoundary 'UnsafeVectorConfirmed' $false
 if($proof.IsolatedModeTestReport-cne[IO.Path]::GetFileName($IsolatedModeTestReportPath)){throw 'Native verification refers to a different independent-mode test report.'}
 
 # Everything below is confined to the new developer output. Failures retain

@@ -54,7 +54,23 @@ if(-not[IO.File]::Exists($isolatedTestReport)){throw 'The native independent-mod
 $isolated=Get-Content -LiteralPath $isolatedTestReport -Raw -Encoding UTF8|ConvertFrom-Json
 if($isolated.SourceCommit-cne$env:GITHUB_SHA-or-not$isolated.Passed-or-not$isolated.NormalFixtureUnchanged-or
    -not$isolated.ActualExcelFilesGenerated-or$isolated.ApplicationRunCalled-or$isolated.WindowsClientGUIVerified-or
-   $isolated.FailedCases-ne0-or@($isolated.Cases).Count-lt14-or@($isolated.SkippedDetails).Count-ne0){throw 'Independent-mode evidence does not authorize publishing this candidate.'}
+   $isolated.FailedCases-ne0-or@($isolated.SkippedDetails).Count-ne0){throw 'Independent-mode evidence does not authorize publishing this candidate.'}
+foreach($field in @('Passed','NormalFixtureUnchanged','ActualExcelFilesGenerated')){
+    if($isolated.$field-isnot[bool]-or-not$isolated.$field){throw ('Independent-mode evidence has an invalid strict Boolean: '+$field)}
+}
+foreach($field in @('ApplicationRunCalled','WindowsClientGUIVerified','ProductionProfileAccessed')){
+    if($isolated.$field-isnot[bool]-or$isolated.$field){throw ('Independent-mode evidence has an invalid strict Boolean: '+$field)}
+}
+$requiredIsolatedIds=@('I01','I02','I03','I04','I05','I06','I07','I08','I09','I10','I11','I12','I13','I14','I15','I16','I17','I18','I19','I20','I21','I22','I24','I25','I26','I27','I28')
+$seenIsolatedIds=New-Object 'Collections.Generic.HashSet[string]' ([StringComparer]::Ordinal)
+foreach($case in @($isolated.Cases)){
+    if($case.Id-isnot[string]-or$requiredIsolatedIds-cnotcontains$case.Id-or-not$seenIsolatedIds.Add($case.Id)-or$case.Passed-isnot[bool]-or-not$case.Passed){throw 'Independent-mode evidence is missing required unique native cases or contains a failed case.'}
+}
+if($seenIsolatedIds.Count-ne$requiredIsolatedIds.Count-or($isolated.FailedCases-isnot[int]-and$isolated.FailedCases-isnot[long])-or$isolated.FailedCases-ne0){throw 'Independent-mode evidence is missing required unique native cases or contains a failed case.'}
+foreach($field in @('Passed','CompleteNativeCoverage','NormalFixtureUnchanged')){
+    if($isolated.FileAndAncestorBoundary.$field-isnot[bool]-or-not$isolated.FileAndAncestorBoundary.$field){throw ('Independent file/ancestor evidence has an invalid strict Boolean: '+$field)}
+}
+if($isolated.FileAndAncestorBoundary.UnsafeVectorConfirmed-isnot[bool]-or$isolated.FileAndAncestorBoundary.UnsafeVectorConfirmed){throw 'Independent file/ancestor evidence confirms an unsafe vector or has an invalid strict Boolean.'}
 $reportDirectory=Join-Path (Join-Path $repo 'TestResults') ('AcceptancePreparation_'+$env:GITHUB_RUN_ID+'_'+$env:GITHUB_RUN_ATTEMPT)
 Assert-TPBuildNoLinks $reportDirectory
 if(Test-TPBuildPathExists $reportDirectory){throw 'Acceptance preparation needs a new report directory.'}

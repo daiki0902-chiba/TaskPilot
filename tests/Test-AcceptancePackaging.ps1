@@ -84,7 +84,7 @@ Assert-AcceptancePackaging (-not(Test-TPBuildPathExists (Join-Path $repo 'forbid
 # Tamper only new fixture copies of the supplied report, never its source.
 $proofBefore=Get-TPBuildSha $IsolatedModeTestReportPath
 $proofNumber=0
-foreach($failure in @('NormalFixtureChanged','ExcelNotGenerated','ClientClaimed','SourceMismatch','SkippedBoundaryCase','TooFewCases','FailedNativeCase')){
+foreach($failure in @('NormalFixtureChanged','ExcelNotGenerated','ClientClaimed','SourceMismatch','SkippedBoundaryCase','TooFewCases','FailedNativeCase','MissingI28','DuplicateIds','ProductionClaimed','FileBoundaryUnverified')){
     $proofNumber++
     $fake=Get-Content -LiteralPath $IsolatedModeTestReportPath -Raw -Encoding UTF8|ConvertFrom-Json
     $pattern='*Boolean field*'
@@ -94,8 +94,12 @@ foreach($failure in @('NormalFixtureChanged','ExcelNotGenerated','ClientClaimed'
         'ClientClaimed'{$fake.WindowsClientGUIVerified=$true}
         'SourceMismatch'{$fake.SourceCommit='0'*40;if($fake.SourceCommit-ceq$ExpectedSourceCommit){$fake.SourceCommit='1'*40};$pattern='*identify this source*'}
         'SkippedBoundaryCase'{$fake.SkippedDetails=@('synthetic missing boundary case');$pattern='*safety checks were skipped*'}
-        'TooFewCases'{$fake.Cases=@($fake.Cases|Select-Object -First 1);$pattern='*at least 14 passed*'}
-        'FailedNativeCase'{$fake.Cases[0].Passed=$false;$pattern='*at least 14 passed*'}
+        'TooFewCases'{$fake.Cases=@($fake.Cases|Select-Object -First 1);$pattern='*required unique native cases*'}
+        'FailedNativeCase'{$fake.Cases[0].Passed=$false;$pattern='*required unique native cases*'}
+        'MissingI28'{$fake.Cases=@($fake.Cases|Where-Object {$_.Id-cne'I28'});$pattern='*required unique native cases*'}
+        'DuplicateIds'{$fake.Cases[-1].Id=$fake.Cases[0].Id;$pattern='*required unique native cases*'}
+        'ProductionClaimed'{$fake.ProductionProfileAccessed=$true}
+        'FileBoundaryUnverified'{$fake.FileAndAncestorBoundary.CompleteNativeCoverage=$false}
     }
     $fakeProof=Join-Path (Join-Path $root ('invalid-isolation-proof_'+$proofNumber)) ([IO.Path]::GetFileName($IsolatedModeTestReportPath))
     Write-TPBuildNewText $fakeProof (ConvertTo-Json -InputObject $fake -Depth 20) $true
