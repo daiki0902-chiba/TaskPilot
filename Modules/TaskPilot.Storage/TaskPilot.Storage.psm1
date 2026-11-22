@@ -6,6 +6,7 @@ $script:TPApplicationId = 1414547788
 $script:TPSchemaVersion = 40001
 $script:TPTestSandbox = $null
 $script:TPBoundaryConnections = New-Object 'Collections.Generic.Dictionary[object,string]'
+$script:TPMemoryConnections = New-Object 'Collections.Generic.Dictionary[object,object]'
 
 function Set-TaskPilotTestSandbox {
     [CmdletBinding()]param([Parameter(Mandatory=$true)]$Sandbox)
@@ -20,10 +21,91 @@ function Close-TPConnection($Connection){
     if($null-eq$Connection){return}
     $path=$null
     if($script:TPBoundaryConnections.ContainsKey($Connection)){$path=$script:TPBoundaryConnections[$Connection]}
+    $memory=$null
+    if($script:TPMemoryConnections.ContainsKey($Connection)){$memory=$script:TPMemoryConnections[$Connection]}
     try{$Connection.Dispose()}
     finally{
+        if($null-ne$memory){
+            $null=$script:TPMemoryConnections.Remove($Connection)
+            if($null-ne$memory.WriterLease){$memory.WriterLease.Dispose()}
+        }
         if($null-ne$path){$null=$script:TPBoundaryConnections.Remove($Connection);$script:TPTestSandbox.CompleteDatabase($path)}
     }
+}
+function Initialize-TPMemoryPragmas($Connection,[bool]$ReadOnly){
+    $command=$Connection.CreateCommand()
+    try{
+        $command.CommandText='PRAGMA foreign_keys=ON; PRAGMA recursive_triggers=ON; PRAGMA busy_timeout=5000; PRAGMA synchronous=FULL; PRAGMA temp_store=MEMORY; PRAGMA journal_mode=MEMORY;'
+        if($ReadOnly){$command.CommandText+=' PRAGMA query_only=ON;'}
+        $null=$command.ExecuteNonQuery()
+        foreach($required in @(@('foreign_keys',1),@('recursive_triggers',1),@('temp_store',2))){
+            $command.CommandText='PRAGMA '+$required[0]
+            if([long]$command.ExecuteScalar()-ne[long]$required[1]){throw 'An in-memory SQLite safety pragma was not enabled.'}
+        }
+        $command.CommandText='SELECT sqlite_version()'
+        if([version]$command.ExecuteScalar()-lt[version]'3.38.0'){throw 'SQLite 3.38.0 or newer is required.'}
+    }finally{$command.Dispose()}
+}
+function New-TPMemoryConnection([string]$Path,$Provider,[bool]$ReadOnly){
+    if($Provider.Name-cne'System.Data.SQLite'){throw 'Independent memory persistence requires the bundled System.Data.SQLite provider.'}
+    $script:TPTestSandbox.ValidateTree()
+    $logicalPath=$null;$lease=$null;$connection=$null
+    try{
+        if($Path-cne':memory:'){
+            $logicalPath=$script:TPTestSandbox.AssertPath($Path)
+            foreach($suffix in @('-journal','-wal','-shm')){if($script:TPTestSandbox.Exists($logicalPath+$suffix)){throw 'Existing SQLite recovery files must be preserved. Independent memory mode never recovers a file by pathname.'}}
+            if(-not$ReadOnly){$lease=$script:TPTestSandbox.AcquireDatabaseWriter($logicalPath)}
+            [byte[]]$image=$script:TPTestSandbox.ReadAllBytes($logicalPath)
+        }else{[byte[]]$image=@()}
+        $builder=New-Object System.Data.Common.DbConnectionStringBuilder
+        $builder['Data Source']=':memory:';$builder['Version']=3;$builder['Pooling']=$false;$builder['Read Only']=$false;$builder['Default Timeout']=5
+        $connection=[Activator]::CreateInstance($Provider.Type);$connection.ConnectionString=$builder.ConnectionString;$connection.Open()
+        $connection.EnableExtensions($false)
+        if($image.Length-gt0){$connection.Deserialize('main',$image,$ReadOnly)}
+        Initialize-TPMemoryPragmas $connection $ReadOnly
+        # Defense in depth: even an accidentally added SQL command must not
+        # make SQLite open a filesystem database, extension, or temp directory.
+        $authorizer=[System.Data.SQLite.SQLiteAuthorizerEventHandler]{
+            param($connectionSender,$authorization)
+            try{
+                $denied=$false;$action=[string]$authorization.ActionCode
+                if($action-in@('Attach','Detach')){$denied=$true}
+                elseif($action-eq'Function'-and([string]$authorization.Argument2).ToLowerInvariant()-in@('load_extension','readfile','writefile','edit')){$denied=$true}
+                elseif($action-eq'Pragma'){
+                    $name=([string]$authorization.Argument1).ToLowerInvariant();$value=([string]$authorization.Argument2).ToLowerInvariant()
+                    if($name-in@('temp_store_directory','data_store_directory','writable_schema')){$denied=$true}
+                    elseif($name-eq'temp_store'-and$value-and$value-notin@('memory','2')){$denied=$true}
+                    elseif($name-eq'journal_mode'-and$value-and$value-cne'memory'){$denied=$true}
+                    elseif($name-eq'query_only'-and$value-and$value-notin@('on','1')){$denied=$true}
+                }
+                $authorization.ReturnCode=if($denied){[System.Data.SQLite.SQLiteAuthorizerReturnCode]::Deny}else{[System.Data.SQLite.SQLiteAuthorizerReturnCode]::Ok}
+            }catch{$authorization.ReturnCode=[System.Data.SQLite.SQLiteAuthorizerReturnCode]::Deny}
+        }
+        $connection.add_Authorize($authorizer)
+        $record=[pscustomobject]@{Path=$logicalPath;ReadOnly=$ReadOnly;WriterLease=$lease;Authorizer=$authorizer}
+        $script:TPMemoryConnections.Add($connection,$record)
+        if($null-ne$logicalPath){$script:TPBoundaryConnections.Add($connection,$logicalPath)}
+        $lease=$null
+        return ,$connection
+    }catch{
+        if($null-ne$connection){try{$connection.Dispose()}catch{}}
+        if($null-ne$lease){$lease.Dispose()}
+        throw
+    }
+}
+function Get-TPMemoryImage($Connection){
+    [byte[]]$image=$Connection.Serialize('main')
+    if($null-eq$image-or$image.Length-eq0-or$image.Length-gt268435456){throw 'The serialized test database must contain a valid image of at most 256 MiB.'}
+    return ,$image
+}
+function Save-TPMemoryConnection($Connection){
+    if(-not$script:TPMemoryConnections.ContainsKey($Connection)){return}
+    $record=$script:TPMemoryConnections[$Connection]
+    if($record.ReadOnly-or$null-eq$record.Path){throw 'A read-only or transient memory connection cannot publish a durable database.'}
+    [byte[]]$image=Get-TPMemoryImage $Connection
+    # The broker flush is the publication point. Do not perform a further
+    # throwable operation here which could restore only the memory snapshot.
+    $script:TPTestSandbox.AtomicWrite($record.Path,$image,$null)
 }
 function Assert-TPStoreScope($Store){
     $description=[string](Invoke-TPSql $Store 'SELECT description FROM schema_migrations WHERE version=@version' -Parameters @{version=$script:TPSchemaVersion} -Mode Scalar)
@@ -41,14 +123,14 @@ function Assert-TPProviderOrigin {
     foreach($providerFile in $Files){
         $zone=(Get-Content -LiteralPath $providerFile -Stream Zone.Identifier -ErrorAction SilentlyContinue) -join "`n"
         if($zone -match '(?m)^\s*ZoneId\s*=\s*[34]\s*$'){
-            throw "Windows download-origin block detected on $providerFile. In the kit folder run: Get-ChildItem -LiteralPath '.\Modules\TaskPilot.Storage\provider' -Filter '*.dll' -Recurse -File | Unblock-File . Then restart Windows PowerShell and retry. No block was removed automatically."
+            throw "Windows download-origin block detected on $providerFile. Stop and use a reviewed, correctly signed distribution package. No origin metadata or OS protection was changed."
         }
     }
 }
 function Get-TPProviderLoadMessage($Exception,[string]$ManagedPath){
     $cause=$Exception
     while($null-ne$cause){
-        if($cause.HResult -eq -2146233067){return "Windows/.NET blocked loading $ManagedPath (0x80131515). A download-origin block is a common cause. Unblock only the bundled provider DLLs with Unblock-File, restart Windows PowerShell, then retry. No system policy was changed."}
+        if($cause.HResult -eq -2146233067){return "Windows/.NET blocked loading $ManagedPath (0x80131515). Stop and use a reviewed, correctly signed distribution package. No origin metadata or OS protection was changed."}
         $cause=$cause.InnerException
     }
     return "SQLite provider load failed: $($Exception.Message)"
@@ -120,6 +202,10 @@ function Get-TPResolvedPath([string]$Path) {
 }
 function New-TPConnection {
     param([string]$Path,$Provider,[bool]$ReadOnly=$false)
+    if($null-ne$script:TPTestSandbox){
+        $memoryConnection=New-TPMemoryConnection $Path $Provider $ReadOnly
+        return ,$memoryConnection
+    }
     $builder = New-Object System.Data.Common.DbConnectionStringBuilder
     $builder['Data Source']=$Path
     $builder['Version']=3
@@ -127,27 +213,13 @@ function New-TPConnection {
     $builder['Pooling']=$false
     $builder['Read Only']=$ReadOnly
     $builder['Default Timeout']=5
-    $sandboxPath=$null
-    if($null-ne$script:TPTestSandbox){
-        $script:TPTestSandbox.ValidateTree()
-        if($Path-cne':memory:'){
-            $sandboxPath=$script:TPTestSandbox.AssertPath($Path)
-            $script:TPTestSandbox.PrepareDatabase($sandboxPath,$false)
-            $builder['Data Source']=$sandboxPath
-            # A pinned, persistent zero-length journal closes the pathname
-            # substitution gap. TRUNCATE avoids SQLite deleting that handle.
-            if(-not$ReadOnly){$builder['Journal Mode']='Truncate'}
-        }
-    }
     $conn = [Activator]::CreateInstance($Provider.Type)
     $conn.ConnectionString=$builder.ConnectionString
     try {
-        if($null-ne$sandboxPath){$script:TPBoundaryConnections.Add($conn,$sandboxPath)}
         $conn.Open()
         $cmd=$conn.CreateCommand()
         try {
             $cmd.CommandText='PRAGMA foreign_keys=ON; PRAGMA recursive_triggers=ON; PRAGMA busy_timeout=5000; PRAGMA synchronous=FULL;'
-            if($null-ne$script:TPTestSandbox){$cmd.CommandText+=' PRAGMA temp_store=MEMORY;'}
             $null=$cmd.ExecuteNonQuery()
             foreach($item in @(@('foreign_keys',1),@('recursive_triggers',1))) {
                 $cmd.CommandText='PRAGMA '+$item[0]
@@ -155,7 +227,6 @@ function New-TPConnection {
             }
             $cmd.CommandText='SELECT sqlite_version()'
             if ([version]$cmd.ExecuteScalar() -lt [version]'3.38.0') { throw 'SQLite 3.38.0 or newer is required.' }
-            if($null-ne$sandboxPath-and-not$ReadOnly){$cmd.CommandText='PRAGMA journal_mode';if([string]$cmd.ExecuteScalar()-ine'truncate'){throw 'Independent test mode requires the pinned TRUNCATE journal mode.'}}
         } finally { $cmd.Dispose() }
         return ,$conn
     } catch { $failure=$_;try{Close-TPConnection $conn}catch{};throw $failure }
@@ -215,17 +286,40 @@ function Invoke-TPUnitOfWork {
         try { & $Block $Store } catch { $Store.TransactionFailed=$true; throw }
         return
     }
+    $memoryBefore=$null
+    if($null-ne$script:TPTestSandbox){$memoryBefore=Get-TPMemoryImage $Store.Connection}
     $Store.Transaction=$Store.Connection.BeginTransaction([Data.IsolationLevel]::Serializable)
     $Store.TransactionFailed=$false
+    $committed=$false
     try {
         $tpUnitResult=@(& $Block $Store)
         if($Store.TransactionFailed) { throw 'Transaction was marked rollback-only by a failed nested operation.' }
         $Store.Transaction.Commit()
+        $committed=$true
+        if($null-ne$script:TPTestSandbox){
+            # Deferred constraints are checked by Commit before serialization.
+            # Keep disk unchanged on a failed commit and restore memory if the
+            # later broker publication fails.
+            $Store.Transaction.Dispose();$Store.Transaction=$null
+            Save-TPMemoryConnection $Store.Connection
+        }
         return $tpUnitResult
     } catch {
-        try{$Store.Transaction.Rollback()}catch{}
-        throw
-    } finally { $Store.Transaction.Dispose(); $Store.Transaction=$null; $Store.TransactionFailed=$false }
+        $failure=$_
+        if(-not$committed){try{$Store.Transaction.Rollback()}catch{}}
+        elseif($null-ne$script:TPTestSandbox){
+            try{
+                if($null-ne$Store.Transaction){$Store.Transaction.Dispose();$Store.Transaction=$null}
+                $Store.Connection.Deserialize('main',[byte[]]$memoryBefore,$false)
+                Initialize-TPMemoryPragmas $Store.Connection $false
+            }catch{
+                try{Close-TPConnection $Store.Connection}catch{}
+                $Store.Closed=$true
+                throw 'Durable save failed and the memory image could not be restored. This test store was closed; preserve its recovery checkpoint.'
+            }
+        }
+        throw $failure
+    } finally { if($null-ne$Store.Transaction){$Store.Transaction.Dispose()};$Store.Transaction=$null; $Store.TransactionFailed=$false }
 }
 function Invoke-TaskPilotTransaction {
     [CmdletBinding()]param([Parameter(Mandatory=$true)]$Store,[Parameter(Mandatory=$true)][scriptblock]$Action)
@@ -301,7 +395,8 @@ function New-TaskPilotDatabase {
     $full=Get-TPResolvedPath $DatabasePath
     if([IO.Path]::GetExtension($full) -notin @('.db','.sqlite','.sqlite3')){throw 'Choose a new .db, .sqlite or .sqlite3 filename.'}
     $parent=Split-Path -Parent $full
-    if(-not(Test-Path -LiteralPath $parent -PathType Container)){throw 'Destination parent must already exist.'}
+    $parentExists=if($null-ne$script:TPTestSandbox){$script:TPTestSandbox.Exists($parent)}else{Test-Path -LiteralPath $parent -PathType Container}
+    if(-not$parentExists){throw 'Destination parent must already exist.'}
     $exists=if($null-ne$script:TPTestSandbox){$script:TPTestSandbox.Exists($full)}else{Test-Path -LiteralPath $full}
     if($exists){throw 'Destination already exists and will not be overwritten.'}
     foreach($suffix in @('-journal','-wal','-shm')){
@@ -325,6 +420,7 @@ function New-TaskPilotDatabase {
                 if($cmd.ExecuteNonQuery()-ne1){throw 'Could not mark the newly created database as an independent test database.'}
             }
         }finally{$cmd.Dispose()}
+        if($null-ne$script:TPTestSandbox){Save-TPMemoryConnection $conn}
         Close-TPConnection $conn;$conn=$null
         $validationStore=Open-TaskPilotStore -DatabasePath $stage -TestProviderAssembly $TestProviderAssembly
         if([string](Invoke-TPSql $validationStore 'PRAGMA integrity_check' -Mode Scalar) -ne 'ok'){throw 'New database integrity check failed.'}

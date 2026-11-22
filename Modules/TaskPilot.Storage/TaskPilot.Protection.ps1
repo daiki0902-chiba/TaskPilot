@@ -25,7 +25,9 @@ function Assert-TPProtectionNewDestination([string]$Path){
     $full=Get-TPResolvedPath $Path
     Assert-TPProtectionNoLinks $full
     if([IO.Path]::GetExtension($full)-notin@('.db','.sqlite','.sqlite3')){throw 'Choose a new .db, .sqlite or .sqlite3 filename.'}
-    if(-not[IO.Directory]::Exists([IO.Path]::GetDirectoryName($full))){throw 'Destination parent directory must already exist.'}
+    $parent=[IO.Path]::GetDirectoryName($full)
+    $parentExists=if($null-ne$script:TPTestSandbox){$script:TPTestSandbox.Exists($parent)}else{[IO.Directory]::Exists($parent)}
+    if(-not$parentExists){throw 'Destination parent directory must already exist.'}
     if(Test-TPProtectionPathExists $full){throw 'Destination already exists and will not be overwritten.'}
     Assert-TPProtectionNoSidecars $full
     return $full
@@ -81,23 +83,18 @@ function New-TPProtectionIndependentBackup($Store,[string]$DestinationPath){
     Assert-TPProtectionStoreIntegrity $Store
     $stage=Join-Path ([IO.Path]::GetDirectoryName($destination)) ('.taskpilot-backup_'+[guid]::NewGuid().ToString('N')+'.db')
     $providerArguments=@{};if($Store.TestOnly){$providerArguments.TestProviderAssembly=$script:TPProvider.AssemblyPath}
-    $owned=$false;$targetConnection=$null
+    $owned=$false
     try{
-        $script:TPTestSandbox.WriteNew($stage,[byte[]]@());$owned=$true
-        # VACUUM INTO opens its own destination in DELETE journal mode. Its
-        # journal cannot be deleted while the independent boundary holds a
-        # no-delete lease. Open the owned destination explicitly instead so
-        # both SQLite connections use the required pinned TRUNCATE journal.
-        $targetConnection=New-TPConnection -Path $stage -Provider $script:TPProvider
-        $Store.Connection.BackupDatabase($targetConnection,'main','main',-1,$null,0)
-        Close-TPConnection $targetConnection;$targetConnection=$null
+        # SQLite never receives a durable pathname in independent mode. A
+        # committed in-memory image is copied only by the handle broker.
+        [byte[]]$bytes=Get-TPMemoryImage $Store.Connection
+        $script:TPTestSandbox.WriteNew($stage,$bytes);$owned=$true
         Test-TPProtectionStage $stage $providerArguments
         $hash=Get-TPProtectionFileHash $stage;$size=$script:TPTestSandbox.GetFileLength($stage)
         $null=Assert-TPProtectionNewDestination $destination
         $script:TPTestSandbox.MoveNew($stage,$destination);$owned=$false
         return [pscustomobject]@{BackupPath=$destination;DestinationPath=$destination;DatabasePath=$Store.Path;Sha256=$hash;ByteCount=[long]$size;ApplicationId=$script:TPApplicationId;SchemaVersion=$script:TPSchemaVersion;CreatedAtUtc=(Get-TPUtcNow);Verified=$true;TestOnly=[bool]$Store.TestOnly;IndependentTestEnvironmentId=$script:TPTestSandbox.EnvironmentId}
     }finally{
-        if($null-ne$targetConnection){Close-TPConnection $targetConnection}
         if($owned){Remove-TPProtectionOwnedStage $stage}
     }
 }
