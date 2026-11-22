@@ -1,12 +1,15 @@
 #requires -Version 5.1
 [CmdletBinding()]
-param([Parameter(Mandatory=$true)][string]$OutputRoot)
+param([Parameter(Mandatory=$true)][string]$OutputRoot,[string]$TestRoot)
 $ErrorActionPreference='Stop';Set-StrictMode -Version 2.0
 $repo=Split-Path -Parent $PSScriptRoot
 . (Join-Path $repo 'tools/TaskPilot.BuildSupport.ps1')
 $root=Get-TPBuildFullPath $OutputRoot;Assert-TPBuildNoLinks $root
 if(-not[IO.Directory]::Exists($root)){throw 'An existing developer results directory is required.'}
-$fixture=Join-Path $root ('AcceptanceMsixPlan_'+[guid]::NewGuid().ToString('N'))
+if($TestRoot){
+    $fixture=Get-TPBuildFullPath $TestRoot;Assert-TPBuildNoLinks $fixture
+    if(Test-TPBuildPathExists $fixture){throw 'A new synthetic MSIX planning fixture is required.'}
+}else{$fixture=Join-Path $root ('AcceptanceMsixPlan_'+[guid]::NewGuid().ToString('N'))}
 $null=[IO.Directory]::CreateDirectory($fixture)
 $tool=Join-Path $repo 'tools/New-TaskPilotAcceptanceMsixPlan.ps1'
 $checks=0

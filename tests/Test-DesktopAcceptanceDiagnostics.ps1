@@ -137,8 +137,8 @@ if($RuntimeAssembly){
             try{Reject-NativeDiagnostic {Get-TPAcceptanceDiagnosticSummaryFromSandbox -Sandbox $scope}}finally{$scope.Dispose()}
         }
         Case-NativeDiagnostic 'D08' {
-            $linkedProfile=Join-Path $fixture 'SyntheticLinkedProfile';$home=Join-Path $linkedProfile 'TaskPilotAcceptance';$null=[IO.Directory]::CreateDirectory($home)
-            $linkedId=[guid]::NewGuid().ToString('N');$junction=Join-Path $home $linkedId
+            $linkedProfile=Join-Path $fixture 'SyntheticLinkedProfile';$acceptanceNamespace=Join-Path $linkedProfile 'TaskPilotAcceptance';$null=[IO.Directory]::CreateDirectory($acceptanceNamespace)
+            $linkedId=[guid]::NewGuid().ToString('N');$junction=Join-Path $acceptanceNamespace $linkedId
             # Junction creation needs no protection-setting change. The new
             # unowned namespace must be refused before any target content read.
             $null=New-Item -ItemType Junction -Path $junction -Value $normal -ErrorAction Stop
@@ -167,7 +167,9 @@ if($RuntimeAssembly){
             $scope=[TaskPilot.Runtime.Sandbox]::OpenExistingAcceptance($profile,$activeId);$lease=$scope.AcquireExistingAcceptanceDiagnosticLock();$externalWriter=$null
             try{
                 $events=Join-Path $scope.Logs 'acceptance-events.jsonl'
-                $externalWriter=[IO.File]::Open($events,[IO.FileMode]::Open,[IO.FileAccess]::Write,[IO.FileShare]::ReadWrite)
+                # Request only data-write access. GenericWrite also requests
+                # WRITE_ATTRIBUTES/WRITE_EA, deliberately denied by the broker.
+                $externalWriter=[IO.FileStream]::new($events,[IO.FileMode]::Open,[Security.AccessControl.FileSystemRights]::WriteData,[IO.FileShare]::ReadWrite,4096,[IO.FileOptions]::None)
                 Reject-NativeDiagnostic {Get-TPAcceptanceDiagnosticSummaryFromSandbox -Sandbox $scope}
                 $externalWriter.Dispose();$externalWriter=$null
                 Assert-NativeDiagnostic ((Get-TPAcceptanceDiagnosticSummaryFromSandbox -Sandbox $scope).EventCounts.ACTION-eq1) 'Bounded reading succeeds after a competing raw writer closes.'

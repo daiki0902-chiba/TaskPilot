@@ -57,7 +57,7 @@ if($null-ne$qualification){
 $suiteResults.Add($qualification)
 }
 $msix=Invoke-TPFollowupEvidence 'MsixPlan' {
-$msix=& (Join-Path $repo 'tests/Test-DesktopAcceptanceMsixPlan.ps1') -OutputRoot $reports
+$msix=& (Join-Path $repo 'tests/Test-DesktopAcceptanceMsixPlan.ps1') -OutputRoot $reports -TestRoot (Join-Path $root 'MsixPlanFixture')
 if(-not$msix.Passed){throw 'MSIX planning regression failed.'}
 return $msix
 }
