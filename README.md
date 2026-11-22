@@ -4,9 +4,9 @@ PowerShell 5.1とWindows Formsを維持し、既存GUIの保存処理をSQLite�
 
 依頼全体の達成状況は[要件の達成状況](docs/08-requirements-status.md)を参照してください。成果物の作成と、Windows 10/11での受入・販売判定を区別して記録します。
 
-Windows 10/11で試す場合は、[受入テスト用の日本語README](docs/acceptance/README-ja.md)を使用してください。専用の標準ユーザーまたはクリーンなVMを前提とし、アプリ136ファイルを保持したキットに全ファイル一覧、起動前検査、33項目の手順・記録用紙、限定した診断採取、DLLブロックの配布方式検討をまとめます。普段の業務用アカウントでテスト起動しません。
+**独立テストモードは現在BLOCKEDです。** Windows合成試験で、保持中のディレクトリとファイルをリンクへ変更できる問題（I25/I28）を確認しました。本体・起動前検査・ログ採取の独立モード入口を停止し、EXE・受入ZIPの公開を止めています。既存データがあるユーザーで起動してよいとは案内しません。[実装・原因・停止措置・再設計方針](docs/10-independent-test-mode.md)を参照してください。
 
-[準備結果とZIPの取得先](docs/09-windows-acceptance-preparation.md)に、Serverでのパッケージ636項目・補助ツール34項目の成功と、Windows 10/11の未実施項目を記録しています。
+[受入用README](docs/acceptance/README-ja.md)と[テストモード計画](docs/acceptance/TEST-MODE-ja.md)は未検証項目を含む資料です。[以前の準備結果](docs/09-windows-acceptance-preparation.md)は0.4.0.1の履歴で、独立モードには対応しません。旧ZIPへ新しい引数を渡して代用しないでください。
 
 **GitHubへの反映先は開発ブランチ `development/sqlite-commercial-20261116` です。** main `a761e76fbe4c4335a1847dbfc4417516d205316f` の全ツリーにはREADMEと.gitattributesの2ファイルだけがあり、アプリ本体・テストが未登録だったため、以前確認したSTEP3本体とSTEP4Cを基準に候補版を作成しました。mainを親とする履歴を用い、mainへ直接反映しません。GitHub連携アプリの一時停止は解除され、開発ブランチの作成も成功しました。詳細は [GitHub反映状況](docs/07-github-sync.md) を参照してください。
 

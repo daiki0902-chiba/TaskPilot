@@ -1,0 +1,10 @@
+{
+    "Stage":  "Independent-mode public release gate",
+    "Passed":  true,
+    "Checks":  12,
+    "ApplicationLaunched":  false,
+    "ProductionProfileAccessed":  false,
+    "TestAreaPrepared":  false,
+    "Windows10And11Verified":  false,
+    "TestRoot":  "D:\\a\\TaskPilot\\TaskPilot\\TestResults\\IsolatedReleaseGate_62c4b64613fd4b95ae2fc793c05337b9"
+}

@@ -1,0 +1,419 @@
+{
+    "Stage":  "Native Windows independent-test-mode synthetic verification",
+    "CapturedAtUtc":  "2026-11-22T02:11:21.6047800Z",
+    "PowerShell":  "5.1.20348.5773",
+    "Platform":  "Microsoft Windows NT 10.0.20348.0",
+    "ProcessBits":  64,
+    "Passed":  false,
+    "Checks":  132,
+    "Cases":  [
+                  {
+                      "Id":  "I01",
+                      "Name":  "Existing normal data and locks do not prevent independent startup",
+                      "Passed":  true,
+                      "Error":  null
+                  },
+                  {
+                      "Id":  "I02",
+                      "Name":  "Actual controls mark the mode without running the application loop",
+                      "Passed":  true,
+                      "Error":  null
+                  },
+                  {
+                      "Id":  "I03",
+                      "Name":  "Task addition editing status and soft deletion stay in the test database",
+                      "Passed":  true,
+                      "Error":  null
+                  },
+                  {
+                      "Id":  "I04",
+                      "Name":  "Subtasks progress work logs and completion actual remain separate",
+                      "Passed":  true,
+                      "Error":  null
+                  },
+                  {
+                      "Id":  "I05",
+                      "Name":  "Settings notifications calendars recurrence and monthly values use only test state",
+                      "Passed":  true,
+                      "Error":  null
+                  },
+                  {
+                      "Id":  "I06",
+                      "Name":  "Real Excel files and chart XML are produced inside test Export",
+                      "Passed":  true,
+                      "Error":  null
+                  },
+                  {
+                      "Id":  "I07",
+                      "Name":  "Backup restore and restart preserve only this test environment",
+                      "Passed":  true,
+                      "Error":  null
+                  },
+                  {
+                      "Id":  "I08",
+                      "Name":  "Another environment ID starts empty while prior test state remains",
+                      "Passed":  true,
+                      "Error":  null
+                  },
+                  {
+                      "Id":  "I09",
+                      "Name":  "Legacy APIs are disabled without inspecting normal sources",
+                      "Passed":  true,
+                      "Error":  null
+                  },
+                  {
+                      "Id":  "I10",
+                      "Name":  "Unsafe absolute normal DB is rejected and stops further writes",
+                      "Passed":  true,
+                      "Error":  null
+                  },
+                  {
+                      "Id":  "I11",
+                      "Name":  "Unsafe relative traversal is rejected and stops further writes",
+                      "Passed":  true,
+                      "Error":  null
+                  },
+                  {
+                      "Id":  "I12",
+                      "Name":  "Unsafe UNC share is rejected and stops further writes",
+                      "Passed":  true,
+                      "Error":  null
+                  },
+                  {
+                      "Id":  "I13",
+                      "Name":  "Unsafe environment-variable path is rejected and stops further writes",
+                      "Passed":  true,
+                      "Error":  null
+                  },
+                  {
+                      "Id":  "I14",
+                      "Name":  "Directory handles prevent root and Export path replacement",
+                      "Passed":  true,
+                      "Error":  null
+                  },
+                  {
+                      "Id":  "I26",
+                      "Name":  "A file pin prevents replacement before any SQLite connection opens",
+                      "Passed":  true,
+                      "Error":  null
+                  },
+                  {
+                      "Id":  "I25",
+                      "Name":  "Pinned empty directories reject in-place reparse mutation for every access variant",
+                      "Passed":  false,
+                      "Error":  "A pinned empty directory became a junction using WriteData. Do not publish this runtime.",
+                      "ErrorDetail":  "System.Management.Automation.RuntimeException: A pinned empty directory became a junction using WriteData. Do not publish this runtime.",
+                      "Stack":  "at Assert-Isolated, D:\\a\\TaskPilot\\TaskPilot\\tests\\Test-IsolatedTestMode.ps1: line 44\r\nat \u003cScriptBlock\u003e, D:\\a\\TaskPilot\\TaskPilot\\tests\\Test-IsolatedTestMode.ps1: line 413\r\nat Case-Isolated, D:\\a\\TaskPilot\\TaskPilot\\tests\\Test-IsolatedTestMode.ps1: line 51\r\nat \u003cScriptBlock\u003e, D:\\a\\TaskPilot\\TaskPilot\\tests\\Test-IsolatedTestMode.ps1: line 394\r\nat \u003cScriptBlock\u003e, D:\\a\\TaskPilot\\TaskPilot\\tools\\Invoke-TaskPilotWindowsVerification.ps1: line 78\r\nat \u003cScriptBlock\u003e, D:\\a\\_temp\\61bbe59d-c7fd-4da8-9f91-c34eb77b129b.ps1: line 3\r\nat \u003cScriptBlock\u003e, \u003cNo file\u003e: line 1"
+                  },
+                  {
+                      "Id":  "I15",
+                      "Name":  "Junction to normal state is refused without traversal",
+                      "Passed":  true,
+                      "Error":  null
+                  },
+                  {
+                      "Id":  "I16",
+                      "Name":  "SymbolicLink to normal state is refused without traversal",
+                      "Passed":  true,
+                      "Error":  null
+                  },
+                  {
+                      "Id":  "I17",
+                      "Name":  "Hardlinked normal file is refused before content access",
+                      "Passed":  true,
+                      "Error":  null
+                  },
+                  {
+                      "Id":  "I18",
+                      "Name":  "Existing test-root junction cannot redirect startup into normal data",
+                      "Passed":  true,
+                      "Error":  null
+                  },
+                  {
+                      "Id":  "I19",
+                      "Name":  "Hot journals and WAL state fail closed and remain available for diagnosis",
+                      "Passed":  true,
+                      "Error":  null
+                  },
+                  {
+                      "Id":  "I20",
+                      "Name":  "A normal DB copy and another environment backup are never retagged",
+                      "Passed":  true,
+                      "Error":  null
+                  },
+                  {
+                      "Id":  "I21",
+                      "Name":  "Invalid IDs prior unmarked data and inaccessible roots stop safely",
+                      "Passed":  true,
+                      "Error":  null
+                  },
+                  {
+                      "Id":  "I27",
+                      "Name":  "Existing grants cannot precede the required directory protection",
+                      "Passed":  true,
+                      "Error":  null
+                  },
+                  {
+                      "Id":  "I28",
+                      "Name":  "Native file and nonempty ancestor boundaries have complete positive controls",
+                      "Passed":  false,
+                      "Error":  "File/ancestor boundary is not verified: FAIL NonemptyAncestorJunction has no successful unprotected native positive control on this token/filesystem (GenericWrite:145, WriteData:145, WriteAttributes:145, ReadAttributes:5, Zero:5). No privileges were enabled. A pinned test file became a symbolic reparse point using GenericWrite. Native pathname consumers are not proven safe.; A pinned test file became a symbolic reparse point using WriteData. Native pathname consumers are not proven safe.; A pinned test file became a symbolic reparse point using WriteAttributes. Native pathname consumers are not proven safe.",
+                      "ErrorDetail":  "System.Management.Automation.RuntimeException: File/ancestor boundary is not verified: FAIL NonemptyAncestorJunction has no successful unprotected native positive control on this token/filesystem (GenericWrite:145, WriteData:145, WriteAttributes:145, ReadAttributes:5, Zero:5). No privileges were enabled. A pinned test file became a symbolic reparse point using GenericWrite. Native pathname consumers are not proven safe.; A pinned test file became a symbolic reparse point using WriteData. Native pathname consumers are not proven safe.; A pinned test file became a symbolic reparse point using WriteAttributes. Native pathname consumers are not proven safe.",
+                      "Stack":  "at Assert-Isolated, D:\\a\\TaskPilot\\TaskPilot\\tests\\Test-IsolatedTestMode.ps1: line 44\r\nat \u003cScriptBlock\u003e, D:\\a\\TaskPilot\\TaskPilot\\tests\\Test-IsolatedTestMode.ps1: line 529\r\nat Case-Isolated, D:\\a\\TaskPilot\\TaskPilot\\tests\\Test-IsolatedTestMode.ps1: line 51\r\nat \u003cScriptBlock\u003e, D:\\a\\TaskPilot\\TaskPilot\\tests\\Test-IsolatedTestMode.ps1: line 526\r\nat \u003cScriptBlock\u003e, D:\\a\\TaskPilot\\TaskPilot\\tools\\Invoke-TaskPilotWindowsVerification.ps1: line 78\r\nat \u003cScriptBlock\u003e, D:\\a\\_temp\\61bbe59d-c7fd-4da8-9f91-c34eb77b129b.ps1: line 3\r\nat \u003cScriptBlock\u003e, \u003cNo file\u003e: line 1"
+                  },
+                  {
+                      "Id":  "I22",
+                      "Name":  "Test scope cannot be opened by the ordinary storage process",
+                      "Passed":  true,
+                      "Error":  null
+                  },
+                  {
+                      "Id":  "I24",
+                      "Name":  "All synthetic normal file hashes and directory structure unchanged",
+                      "Passed":  true,
+                      "Error":  null
+                  }
+              ],
+    "FailedCases":  2,
+    "SkippedDetails":  [
+
+                       ],
+    "DirectoryReparseAttempts":  [
+                                     {
+                                         "Pinned":  false,
+                                         "Access":  "GenericWrite",
+                                         "HandleOpened":  true,
+                                         "ReparseSet":  true,
+                                         "Win32Error":  0
+                                     },
+                                     {
+                                         "Pinned":  true,
+                                         "Access":  "GenericWrite",
+                                         "HandleOpened":  false,
+                                         "ReparseSet":  false,
+                                         "Win32Error":  5
+                                     },
+                                     {
+                                         "Pinned":  false,
+                                         "Access":  "WriteData",
+                                         "HandleOpened":  true,
+                                         "ReparseSet":  true,
+                                         "Win32Error":  0
+                                     },
+                                     {
+                                         "Pinned":  true,
+                                         "Access":  "WriteData",
+                                         "HandleOpened":  true,
+                                         "ReparseSet":  true,
+                                         "Win32Error":  0
+                                     }
+                                 ],
+    "FileAndAncestorBoundary":  {
+                                    "Stage":  "Native synthetic file and ancestor reparse boundary diagnostic",
+                                    "CapturedAtUtc":  "2026-11-22T02:11:21.5110302Z",
+                                    "PowerShell":  "5.1.20348.5773",
+                                    "Platform":  "Microsoft Windows NT 10.0.20348.0",
+                                    "ProcessBits":  64,
+                                    "Status":  "FAIL",
+                                    "Passed":  false,
+                                    "UnsafeVectorConfirmed":  true,
+                                    "NormalFixtureUnchanged":  true,
+                                    "NativeRejectedFileReparse":  false,
+                                    "NativeRejectedAncestorReparse":  true,
+                                    "CompleteNativeCoverage":  false,
+                                    "Cases":  [
+                                                  {
+                                                      "Vector":  "FileSymbolicReparse",
+                                                      "Protected":  false,
+                                                      "Access":  "GenericWrite",
+                                                      "HandleOpened":  true,
+                                                      "ReparseSet":  true,
+                                                      "Win32Error":  0
+                                                  },
+                                                  {
+                                                      "Vector":  "FileSymbolicReparse",
+                                                      "Protected":  true,
+                                                      "Access":  "GenericWrite",
+                                                      "HandleOpened":  true,
+                                                      "ReparseSet":  true,
+                                                      "Win32Error":  0
+                                                  },
+                                                  {
+                                                      "Vector":  "FileSymbolicReparse",
+                                                      "Protected":  false,
+                                                      "Access":  "WriteData",
+                                                      "HandleOpened":  true,
+                                                      "ReparseSet":  true,
+                                                      "Win32Error":  0
+                                                  },
+                                                  {
+                                                      "Vector":  "FileSymbolicReparse",
+                                                      "Protected":  true,
+                                                      "Access":  "WriteData",
+                                                      "HandleOpened":  true,
+                                                      "ReparseSet":  true,
+                                                      "Win32Error":  0
+                                                  },
+                                                  {
+                                                      "Vector":  "FileSymbolicReparse",
+                                                      "Protected":  false,
+                                                      "Access":  "WriteAttributes",
+                                                      "HandleOpened":  true,
+                                                      "ReparseSet":  true,
+                                                      "Win32Error":  0
+                                                  },
+                                                  {
+                                                      "Vector":  "FileSymbolicReparse",
+                                                      "Protected":  true,
+                                                      "Access":  "WriteAttributes",
+                                                      "HandleOpened":  true,
+                                                      "ReparseSet":  true,
+                                                      "Win32Error":  0
+                                                  },
+                                                  {
+                                                      "Vector":  "FileSymbolicReparse",
+                                                      "Protected":  false,
+                                                      "Access":  "ReadAttributes",
+                                                      "HandleOpened":  true,
+                                                      "ReparseSet":  false,
+                                                      "Win32Error":  5
+                                                  },
+                                                  {
+                                                      "Vector":  "FileSymbolicReparse",
+                                                      "Protected":  true,
+                                                      "Access":  "ReadAttributes",
+                                                      "HandleOpened":  true,
+                                                      "ReparseSet":  false,
+                                                      "Win32Error":  5
+                                                  },
+                                                  {
+                                                      "Vector":  "FileSymbolicReparse",
+                                                      "Protected":  false,
+                                                      "Access":  "Zero",
+                                                      "HandleOpened":  true,
+                                                      "ReparseSet":  false,
+                                                      "Win32Error":  5
+                                                  },
+                                                  {
+                                                      "Vector":  "FileSymbolicReparse",
+                                                      "Protected":  true,
+                                                      "Access":  "Zero",
+                                                      "HandleOpened":  true,
+                                                      "ReparseSet":  false,
+                                                      "Win32Error":  5
+                                                  },
+                                                  {
+                                                      "Vector":  "NonemptyAncestorJunction",
+                                                      "Protected":  false,
+                                                      "Access":  "GenericWrite",
+                                                      "HandleOpened":  true,
+                                                      "ReparseSet":  false,
+                                                      "Win32Error":  145
+                                                  },
+                                                  {
+                                                      "Vector":  "NonemptyAncestorJunction",
+                                                      "Protected":  true,
+                                                      "Access":  "GenericWrite",
+                                                      "HandleOpened":  true,
+                                                      "ReparseSet":  false,
+                                                      "Win32Error":  145
+                                                  },
+                                                  {
+                                                      "Vector":  "NonemptyAncestorJunction",
+                                                      "Protected":  false,
+                                                      "Access":  "WriteData",
+                                                      "HandleOpened":  true,
+                                                      "ReparseSet":  false,
+                                                      "Win32Error":  145
+                                                  },
+                                                  {
+                                                      "Vector":  "NonemptyAncestorJunction",
+                                                      "Protected":  true,
+                                                      "Access":  "WriteData",
+                                                      "HandleOpened":  true,
+                                                      "ReparseSet":  false,
+                                                      "Win32Error":  145
+                                                  },
+                                                  {
+                                                      "Vector":  "NonemptyAncestorJunction",
+                                                      "Protected":  false,
+                                                      "Access":  "WriteAttributes",
+                                                      "HandleOpened":  true,
+                                                      "ReparseSet":  false,
+                                                      "Win32Error":  145
+                                                  },
+                                                  {
+                                                      "Vector":  "NonemptyAncestorJunction",
+                                                      "Protected":  true,
+                                                      "Access":  "WriteAttributes",
+                                                      "HandleOpened":  true,
+                                                      "ReparseSet":  false,
+                                                      "Win32Error":  145
+                                                  },
+                                                  {
+                                                      "Vector":  "NonemptyAncestorJunction",
+                                                      "Protected":  false,
+                                                      "Access":  "ReadAttributes",
+                                                      "HandleOpened":  true,
+                                                      "ReparseSet":  false,
+                                                      "Win32Error":  5
+                                                  },
+                                                  {
+                                                      "Vector":  "NonemptyAncestorJunction",
+                                                      "Protected":  true,
+                                                      "Access":  "ReadAttributes",
+                                                      "HandleOpened":  true,
+                                                      "ReparseSet":  false,
+                                                      "Win32Error":  5
+                                                  },
+                                                  {
+                                                      "Vector":  "NonemptyAncestorJunction",
+                                                      "Protected":  false,
+                                                      "Access":  "Zero",
+                                                      "HandleOpened":  true,
+                                                      "ReparseSet":  false,
+                                                      "Win32Error":  5
+                                                  },
+                                                  {
+                                                      "Vector":  "NonemptyAncestorJunction",
+                                                      "Protected":  true,
+                                                      "Access":  "Zero",
+                                                      "HandleOpened":  true,
+                                                      "ReparseSet":  false,
+                                                      "Win32Error":  5
+                                                  }
+                                              ],
+                                    "Errors":  [
+                                                   "A pinned test file became a symbolic reparse point using GenericWrite. Native pathname consumers are not proven safe.",
+                                                   "A pinned test file became a symbolic reparse point using WriteData. Native pathname consumers are not proven safe.",
+                                                   "A pinned test file became a symbolic reparse point using WriteAttributes. Native pathname consumers are not proven safe."
+                                               ],
+                                    "UnverifiedVectors":  [
+                                                              "NonemptyAncestorJunction has no successful unprotected native positive control on this token/filesystem (GenericWrite:145, WriteData:145, WriteAttributes:145, ReadAttributes:5, Zero:5). No privileges were enabled."
+                                                          ],
+                                    "TestRoot":  "D:\\a\\TaskPilot\\TaskPilot\\TestResults\\IsolatedFileBoundary_09bd5ed11c8f41e3b1ae1d636abdff78",
+                                    "RuntimeAssemblySha256":  "c3a3388a4f68cfcd7caf540f35e76a22db51790e1f38f0f6d04762ec80852422",
+                                    "ProductionProfileAccessed":  false,
+                                    "PrivilegesEnabled":  false,
+                                    "OSProtectionSettingsChanged":  false,
+                                    "Limits":  [
+                                                   "No existing business profile is used.",
+                                                   "A failed native positive control is reported as partial coverage, never as a guard pass.",
+                                                   "Windows 10/11 client GUI and developer-mode configurations remain unverified."
+                                               ]
+                                },
+    "TestRoot":  "D:\\a\\TaskPilot\\TaskPilot\\TestResults\\IsolatedMode_39c36efebf6147dca3efadc738512624",
+    "RuntimeAssemblySha256":  "c3a3388a4f68cfcd7caf540f35e76a22db51790e1f38f0f6d04762ec80852422",
+    "WindowsClientGUIVerified":  false,
+    "NormalFixtureUnchanged":  true,
+    "ActualExcelFilesGenerated":  true,
+    "ApplicationRunCalled":  false,
+    "ProductionProfileAccessed":  false,
+    "SyntheticNormalProcessAndLocksHeld":  true,
+    "Limits":  [
+                   "Application algorithms and constructed controls were exercised without Application.Run.",
+                   "Windows 10/11 interactive GUI and external Excel viewing remain unverified.",
+                   "All ordinary-data sentinels and filesystem attacks were confined to the new synthetic fixture."
+               ],
+    "SourceCommit":  "25211b4df0b2f55ee577b700141a3a752e3e11ec"
+}
