@@ -8,6 +8,8 @@ PowerShell 5.1とWindows Formsを維持し、既存GUIの保存処理をSQLite�
 
 Windows 10/11の実機確認に向けた[受入専用入口の実装と制限](docs/12-desktop-acceptance-build.md)、[初心者向け準備ガイド](docs/desktop-acceptance/README-ja.md)、[開始条件と未達条件](docs/desktop-acceptance/READINESS-ja.md)、[31件の確認表](docs/desktop-acceptance/CHECKLIST-ja.md)、[OS別結果票](docs/desktop-acceptance/RESULT-TEMPLATE-ja.md)を用意しています。専用の入口・検査・内部コンパイルを実装していますが、署名・保護された導入・対象PCの事前安全性検査が未整備で、受入GUIとEXE・ZIPの配布は引き続き停止しています。
 
+次の作業は[A・B・C別の残課題と優先順位](docs/desktop-acceptance/REMAINING-WORK-ja.md)、[開発者の準備・費用・操作](docs/desktop-acceptance/DEVELOPER-PREPARATION-ja.md)、[条件成立後の実機手順](docs/desktop-acceptance/AFTER-READY-ja.md)へ整理しました。Aの追加実装と再試験は[追補記録](docs/13-acceptance-followup.md)に保存します。証明書購入だけで起動できる状態ではなく、今は販売者区分と限定配布先の選択を先に行います。
+
 [受入用README](docs/acceptance/README-ja.md)と[テストモード計画](docs/acceptance/TEST-MODE-ja.md)は未検証項目を含む資料です。[以前の準備結果](docs/09-windows-acceptance-preparation.md)は0.4.0.1の履歴で、独立モードには対応しません。旧ZIPへ新しい引数を渡して代用しないでください。
 
 **GitHubへの反映先は開発ブランチ `development/sqlite-commercial-20261116` です。** main `a761e76fbe4c4335a1847dbfc4417516d205316f` の全ツリーにはREADMEと.gitattributesの2ファイルだけがあり、アプリ本体・テストが未登録だったため、以前確認したSTEP3本体とSTEP4Cを基準に候補版を作成しました。mainを親とする履歴を用い、mainへ直接反映しません。GitHub連携アプリの一時停止は解除され、開発ブランチの作成も成功しました。詳細は [GitHub反映状況](docs/07-github-sync.md) を参照してください。

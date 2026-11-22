@@ -36,7 +36,7 @@
 | `tools/New-TaskPilotDesktopAcceptanceEntry.ps1` | 通常GUIの操作を維持した専用入口の再生成 |
 | `tools/Build-TaskPilotDesktopAcceptance.ps1` | 依存を固定した専用内部ビルド。使用許可された配布ZIPは生成・公開しない |
 | `tools/Test-TaskPilotDesktopAcceptance.ps1` | 既存検査と別の専用起動前検査 |
-| `tools/Collect-TaskPilotDesktopAcceptanceLogs.ps1` | 既存の通常ログ採取へフォールバックしない専用診断入口。安全な再オープン手順は未実装で、現在は`BLOCKED` |
+| `tools/Collect-TaskPilotDesktopAcceptanceLogs.ps1` | 通常ログへフォールバックしない専用診断入口。後続変更で読取専用・排他の再オープンを追加したが、現在は起動条件未達で`BLOCKED` |
 
 最終の同梱一覧とハッシュはビルダーの出力で確定する。過去の147ファイルという件数を、新しい専用ビルドの証明に流用しない。SQLite、Codec、ImportExcel/EPPlus、WinForms adaptersと第三者表示を含め、購入者へPythonやモジュールの手動導入を求めない構成を維持する。
 
@@ -97,5 +97,7 @@ Linuxでは許可37・入口30・事前検査30・診断12・パッケージ317�
 未署名のまま使う、取得元情報を消す、Windowsの警告を解除する、ポリシーや保護設定を変える、古いEXEへ引数を付ける方法は提供しない。現在は初心者へダウンロード・起動コマンドを案内できない。
 
 ## 実機の試験計画
+
+後続の追加実装、A・B・C分類と新しい検証結果は[受入残課題の実装記録](13-acceptance-followup.md)を参照する。この文書の690検査は`07e7854`の履歴である。
 
 開始条件が揃った後は[日本語ガイド](desktop-acceptance/README-ja.md)、[31件のチェックリスト](desktop-acceptance/CHECKLIST-ja.md)、[OS別結果票](desktop-acceptance/RESULT-TEMPLATE-ja.md)を使用する。GUI、タスク・サブタスク、日別記録・完了実績、通知、定期処理、月次集計・確定、Excel3冊とグラフ、バックアップ・新DBへの復元を合成データだけで確認する。

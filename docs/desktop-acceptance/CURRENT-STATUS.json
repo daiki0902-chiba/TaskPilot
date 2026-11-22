@@ -105,7 +105,7 @@
     "Signed delivery/download/start instructions matched to an authorized kit.",
     "Additional package-guard adversarial tests for in-place file and directory changes.",
     "OS-enforced immutable signed installation covering CLR and EXE.config reads before Main.",
-    "Safe post-exit reopening protocol for limited diagnostics."
+    "Host execution-policy compatibility without changing or replacing protection checks."
   ],
   "plannedDesktopCases": {
     "count": 31,
@@ -180,5 +180,34 @@
     "normalProviderSpecificCaseSkipped": true,
     "positiveProductionAuthorizationVerified": false,
     "windows10And11GuiVerified": false
+  },
+  "workClassification": {
+    "guide": "REMAINING-WORK-ja.md",
+    "developerGuide": "DEVELOPER-PREPARATION-ja.md",
+    "afterReadyGuide": "AFTER-READY-ja.md",
+    "hostCompatibility": "HOST-COMPATIBILITY-ja.md",
+    "AImplemented": [
+      "Native package boundary suite with mandatory controls",
+      "Bounded native readonly diagnostic reopening and existing lock lease",
+      "Backend qualification probe core",
+      "MSIX plan-only tool",
+      "Unchanged-policy SDK host observation"
+    ],
+    "ARemaining": [
+      "Host compatibility without policy overrides",
+      "OS-enforced protected installation and verifier integration",
+      "Selected signing provider adapter and authorization ceremony",
+      "End-to-end client qualification orchestration"
+    ],
+    "BNeeded": [
+      "Seller/publisher category decision",
+      "Eligibility and signing provider selection after technical design",
+      "Private delivery destination and recipients",
+      "Windows/Excel test device availability"
+    ],
+    "CStatus": "WINDOWS10_AND_WINDOWS11_NOT_STARTED_BLOCKED",
+    "purchaseStatus": "HOLD_PENDING_ELIGIBILITY_AND_TECHNICAL_DESIGN",
+    "sourceCommit": "b15e153d385cb81fb3b089861ee266131454d5b4",
+    "verification": "CI_RERUN_PENDING_NETWORK_RETRY"
   }
 }
