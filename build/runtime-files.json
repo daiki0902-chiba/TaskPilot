@@ -2,6 +2,8 @@
   "FormatVersion": 1,
   "Description": "Explicit customer runtime allowlist. Developer tools, tests and user data are never scanned into the product.",
   "Files": [
+    "Runtime/TaskPilot.Runtime.ps1",
+    "Adapters/TaskPilot.GuiIsolation.ps1",
     "Adapters/TaskPilot.GuiCommon.ps1",
     "Adapters/TaskPilot.GuiDomains.ps1",
     "Adapters/TaskPilot.GuiOperations.ps1",

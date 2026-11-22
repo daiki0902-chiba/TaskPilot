@@ -4,6 +4,36 @@ $script:TPProvider = $null
 $script:TPModuleRoot = $PSScriptRoot
 $script:TPApplicationId = 1414547788
 $script:TPSchemaVersion = 40001
+$script:TPTestSandbox = $null
+$script:TPBoundaryConnections = New-Object 'Collections.Generic.Dictionary[object,string]'
+
+function Set-TaskPilotTestSandbox {
+    [CmdletBinding()]param([Parameter(Mandatory=$true)]$Sandbox)
+    # This process chooses its mode before opening any provider or store. There
+    # is deliberately no reset/switch-to-normal entry point.
+    if($null-ne$script:TPTestSandbox-or$null-ne$script:TPProvider-or$script:TPBoundaryConnections.Count-ne0){throw 'Storage mode is already fixed for this process. Start a new process.'}
+    if($Sandbox.GetType().FullName-cne'TaskPilot.Runtime.Sandbox'){throw 'A verified TaskPilot runtime sandbox is required.'}
+    $Sandbox.ValidateTree()
+    $script:TPTestSandbox=$Sandbox
+}
+function Close-TPConnection($Connection){
+    if($null-eq$Connection){return}
+    $path=$null
+    if($script:TPBoundaryConnections.ContainsKey($Connection)){$path=$script:TPBoundaryConnections[$Connection]}
+    try{$Connection.Dispose()}
+    finally{
+        if($null-ne$path){$null=$script:TPBoundaryConnections.Remove($Connection);$script:TPTestSandbox.CompleteDatabase($path)}
+    }
+}
+function Assert-TPStoreScope($Store){
+    $description=[string](Invoke-TPSql $Store 'SELECT description FROM schema_migrations WHERE version=@version' -Parameters @{version=$script:TPSchemaVersion} -Mode Scalar)
+    $prefix='TaskPilot independent test environment:'
+    if($null-ne$script:TPTestSandbox){
+        if($description-cne($prefix+$script:TPTestSandbox.EnvironmentId)){throw 'This database does not belong to this independent test environment. No data is imported or retagged.'}
+    }elseif($description.StartsWith($prefix,[StringComparison]::Ordinal)){
+        throw 'An independent test database cannot be opened as a normal TaskPilot database.'
+    }
+}
 
 function Assert-TPProviderOrigin {
     param([string[]]$Files)
@@ -67,6 +97,9 @@ function Get-TPResolvedPath([string]$Path) {
     $provider=$null; $drive=$null
     $full = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($Path,[ref]$provider,[ref]$drive)
     if ($provider.Name -ne 'FileSystem') { throw 'A filesystem database path is required.' }
+    # Assert confinement before even probing attributes/existence. In test
+    # mode a normal-profile path never reaches the legacy guard or filesystem.
+    if($null-ne$script:TPTestSandbox){return $script:TPTestSandbox.AssertPath($full)}
     # Conservatively reject links/junctions instead of resolving into a protected store.
     $inspect = $full
     while ($inspect) {
@@ -94,13 +127,27 @@ function New-TPConnection {
     $builder['Pooling']=$false
     $builder['Read Only']=$ReadOnly
     $builder['Default Timeout']=5
+    $sandboxPath=$null
+    if($null-ne$script:TPTestSandbox){
+        $script:TPTestSandbox.ValidateTree()
+        if($Path-cne':memory:'){
+            $sandboxPath=$script:TPTestSandbox.AssertPath($Path)
+            $script:TPTestSandbox.PrepareDatabase($sandboxPath,$false)
+            $builder['Data Source']=$sandboxPath
+            # A pinned, persistent zero-length journal closes the pathname
+            # substitution gap. TRUNCATE avoids SQLite deleting that handle.
+            if(-not$ReadOnly){$builder['Journal Mode']='Truncate'}
+        }
+    }
     $conn = [Activator]::CreateInstance($Provider.Type)
     $conn.ConnectionString=$builder.ConnectionString
     try {
+        if($null-ne$sandboxPath){$script:TPBoundaryConnections.Add($conn,$sandboxPath)}
         $conn.Open()
         $cmd=$conn.CreateCommand()
         try {
             $cmd.CommandText='PRAGMA foreign_keys=ON; PRAGMA recursive_triggers=ON; PRAGMA busy_timeout=5000; PRAGMA synchronous=FULL;'
+            if($null-ne$script:TPTestSandbox){$cmd.CommandText+=' PRAGMA temp_store=MEMORY;'}
             $null=$cmd.ExecuteNonQuery()
             foreach($item in @(@('foreign_keys',1),@('recursive_triggers',1))) {
                 $cmd.CommandText='PRAGMA '+$item[0]
@@ -108,14 +155,16 @@ function New-TPConnection {
             }
             $cmd.CommandText='SELECT sqlite_version()'
             if ([version]$cmd.ExecuteScalar() -lt [version]'3.38.0') { throw 'SQLite 3.38.0 or newer is required.' }
+            if($null-ne$sandboxPath-and-not$ReadOnly){$cmd.CommandText='PRAGMA journal_mode';if([string]$cmd.ExecuteScalar()-ine'truncate'){throw 'Independent test mode requires the pinned TRUNCATE journal mode.'}}
         } finally { $cmd.Dispose() }
         return ,$conn
-    } catch { $conn.Dispose(); throw }
+    } catch { $failure=$_;try{Close-TPConnection $conn}catch{};throw $failure }
 }
 function Assert-TPStore {
     param($Store,[switch]$Write)
     if ($null -eq $Store -or $Store.PSTypeNames -notcontains 'TaskPilot.Store' -or $Store.Closed -or $Store.Connection.State -ne [Data.ConnectionState]::Open) { throw 'TaskPilot store is not open.' }
     if ($Write -and ($Store.ReadOnly -or $Store.TransactionReadOnly)) { throw 'Store or active snapshot is read-only.' }
+    if($null-ne$script:TPTestSandbox){$null=$script:TPTestSandbox.AssertPath($Store.Path);$script:TPTestSandbox.ValidateTree()}
 }
 function Invoke-TPSql {
     param($Store,[string]$Sql,[hashtable]$Parameters=@{},[ValidateSet('Rows','Scalar','NonQuery')][string]$Mode='Rows')
@@ -205,6 +254,14 @@ function Assert-TPExpectedToken([string]$Expected,[string]$Actual){if([string]::
 function Assert-TPDatabaseHeader([string]$Path) {
     # Read only the SQLite header before allowing any provider-driven recovery/write.
     $header=New-Object byte[] 100
+    if($null-ne$script:TPTestSandbox){
+        $header=$script:TPTestSandbox.ReadPrefix($Path,100)
+        if($header.Length-ne100-or[Text.Encoding]::ASCII.GetString($header,0,16)-cne"SQLite format 3`0"){throw 'Database header is not a supported SQLite file.'}
+        $app=[long]$header[68]*16777216+[long]$header[69]*65536+[long]$header[70]*256+[long]$header[71]
+        $version=[long]$header[60]*16777216+[long]$header[61]*65536+[long]$header[62]*256+[long]$header[63]
+        if($app-ne$script:TPApplicationId-or$version-ne$script:TPSchemaVersion){throw 'Database belongs to a different app or schema version; it will not be opened for writing.'}
+        return
+    }
     $inputFile=[IO.File]::Open($Path,[IO.FileMode]::Open,[IO.FileAccess]::Read,[IO.FileShare]::ReadWrite)
     try{
         $offset=0
@@ -218,23 +275,26 @@ function Assert-TPDatabaseHeader([string]$Path) {
 function Open-TaskPilotStore {
     [CmdletBinding()]param([Parameter(Mandatory=$true)][string]$DatabasePath,[switch]$ReadOnly,[string]$TestProviderAssembly)
     $full=Get-TPResolvedPath $DatabasePath
-    if(-not(Test-Path -LiteralPath $full -PathType Leaf)){throw 'Database does not exist; opening never creates one.'}
+    $present=if($null-ne$script:TPTestSandbox){$script:TPTestSandbox.Exists($full)}else{Test-Path -LiteralPath $full -PathType Leaf}
+    if(-not$present){throw 'Database does not exist; opening never creates one.'}
     Assert-TPDatabaseHeader $full
     $provider=Import-TPProvider -TestProviderAssembly $TestProviderAssembly
     $conn=New-TPConnection -Path $full -Provider $provider -ReadOnly ([bool]$ReadOnly)
     $store=[pscustomobject]@{Connection=$conn;Path=$full;Provider=$provider.Name;TestOnly=$provider.TestOnly;ReadOnly=[bool]$ReadOnly;Closed=$false;Transaction=$null;TransactionFailed=$false;TransactionReadOnly=$false}
     $store.PSTypeNames.Insert(0,'TaskPilot.Store')
     try {
+        Assert-TPStoreScope $store
         if([long](Invoke-TPSql $store 'PRAGMA application_id' -Mode Scalar) -ne $script:TPApplicationId -or [long](Invoke-TPSql $store 'PRAGMA user_version' -Mode Scalar) -ne $script:TPSchemaVersion){throw 'Database belongs to a different app or schema version; no automatic upgrade is performed.'}
         if(@(Invoke-TPSql $store 'PRAGMA foreign_key_check').Count -ne 0){throw 'Database has broken foreign-key references.'}
         return $store
-    } catch{$conn.Dispose();$store.Closed=$true;throw}
+    } catch{$failure=$_;try{Close-TPConnection $conn}catch{};$store.Closed=$true;throw $failure}
 }
 function Close-TaskPilotStore {
     [CmdletBinding()]param([Parameter(Mandatory=$true)]$Store)
     if($Store.Closed){return}
     if($null -ne $Store.Transaction){throw 'Cannot close a store during a transaction.'}
-    $Store.Connection.Dispose();$Store.Closed=$true
+    if($null-ne$script:TPTestSandbox){try{Close-TPConnection $Store.Connection}finally{$Store.Closed=$true}}
+    else{$Store.Connection.Dispose();$Store.Closed=$true}
 }
 function New-TaskPilotDatabase {
     [CmdletBinding()]param([Parameter(Mandatory=$true)][string]$DatabasePath,[string]$TestProviderAssembly)
@@ -242,27 +302,46 @@ function New-TaskPilotDatabase {
     if([IO.Path]::GetExtension($full) -notin @('.db','.sqlite','.sqlite3')){throw 'Choose a new .db, .sqlite or .sqlite3 filename.'}
     $parent=Split-Path -Parent $full
     if(-not(Test-Path -LiteralPath $parent -PathType Container)){throw 'Destination parent must already exist.'}
-    if(Test-Path -LiteralPath $full){throw 'Destination already exists and will not be overwritten.'}
-    foreach($suffix in @('-journal','-wal','-shm')){if(Test-Path -LiteralPath ($full+$suffix)){throw 'Existing SQLite sidecar found; choose a new name without deleting recovery files.'}}
+    $exists=if($null-ne$script:TPTestSandbox){$script:TPTestSandbox.Exists($full)}else{Test-Path -LiteralPath $full}
+    if($exists){throw 'Destination already exists and will not be overwritten.'}
+    foreach($suffix in @('-journal','-wal','-shm')){
+        $exists=if($null-ne$script:TPTestSandbox){$script:TPTestSandbox.Exists($full+$suffix)}else{Test-Path -LiteralPath ($full+$suffix)}
+        if($exists){throw 'Existing SQLite sidecar found; choose a new name without deleting recovery files.'}
+    }
     $provider=Import-TPProvider -TestProviderAssembly $TestProviderAssembly
     $stage=Join-Path $parent ('.taskpilot4b_'+[guid]::NewGuid().ToString('N')+'.db')
     $conn=$null;$validationStore=$null
     try {
-        $file=[IO.File]::Open($stage,[IO.FileMode]::CreateNew,[IO.FileAccess]::Write,[IO.FileShare]::None);$file.Dispose()
+        if($null-ne$script:TPTestSandbox){$script:TPTestSandbox.WriteNew($stage,[byte[]]@())}
+        else{$file=[IO.File]::Open($stage,[IO.FileMode]::CreateNew,[IO.FileAccess]::Write,[IO.FileShare]::None);$file.Dispose()}
         $conn=New-TPConnection -Path $stage -Provider $provider
         $cmd=$conn.CreateCommand()
-        try{$cmd.CommandText=Get-Content -LiteralPath (Join-Path $script:TPModuleRoot '../../schema/001_initial.sql') -Raw -Encoding UTF8;$null=$cmd.ExecuteNonQuery()}finally{$cmd.Dispose()}
-        $conn.Dispose();$conn=$null
+        try{
+            $cmd.CommandText=Get-Content -LiteralPath (Join-Path $script:TPModuleRoot '../../schema/001_initial.sql') -Raw -Encoding UTF8;$null=$cmd.ExecuteNonQuery()
+            if($null-ne$script:TPTestSandbox){
+                $cmd.CommandText='UPDATE schema_migrations SET description=@scope WHERE version=@version'
+                $scopeParameter=$cmd.CreateParameter();$scopeParameter.ParameterName='@scope';$scopeParameter.Value='TaskPilot independent test environment:'+$script:TPTestSandbox.EnvironmentId;$null=$cmd.Parameters.Add($scopeParameter)
+                $versionParameter=$cmd.CreateParameter();$versionParameter.ParameterName='@version';$versionParameter.Value=$script:TPSchemaVersion;$null=$cmd.Parameters.Add($versionParameter)
+                if($cmd.ExecuteNonQuery()-ne1){throw 'Could not mark the newly created database as an independent test database.'}
+            }
+        }finally{$cmd.Dispose()}
+        Close-TPConnection $conn;$conn=$null
         $validationStore=Open-TaskPilotStore -DatabasePath $stage -TestProviderAssembly $TestProviderAssembly
         if([string](Invoke-TPSql $validationStore 'PRAGMA integrity_check' -Mode Scalar) -ne 'ok'){throw 'New database integrity check failed.'}
         Close-TaskPilotStore $validationStore;$validationStore=$null
-        foreach($suffix in @('-journal','-wal','-shm')){if(Test-Path -LiteralPath ($full+$suffix)){throw 'A destination recovery sidecar appeared; database publication stopped.'}}
-        [IO.File]::Move($stage,$full)
+        foreach($suffix in @('-journal','-wal','-shm')){
+            $exists=if($null-ne$script:TPTestSandbox){$script:TPTestSandbox.Exists($full+$suffix)}else{Test-Path -LiteralPath ($full+$suffix)}
+            if($exists){throw 'A destination recovery sidecar appeared; database publication stopped.'}
+        }
+        if($null-ne$script:TPTestSandbox){$script:TPTestSandbox.MoveNew($stage,$full)}else{[IO.File]::Move($stage,$full)}
         return [pscustomobject]@{DatabasePath=$full;SchemaVersion=$script:TPSchemaVersion;Provider=$provider.Name;TestOnly=$provider.TestOnly;LegacyDataImported=$false}
     } finally {
         if($null -ne $validationStore -and -not $validationStore.Closed){Close-TaskPilotStore $validationStore}
-        if($null -ne $conn){$conn.Dispose()}
-        foreach($item in @($stage,($stage+'-journal'),($stage+'-wal'),($stage+'-shm'))){if(Test-Path -LiteralPath $item){Remove-Item -LiteralPath $item -Force -ErrorAction SilentlyContinue}}
+        if($null -ne $conn){Close-TPConnection $conn}
+        foreach($item in @($stage,($stage+'-journal'),($stage+'-wal'),($stage+'-shm'))){
+            if($null-ne$script:TPTestSandbox){if(-not$script:TPTestSandbox.IsFaulted-and$script:TPTestSandbox.Exists($item)){$script:TPTestSandbox.DeleteFile($item)}}
+            elseif(Test-Path -LiteralPath $item){Remove-Item -LiteralPath $item -Force -ErrorAction SilentlyContinue}
+        }
     }
 }
 function Get-TaskPilotProviderInfo {
@@ -277,7 +356,7 @@ function Get-TaskPilotProviderInfo {
             $cmd.CommandText='CREATE TABLE provider_probe(value INTEGER) STRICT;';$null=$cmd.ExecuteNonQuery()
             return [pscustomobject]@{Provider=$provider.Name;SQLiteVersion=$version;TestOnly=$provider.TestOnly;MemoryProbePassed=$true}
         }finally{$cmd.Dispose()}
-    }finally{$conn.Dispose()}
+    }finally{Close-TPConnection $conn}
 }
 function Get-TaskPilotStoreInfo {
     [CmdletBinding()]param([Parameter(Mandatory=$true)]$Store)
@@ -355,5 +434,6 @@ function Restore-TaskPilotTask {
 . (Join-Path $PSScriptRoot 'TaskPilot.Migration.ps1')
 . (Join-Path $PSScriptRoot 'TaskPilot.Protection.ps1')
 Export-ModuleMember -Function @('New-TaskPilotDatabaseBackup','Restore-TaskPilotDatabase')
+Export-ModuleMember -Function @('Set-TaskPilotTestSandbox')
 Export-ModuleMember -Function @('Test-TaskPilotLegacyData','Import-TaskPilotLegacyData')
 Export-ModuleMember -Function @('New-TaskPilotDatabase','Open-TaskPilotStore','Close-TaskPilotStore','Get-TaskPilotStoreInfo','Get-TaskPilotProviderInfo','Invoke-TaskPilotTransaction','Add-TaskPilotTask','Get-TaskPilotTask','Set-TaskPilotTask','Remove-TaskPilotTask','Restore-TaskPilotTask','*-TaskPilotSubtask','*-TaskPilotWorkLog','*-TaskPilotCompletionActual','Complete-TaskPilotTask','*-TaskPilotCalendar','*-TaskPilotHolidaySet','*-TaskPilotRecurringRule','Get-TaskPilotRecurringRules','Invoke-TaskPilotRecurringOccurrence','*-TaskPilotMonthlySnapshot','*-TaskPilotSettings','*-TaskPilotNotifications','Get-TaskPilotReadSnapshot')

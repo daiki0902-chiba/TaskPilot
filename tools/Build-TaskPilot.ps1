@@ -55,11 +55,11 @@ try{
     foreach($relative in @($runtimeLock.Files)){
         Assert-TPBuildRelative $relative
         if(-not$runtimeFiles.Add($relative)){throw "Duplicate runtime allowlist path: $relative"}
-        if($relative-notmatch'^(Adapters/|Modules/TaskPilot\.Storage/|Codec/|schema/)'){throw 'Runtime allowlist contains a path outside the product runtime directories.'}
+        if($relative-notmatch'^(Adapters/|Modules/TaskPilot\.Storage/|Codec/|schema/|Runtime/)'){throw 'Runtime allowlist contains a path outside the product runtime directories.'}
         Add-Payload (Join-Path $repo $relative) $relative 'TaskPilot'
         if([IO.Path]::GetExtension($relative)-in@('.ps1','.psm1','.psd1')){Assert-TPBuildPowerShell (Join-Path $repo $relative)}
     }
-    foreach($required in @('Adapters/TaskPilot.GuiStartup.ps1','Modules/TaskPilot.Storage/TaskPilot.Storage.psd1','Modules/TaskPilot.Storage/TaskPilot.Storage.psm1','Codec/Import-TaskPilotMigrationCodec.ps1','Codec/TaskPilotMigrationCodec.cs','schema/001_initial.sql')){if(-not$runtimeFiles.Contains($required)){throw "Required runtime path absent from allowlist: $required"}}
+    foreach($required in @('Adapters/TaskPilot.GuiStartup.ps1','Adapters/TaskPilot.GuiIsolation.ps1','Runtime/TaskPilot.Runtime.ps1','Modules/TaskPilot.Storage/TaskPilot.Storage.psd1','Modules/TaskPilot.Storage/TaskPilot.Storage.psm1','Codec/Import-TaskPilotMigrationCodec.ps1','Codec/TaskPilotMigrationCodec.cs','schema/001_initial.sql')){if(-not$runtimeFiles.Contains($required)){throw "Required runtime path absent from allowlist: $required"}}
     foreach($folder in @('Adapters','Modules/TaskPilot.Storage')){
         $from=Join-Path $repo $folder
         if(-not[IO.Directory]::Exists($from)){throw "Required product runtime directory is missing: $folder"}
@@ -91,7 +91,10 @@ try{
     foreach($required in @('System.Data.SQLite.dll','x86/SQLite.Interop.dll','x64/SQLite.Interop.dll')){if($null-eq$providerPins.PSObject.Properties[$required]){throw 'SQLite provider manifest lacks a required architecture.'}}
     foreach($file in @(Get-TPBuildFiles (Join-Path $providerRoot 'ThirdPartyNotices'))){Add-Payload $file.FullName ('ThirdPartyNotices/SQLite/'+$file.Name) 'SQLite notices'}
     if($RequireSignature-and-not$SigningCertificateThumbprint){throw 'RequireSignature needs an existing developer code-signing certificate thumbprint; no certificate will be fabricated.'}
-    if($ValidateOnly){return [pscustomobject]@{Validated=$true;Version=$Version;Architecture='x64';PayloadFiles=$payload.Count;PayloadManifest=@($payload.ToArray()|Select-Object Path,Component,Sha256);ExpectedGeneratedPaths=@('TaskPilot.exe','TaskPilot.exe.config','BuildInfo.json','SoftwareBillOfMaterials.json','FileHashes.json');SourceSha256=$sourceHash;DependencyLockSha256=Get-TPBuildSha $lockPath;RuntimeAllowlistSha256=Get-TPBuildSha $runtimeLockPath;ExecutableGenerated=$false;WindowsExecutionVerified=$false;OutputCreated=$false}}
+    $runtimeSource=Join-Path $repo 'Runtime/TaskPilot.TestSandbox.cs';Assert-TPBuildNoLinks $runtimeSource
+    $runtimeSourceHash=Get-TPBuildSha $runtimeSource
+    $codecSourceHash=Get-TPBuildSha (Join-Path $repo 'Codec/TaskPilotMigrationCodec.cs')
+    if($ValidateOnly){return [pscustomobject]@{Validated=$true;Version=$Version;Architecture='x64';PayloadFiles=$payload.Count;PayloadManifest=@($payload.ToArray()|Select-Object Path,Component,Sha256);ExpectedGeneratedPaths=@('TaskPilot.exe','TaskPilot.exe.config','Runtime/TaskPilot.TestSandbox.dll','Codec/TaskPilotMigrationCodec.dll','BuildInfo.json','SoftwareBillOfMaterials.json','FileHashes.json');SourceSha256=$sourceHash;RuntimeGuardSourceSha256=$runtimeSourceHash;DependencyLockSha256=Get-TPBuildSha $lockPath;RuntimeAllowlistSha256=Get-TPBuildSha $runtimeLockPath;ExecutableGenerated=$false;WindowsExecutionVerified=$false;OutputCreated=$false}}
     $certificate=$null
     if($SigningCertificateThumbprint){
         $thumb=$SigningCertificateThumbprint.Replace(' ','')
@@ -106,6 +109,14 @@ try{
     foreach($new in @($stageRoot,$releaseRoot,$zipStage,$zipFinal,($zipFinal+'.sha256'))){if(Test-TPBuildPathExists $new){throw 'Unique build output unexpectedly exists; no output will be overwritten.'}}
     $stage=Join-Path $stageRoot 'TaskPilot';$null=[IO.Directory]::CreateDirectory($stage)
     foreach($entry in $payload){Copy-TPBuildNewFile $entry.Source (Join-Path $stage $entry.Path) $entry.Sha256}
+    # Build the guard once during packaging. Test-mode startup loads the DLL
+    # without CodeDom files being created before its isolated TEMP is selected.
+    $runtimeCompiled=& (Join-Path $PSScriptRoot 'Build-TaskPilotRuntime.ps1') -OutputDirectory (Join-Path $output ('.runtime_'+$buildId))
+    if(-not$runtimeCompiled.Compiled-or$runtimeCompiled.SourceSha256-cne$runtimeSourceHash){throw 'Runtime guard compiler result does not match its reviewed source.'}
+    Copy-TPBuildNewFile $runtimeCompiled.AssemblyPath (Join-Path $stage 'Runtime/TaskPilot.TestSandbox.dll') $runtimeCompiled.Sha256
+    $codecCompiled=& (Join-Path $PSScriptRoot 'Build-TaskPilotRuntime.ps1') -Component Codec -OutputDirectory (Join-Path $output ('.codec_'+$buildId))
+    if(-not$codecCompiled.Compiled-or$codecCompiled.SourceSha256-cne$codecSourceHash){throw 'Precompiled codec does not match its source.'}
+    Copy-TPBuildNewFile $codecCompiled.AssemblyPath (Join-Path $stage 'Codec/TaskPilotMigrationCodec.dll') $codecCompiled.Sha256
     # Import only the explicitly provisioned, hash-verified compiler module.
     $compiler=Import-Module -Name (Join-Path $dependency 'ps2exe/1.0.17/ps2exe.psd1') -Force -PassThru -ErrorAction Stop
     if([string]$compiler.Version-ne'1.0.17'){throw 'Unexpected compiler version.'}
@@ -127,7 +138,9 @@ try{
         if($signature.Status-ne'Valid'){throw ('EXE signature verification failed: '+$signature.Status)}
         $signatureStatus='Valid'
     }elseif($RequireSignature){throw 'A valid signature was required.'}
-    $buildInfo=[ordered]@{Product='TaskPilot';Version=$Version;Architecture='x64';BuiltAtUtc=[datetime]::UtcNow.ToString('o');BuildId=$buildId;PowerShell=$PSVersionTable.PSVersion.ToString();Clr=[Environment]::Version.ToString();SourceSha256=$sourceHash;DependencyLockSha256=Get-TPBuildSha $lockPath;RuntimeAllowlistSha256=Get-TPBuildSha $runtimeLockPath;Compiler='ps2exe1.0.17';ImportExcel='7.8.10';EPPlus='4.5.3.2';SQLiteProvider='1.0.119.0';SignatureStatus=$signatureStatus;RuntimeTestsExecutedByBuilder=$false;Windows10And11Acceptance='Not performed by build script';StartupDownloads=$false}
+    $buildInfo=[ordered]@{Product='TaskPilot';Version=$Version;Architecture='x64';BuiltAtUtc=[datetime]::UtcNow.ToString('o');BuildId=$buildId;PowerShell=$PSVersionTable.PSVersion.ToString();Clr=[Environment]::Version.ToString();SourceSha256=$sourceHash;RuntimeGuardSourceSha256=$runtimeSourceHash;RuntimeGuardSha256=$runtimeCompiled.Sha256;IndependentTestModeSupported=$true;DependencyLockSha256=Get-TPBuildSha $lockPath;RuntimeAllowlistSha256=Get-TPBuildSha $runtimeLockPath;Compiler='ps2exe1.0.17';ImportExcel='7.8.10';EPPlus='4.5.3.2';SQLiteProvider='1.0.119.0';SignatureStatus=$signatureStatus;RuntimeTestsExecutedByBuilder=$false;Windows10And11Acceptance='Not performed by build script';StartupDownloads=$false}
+    $buildInfo['CodecSourceSha256']=$codecSourceHash
+    $buildInfo['CodecRuntimeSha256']=$codecCompiled.Sha256
     Write-TPBuildNewText (Join-Path $stage 'BuildInfo.json') (ConvertTo-Json -InputObject $buildInfo -Depth 8)
     $componentByPath=@{};foreach($entry in $payload){$componentByPath[$entry.Path]=$entry.Component}
     $componentByPath['TaskPilot.exe']='TaskPilot / ps2exe generated loader'

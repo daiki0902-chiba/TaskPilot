@@ -4,8 +4,16 @@
 # it opens/creates parent\TaskPilot.storage.lock, writes no bytes, and never truncates.
 # The caller MUST dispose the returned stream after snapshot/migration verification.
 
+function Assert-TPMigrationAllowed {
+    # This file is also exercised standalone by filesystem-only regression
+    # tests. A module-bound sandbox is present only in independent test mode.
+    $boundary=Get-Variable -Name TPTestSandbox -Scope Script -ErrorAction SilentlyContinue
+    if($null-ne$boundary-and$null-ne$boundary.Value){throw 'Legacy inspection, migration and legacy locks are disabled in independent test mode.'}
+}
+
 function Get-TPMigrationFullPath {
     param([Parameter(Mandatory=$true)][ValidateNotNullOrEmpty()][string]$Path)
+    Assert-TPMigrationAllowed
     $migrationProvider=$null;$migrationDrive=$null
     $full=$ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($Path,[ref]$migrationProvider,[ref]$migrationDrive)
     if($migrationProvider.Name -ne 'FileSystem'){throw 'Migration paths must use the FileSystem provider.'}

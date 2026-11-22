@@ -1,11 +1,13 @@
 ﻿# Verified SQLite snapshots. Existing databases, backups and recovery sidecars
 # are never overwritten or deleted. The caller owns UI pause / active DB choice.
 function Test-TPProtectionPathExists([string]$Path){
+    if($null-ne$script:TPTestSandbox){return $script:TPTestSandbox.Exists($Path)}
     try{$null=[IO.File]::GetAttributes($Path);return $true}
     catch [IO.FileNotFoundException]{return $false}
     catch [IO.DirectoryNotFoundException]{return $false}
 }
 function Assert-TPProtectionNoLinks([string]$Path){
+    if($null-ne$script:TPTestSandbox){$null=$script:TPTestSandbox.AssertPath($Path);$script:TPTestSandbox.ValidateTree();return}
     $inspect=$Path
     while($inspect){
         if(Test-TPProtectionPathExists $inspect){
@@ -29,6 +31,11 @@ function Assert-TPProtectionNewDestination([string]$Path){
     return $full
 }
 function Get-TPProtectionFileHash([string]$Path){
+    if($null-ne$script:TPTestSandbox){
+        $bytes=$script:TPTestSandbox.ReadAllBytes($Path)
+        $testSha=[Security.Cryptography.SHA256]::Create()
+        try{return ([BitConverter]::ToString($testSha.ComputeHash($bytes))).Replace('-','').ToLowerInvariant()}finally{$testSha.Dispose()}
+    }
     $stream=$null;$sha=[Security.Cryptography.SHA256]::Create()
     try{
         $stream=[IO.File]::Open($Path,[IO.FileMode]::Open,[IO.FileAccess]::Read,[IO.FileShare]::Read)
@@ -62,13 +69,64 @@ function Test-TPProtectionStage([string]$Path,[hashtable]$ProviderArguments){
 function Remove-TPProtectionOwnedStage([string]$Path){
     # Only an internally generated, successfully reserved stage is passed here.
     foreach($suffix in @('','-journal','-wal','-shm')){
-        if([IO.File]::Exists($Path+$suffix)){Remove-Item -LiteralPath ($Path+$suffix) -Force -ErrorAction SilentlyContinue}
+        if($null-ne$script:TPTestSandbox){
+            # A poisoned boundary retains its partial files for diagnosis. It
+            # cannot be used to erase evidence or probe a substituted path.
+            if(-not$script:TPTestSandbox.IsFaulted-and$script:TPTestSandbox.Exists($Path+$suffix)){$script:TPTestSandbox.DeleteFile($Path+$suffix)}
+        }elseif([IO.File]::Exists($Path+$suffix)){Remove-Item -LiteralPath ($Path+$suffix) -Force -ErrorAction SilentlyContinue}
     }
+}
+function New-TPProtectionIndependentBackup($Store,[string]$DestinationPath){
+    $destination=Assert-TPProtectionNewDestination $DestinationPath
+    Assert-TPProtectionStoreIntegrity $Store
+    $stage=Join-Path ([IO.Path]::GetDirectoryName($destination)) ('.taskpilot-backup_'+[guid]::NewGuid().ToString('N')+'.db')
+    $providerArguments=@{};if($Store.TestOnly){$providerArguments.TestProviderAssembly=$script:TPProvider.AssemblyPath}
+    $owned=$false;$prepared=$false
+    try{
+        $script:TPTestSandbox.WriteNew($stage,[byte[]]@());$owned=$true
+        $script:TPTestSandbox.PrepareDatabase($stage,$false);$prepared=$true
+        $null=Invoke-TPSql $Store 'VACUUM main INTO @destination' -Parameters @{destination=$stage} -Mode NonQuery
+        $script:TPTestSandbox.CompleteDatabase($stage);$prepared=$false
+        Test-TPProtectionStage $stage $providerArguments
+        $hash=Get-TPProtectionFileHash $stage;$size=$script:TPTestSandbox.GetFileLength($stage)
+        $null=Assert-TPProtectionNewDestination $destination
+        $script:TPTestSandbox.MoveNew($stage,$destination);$owned=$false
+        return [pscustomobject]@{BackupPath=$destination;DestinationPath=$destination;DatabasePath=$Store.Path;Sha256=$hash;ByteCount=[long]$size;ApplicationId=$script:TPApplicationId;SchemaVersion=$script:TPSchemaVersion;CreatedAtUtc=(Get-TPUtcNow);Verified=$true;TestOnly=[bool]$Store.TestOnly;IndependentTestEnvironmentId=$script:TPTestSandbox.EnvironmentId}
+    }finally{
+        if($prepared){$script:TPTestSandbox.CompleteDatabase($stage)}
+        if($owned){Remove-TPProtectionOwnedStage $stage}
+    }
+}
+function Restore-TPProtectionIndependentBackup([string]$BackupPath,[string]$DatabasePath,[string]$TestProviderAssembly){
+    $source=Get-TPResolvedPath $BackupPath
+    $backupRoot=$script:TPTestSandbox.Backup.TrimEnd([IO.Path]::DirectorySeparatorChar)
+    if(-not$source.StartsWith($backupRoot+[IO.Path]::DirectorySeparatorChar,[StringComparison]::OrdinalIgnoreCase)){throw 'Independent test mode restores only this environment''s own Backup files.'}
+    Assert-TPProtectionNoLinks $source;Assert-TPProtectionNoSidecars $source
+    Assert-TPDatabaseHeader $source
+    $destination=Assert-TPProtectionNewDestination $DatabasePath
+    $stage=Join-Path ([IO.Path]::GetDirectoryName($destination)) ('.taskpilot-restore_'+[guid]::NewGuid().ToString('N')+'.db')
+    $providerArguments=@{};if($TestProviderAssembly){$providerArguments.TestProviderAssembly=$TestProviderAssembly}
+    $owned=$false
+    try{
+        $bytes=$script:TPTestSandbox.ReadAllBytes($source)
+        $sourceHash=Get-TPProtectionFileHash $source
+        $script:TPTestSandbox.WriteNew($stage,$bytes);$owned=$true
+        if((Get-TPProtectionFileHash $stage)-cne$sourceHash){throw 'Backup changed while copied; no restored database was published.'}
+        # Opening the private stage verifies the immutable environment tag.
+        # A copied normal database or another test ID is never retagged.
+        Test-TPProtectionStage $stage $providerArguments
+        if((Get-TPProtectionFileHash $stage)-cne$sourceHash-or(Get-TPProtectionFileHash $source)-cne$sourceHash){throw 'Restored snapshot or source bytes changed during validation.'}
+        $size=$script:TPTestSandbox.GetFileLength($stage)
+        $null=Assert-TPProtectionNewDestination $destination
+        $script:TPTestSandbox.MoveNew($stage,$destination);$owned=$false
+        return [pscustomobject]@{DatabasePath=$destination;BackupPath=$source;Sha256=$sourceHash;ByteCount=[long]$size;ApplicationId=$script:TPApplicationId;SchemaVersion=$script:TPSchemaVersion;Verified=$true;ExistingDatabaseModified=$false;AppSwitched=$false;TestOnly=[bool]$TestProviderAssembly;IndependentTestEnvironmentId=$script:TPTestSandbox.EnvironmentId}
+    }finally{if($owned){Remove-TPProtectionOwnedStage $stage}}
 }
 function New-TaskPilotDatabaseBackup {
     [CmdletBinding()]param([Parameter(Mandatory=$true)]$Store,[Parameter(Mandatory=$true)][string]$DestinationPath)
     Assert-TPStore $Store
     if($null-ne$Store.Transaction -or $Store.TransactionReadOnly){throw 'Finish the active transaction or read snapshot before creating a database backup.'}
+    if($null-ne$script:TPTestSandbox){return New-TPProtectionIndependentBackup $Store $DestinationPath}
     $destination=Assert-TPProtectionNewDestination $DestinationPath
     $providerArguments=@{}
     if($Store.TestOnly){
@@ -98,6 +156,7 @@ function New-TaskPilotDatabaseBackup {
 }
 function Restore-TaskPilotDatabase {
     [CmdletBinding()]param([Parameter(Mandatory=$true)][string]$BackupPath,[Parameter(Mandatory=$true)][string]$DatabasePath,[string]$TestProviderAssembly)
+    if($null-ne$script:TPTestSandbox){return Restore-TPProtectionIndependentBackup $BackupPath $DatabasePath $TestProviderAssembly}
     $source=Get-TPResolvedPath $BackupPath;Assert-TPProtectionNoLinks $source
     if(-not[IO.File]::Exists($source)){throw 'Backup must be an existing standalone SQLite file.'}
     Assert-TPProtectionNoSidecars $source

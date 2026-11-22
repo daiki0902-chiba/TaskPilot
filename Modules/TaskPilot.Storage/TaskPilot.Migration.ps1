@@ -19,6 +19,7 @@ function Get-TPMigrationReport($Plan){
 }
 function Test-TaskPilotLegacyData {
     [CmdletBinding()]param([Parameter(Mandatory=$true)][string]$SourceRoot,[long]$MaxFileBytes=67108864)
+    Assert-TPMigrationAllowed
     $sourceLock=$null
     try{
         $sourceLock=Enter-TPMigrationSourceLock -SourceRoot $SourceRoot
@@ -117,6 +118,7 @@ function Import-TaskPilotLegacyData {
         [Parameter(Mandatory=$true)][ValidatePattern('^[0-9a-f]{64}$')][string]$ExpectedManifestSha256,
         [switch]$Apply,[switch]$AcknowledgeWarnings,[string]$TestProviderAssembly,[long]$MaxFileBytes=67108864
     )
+    Assert-TPMigrationAllowed
     if(-not$Apply){throw 'Import requires -Apply. Inspect first with Test-TaskPilotLegacyData.'}
     $sourceLock=$null;$store=$null;$stage=$null;$ownedStage=$false
     try{
