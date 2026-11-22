@@ -13,7 +13,7 @@ foreach($relative in $suites){
     $tokens=$null;$errors=$null;$ast=[Management.Automation.Language.Parser]::ParseFile($file,[ref]$tokens,[ref]$errors)
     if($errors.Count){$results.Add([pscustomobject]@{Suite=$relative;Passed=$false;ExitCode=-1;Output=@(($errors|Out-String))});continue}
     $parameters=@();if($null-ne$ast.ParamBlock){$parameters=@($ast.ParamBlock.Parameters|ForEach-Object {$_.Name.VariablePath.UserPath})}
-    $arguments=@('-NoProfile','-NonInteractive','-ExecutionPolicy','Bypass','-File',$file)
+    $arguments=@('-NoProfile','-NonInteractive','-File',$file)
     if($TestProviderAssembly -and $parameters-contains'TestProviderAssembly'){$arguments+=@('-TestProviderAssembly',$ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($TestProviderAssembly))}
     if($DependencyRoot -and $parameters-contains'DependencyRoot'){$arguments+=@('-DependencyRoot',$ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($DependencyRoot))}
     Write-Host ('Running '+$relative)

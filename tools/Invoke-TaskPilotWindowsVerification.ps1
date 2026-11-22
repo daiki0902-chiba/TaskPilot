@@ -50,7 +50,7 @@ $oldReports=New-Object 'Collections.Generic.HashSet[string]' ([StringComparer]::
 if([IO.Directory]::Exists($reportRoot)){
     foreach($file in @(Get-ChildItem -LiteralPath $reportRoot -Filter 'Commercial_*.json' -File)){$null=$oldReports.Add($file.FullName)}
 }
-& (Join-Path $PSHOME 'powershell.exe') -NoProfile -NonInteractive -ExecutionPolicy Bypass -File (Join-Path $repo 'Test-TaskPilotCommercial.ps1') -DependencyRoot $dependencyRoot
+& (Join-Path $PSHOME 'powershell.exe') -NoProfile -NonInteractive -File (Join-Path $repo 'Test-TaskPilotCommercial.ps1') -DependencyRoot $dependencyRoot
 if($LASTEXITCODE-ne0){throw ('Native commercial test runner failed with exit code '+$LASTEXITCODE+'.')}
 $newReports=@(Get-ChildItem -LiteralPath $reportRoot -Filter 'Commercial_*.json' -File | Where-Object {-not$oldReports.Contains($_.FullName)})
 if($newReports.Count-ne1){throw 'Expected exactly one new commercial test report.'}

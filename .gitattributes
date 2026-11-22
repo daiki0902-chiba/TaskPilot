@@ -7,6 +7,9 @@ reference/Test-Storage.ps1 -text
 schema/001_initial.sql -text
 Modules/TaskPilot.Storage/provider/** -text
 
+# Generated acceptance entry has a canonical BOM/CRLF byte representation.
+acceptance/TaskPilot.Acceptance.ps1 -text
+
 # Preserve downloaded Windows CI evidence as captured.
 docs/verification/windows-*.json -text
 docs/verification/acceptance-*.json -text

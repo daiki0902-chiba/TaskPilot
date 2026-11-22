@@ -67,6 +67,11 @@ jobs:
           $verificationRoot = Join-Path $env:RUNNER_TEMP ('TaskPilot-native-' + $env:GITHUB_RUN_ID + '-' + $env:GITHUB_RUN_ATTEMPT)
           & .\tools\Invoke-TaskPilotAcceptancePreparation.ps1 -VerificationRoot $verificationRoot
 
+      - name: Verify dedicated acceptance host without authorizing desktop launch
+        run: |
+          $verificationRoot = Join-Path $env:RUNNER_TEMP ('TaskPilot-native-' + $env:GITHUB_RUN_ID + '-' + $env:GITHUB_RUN_ATTEMPT)
+          & .\tools\Invoke-TaskPilotDesktopAcceptanceVerification.ps1 -VerificationRoot $verificationRoot
+
       - name: Upload test reports
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4, official ref verified 2026-11-19
@@ -83,6 +88,9 @@ jobs:
             TestResults/IsolatedMode_*/NormalFixtureBefore.txt
             TestResults/IsolatedMode_*/NormalFixtureAfter.txt
             TestResults/IsolatedFileBoundary_*/IsolatedFileBoundaryResult.json
+            TestResults/AcceptanceAuthority_*.json
+            TestResults/AcceptanceSandbox_*.json
+            TestResults/DesktopAcceptance*.json
           if-no-files-found: warn
           retention-days: 14
 
