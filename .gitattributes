@@ -13,3 +13,5 @@ docs/verification/acceptance-*.json -text
 docs/verification/acceptance-*.tsv -text
 docs/verification/isolated-mode-*.json -text
 docs/verification/isolated-mode-*.txt -text
+docs/verification/isolation-fix-*.json -text
+docs/verification/isolation-fix-*.txt -text

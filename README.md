@@ -4,7 +4,7 @@ PowerShell 5.1とWindows Formsを維持し、既存GUIの保存処理をSQLite�
 
 依頼全体の達成状況は[要件の達成状況](docs/08-requirements-status.md)を参照してください。成果物の作成と、Windows 10/11での受入・販売判定を区別して記録します。
 
-**独立テストモードは現在BLOCKEDです。** Windows合成試験で、保持中のディレクトリとファイルをリンクへ変更できる問題（I25/I28）を確認しました。本体・起動前検査・ログ採取の独立モード入口を停止し、EXE・受入ZIPの公開を止めています。既存データがあるユーザーで起動してよいとは案内しません。[実装・原因・停止措置・再設計方針](docs/10-independent-test-mode.md)を参照してください。
+**独立テストモードの公開停止は維持しています。** I25/I28の原因を修正し、Windows Serverで独立27件・追加保存8件・通常8群・停止措置12項目が合格しました。Windows 10/11実機と実ディスク障害は未検証のため、本体・検査・診断の入口とEXE・ZIPの公開は停止したままです。[修正内容・証跡・配布判定](docs/11-isolation-safety-fix.md)を参照してください。既存データがあるユーザーで起動してよいとは案内しません。
 
 [受入用README](docs/acceptance/README-ja.md)と[テストモード計画](docs/acceptance/TEST-MODE-ja.md)は未検証項目を含む資料です。[以前の準備結果](docs/09-windows-acceptance-preparation.md)は0.4.0.1の履歴で、独立モードには対応しません。旧ZIPへ新しい引数を渡して代用しないでください。
 

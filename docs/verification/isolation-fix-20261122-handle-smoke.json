@@ -1,0 +1,9 @@
+{
+    "Stage":  "Native handle-only smoke",
+    "Passed":  true,
+    "Checks":  8,
+    "Error":  null,
+    "TestRoot":  "D:\\a\\TaskPilot\\TaskPilot\\TestResults\\HandleSmoke_5fdd66b3f3ce4e10825093ebbf9b169f",
+    "ProductionProfileAccessed":  false,
+    "ApplicationLaunched":  false
+}
