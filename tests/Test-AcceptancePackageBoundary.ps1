@@ -41,7 +41,7 @@ function Protect-PackageBoundaryPath([string]$OwnedPath,[bool]$Directory){
     $policy=New-PackageBoundarySecurity $Directory $true
     if($Directory){[IO.Directory]::SetAccessControl($OwnedPath,$policy)}else{[IO.File]::SetAccessControl($OwnedPath,$policy)}
 }
-function New-PackageBoundaryPackage {
+function New-PackageBoundaryPackage([switch]$DeferDirectoryProtection) {
     # The lease requires protection on package entries, never on the real user
     # profile or any normal data. Every parent and entry here is newly invented.
     $parent=Join-Path $fixture ('PackageParent_'+[guid]::NewGuid().ToString('N'));$null=[IO.Directory]::CreateDirectory($parent)
@@ -50,8 +50,14 @@ function New-PackageBoundaryPackage {
     $entry=Join-Path $package 'TaskPilot.Acceptance.exe';[IO.File]::WriteAllText($entry,'SYNTHETIC IMAGE - NEVER EXECUTED')
     $file=Join-Path $nested 'empty.bin';[IO.File]::WriteAllBytes($file,[byte[]]@())
     Protect-PackageBoundaryPath $entry $false;Protect-PackageBoundaryPath $file $false
-    Protect-PackageBoundaryPath $nested $true;Protect-PackageBoundaryPath $package $true
+    if(-not$DeferDirectoryProtection){Protect-PackageBoundaryPath $nested $true;Protect-PackageBoundaryPath $package $true}
     return [pscustomobject]@{Parent=$parent;Root=$package;Nested=$nested;Entry=$entry;File=$file}
+}
+function Protect-PackageBoundaryDirectories($OwnedPackage){
+    # Call only before installing any attack reparse point or hard link. This
+    # avoids propagating an inherited policy through an already-created link.
+    Protect-PackageBoundaryPath ([string]$OwnedPackage.Nested) $true
+    Protect-PackageBoundaryPath ([string]$OwnedPackage.Root) $true
 }
 function New-PackageBoundaryUnprotectedFile([string]$OwnedPath){
     # Supplying a protected DACL at creation avoids inheriting a parent's deny
@@ -80,25 +86,27 @@ try{
 $assembly=[Reflection.Assembly]::LoadFrom($parameters.OutputAssembly)
 $guardType=$assembly.GetType('TaskPilot.Acceptance.PackageLease',$true)
 $probeType=$assembly.GetType('TaskPilot.AcceptanceBoundaryTests.NativeProbe',$true)
-# Resolve methods on this exact compiled assembly, avoiding LoadFrom type reuse
-# by another suite that has already loaded the same public package-guard name.
-$openMethod=$guardType.GetMethod('Open')
-function Open-PackageBoundaryLease([string]$OwnedRoot){return $openMethod.Invoke($null,@($OwnedRoot))}
+# Dispatch through the exact compiled types while letting PowerShell unbox its
+# PSObject wrappers. Reflection Invoke(object[]) preserves those wrappers on
+# Windows PowerShell 5.1 and cannot reliably bind native string arguments.
+function Open-PackageBoundaryLease([string]$OwnedRoot){return $guardType::Open($OwnedRoot)}
+function Invoke-PackageBoundaryProbe([string]$Source,[string]$Target,[uint32]$Access,[bool]$Symbolic){return $probeType::Set([string]$fixture,$Source,$Target,$Access,$Symbolic)}
+function Clear-PackageBoundaryProbe([string]$Source,[bool]$Symbolic){$probeType::Clear([string]$fixture,$Source,$Symbolic)}
 try{
     Case-PackageBoundary 'PB01' 'All eight file and empty/nonempty directory native controls execute' {
         foreach($accessEntry in $accesses){
             $emptyFile=Join-Path $fixture ('ControlFile_'+[guid]::NewGuid().ToString('N'));[IO.File]::WriteAllBytes($emptyFile,[byte[]]@())
-            $probe=$probeType.GetMethod('Set').Invoke($null,@($fixture,$emptyFile,$sentinel,$accessEntry[1],$true));Add-PackageBoundaryProbe 'FileSymbolicControl' $false $accessEntry[0] $probe
+            $probe=Invoke-PackageBoundaryProbe $emptyFile $sentinel $accessEntry[1] $true;Add-PackageBoundaryProbe 'FileSymbolicControl' $false $accessEntry[0] $probe
             if($accessEntry[0]-in$requiredWritable){Assert-PackageBoundary $probe.ReparseSet ('A mandatory file symbolic positive control failed for '+$accessEntry[0]+'. No privilege was enabled.')}
-            if($probe.ReparseSet){$probeType.GetMethod('Clear').Invoke($null,@($fixture,$emptyFile,$true))}
+            if($probe.ReparseSet){Clear-PackageBoundaryProbe $emptyFile $true}
             foreach($symbolic in @($false,$true)){
                 $emptyDirectory=Join-Path $fixture ('ControlDirectory_'+[guid]::NewGuid().ToString('N'));$null=[IO.Directory]::CreateDirectory($emptyDirectory)
-                $probe=$probeType.GetMethod('Set').Invoke($null,@($fixture,$emptyDirectory,$normal,$accessEntry[1],$symbolic));$kind=if($symbolic){'EmptyDirectorySymbolicControl'}else{'EmptyDirectoryJunctionControl'}
+                $probe=Invoke-PackageBoundaryProbe $emptyDirectory $normal $accessEntry[1] $symbolic;$kind=if($symbolic){'EmptyDirectorySymbolicControl'}else{'EmptyDirectoryJunctionControl'}
                 Add-PackageBoundaryProbe $kind $false $accessEntry[0] $probe
                 if($accessEntry[0]-in$requiredWritable){Assert-PackageBoundary $probe.ReparseSet ('A mandatory '+$kind+' positive control failed for '+$accessEntry[0]+'. No privilege was enabled.')}
-                if($probe.ReparseSet){$probeType.GetMethod('Clear').Invoke($null,@($fixture,$emptyDirectory,$symbolic))}
+                if($probe.ReparseSet){Clear-PackageBoundaryProbe $emptyDirectory $symbolic}
                 $nonempty=Join-Path $fixture ('NonemptyControl_'+[guid]::NewGuid().ToString('N'));$null=[IO.Directory]::CreateDirectory($nonempty);[IO.File]::WriteAllText((Join-Path $nonempty 'child.txt'),'synthetic nonempty control')
-                $probe=$probeType.GetMethod('Set').Invoke($null,@($fixture,$nonempty,$normal,$accessEntry[1],$symbolic));$kind=if($symbolic){'NonemptyDirectorySymbolicControl'}else{'NonemptyDirectoryJunctionControl'}
+                $probe=Invoke-PackageBoundaryProbe $nonempty $normal $accessEntry[1] $symbolic;$kind=if($symbolic){'NonemptyDirectorySymbolicControl'}else{'NonemptyDirectoryJunctionControl'}
                 Add-PackageBoundaryProbe $kind $false $accessEntry[0] $probe
                 Assert-PackageBoundary (-not$probe.ReparseSet) 'A nonempty directory unexpectedly accepted a native reparse point.'
                 if($accessEntry[0]-in$requiredWritable){Assert-PackageBoundary ($probe.HandleOpened-and$probe.Win32Error-eq145) 'A writable nonempty directory control must produce ERROR_DIR_NOT_EMPTY.'}
@@ -110,7 +118,7 @@ try{
             $owned=New-PackageBoundaryPackage;$lease=Open-PackageBoundaryLease $owned.Root
             try{
                 $lease.AssertPinned('payload/empty.bin')
-                $probe=$probeType.GetMethod('Set').Invoke($null,@($fixture,$owned.File,$sentinel,$accessEntry[1],$true));Add-PackageBoundaryProbe 'PinnedFileSymbolic' $true $accessEntry[0] $probe
+                $probe=Invoke-PackageBoundaryProbe ([string]$owned.File) $sentinel $accessEntry[1] $true;Add-PackageBoundaryProbe 'PinnedFileSymbolic' $true $accessEntry[0] $probe
                 Assert-PackageBoundary (-not$probe.ReparseSet) ('A pinned package file became a symbolic reparse point with '+$accessEntry[0]+'.')
                 Assert-PackageBoundary ($lease.ReadBytes('payload/empty.bin',1).Length-eq0) 'The pinned zero-byte package file changed or followed a target.'
             }finally{$lease.Dispose();$lease=$null}
@@ -122,7 +130,7 @@ try{
                 $owned=New-PackageBoundaryPackage;$lease=Open-PackageBoundaryLease $owned.Root
                 try{
                     $lease.AssertPinned('payload/empty.bin')
-                    $probe=$probeType.GetMethod('Set').Invoke($null,@($fixture,[string]$owned.($kindSpec[2]),$normal,$accessEntry[1],[bool]$kindSpec[3]));Add-PackageBoundaryProbe $kindSpec[1] $true $accessEntry[0] $probe
+                    $probe=Invoke-PackageBoundaryProbe ([string]$owned.($kindSpec[2])) $normal $accessEntry[1] ([bool]$kindSpec[3]);Add-PackageBoundaryProbe $kindSpec[1] $true $accessEntry[0] $probe
                     Assert-PackageBoundary (-not$probe.ReparseSet) ('A pinned package directory became a reparse point: '+$kindSpec[1]+'/'+$accessEntry[0])
                     if($kindSpec[2]-ceq'Parent'-and$accessEntry[0]-in$requiredWritable){Assert-PackageBoundary ($probe.HandleOpened-and$probe.Win32Error-eq145) 'An outside-package pinned ancestor must remain nonempty without relying on package ACLs.'}
                     if($kindSpec[2]-cne'Parent'-and$accessEntry[0]-ceq'WriteData'){Assert-PackageBoundary ($probe.HandleOpened-and$probe.Win32Error-eq145) 'The metadata-ACL bypass access must encounter a genuinely nonempty package directory.'}
@@ -132,35 +140,37 @@ try{
         }
     }
     Case-PackageBoundary 'PB09' 'Preexisting file symbolic links are refused before reading a locked normal target' {
-        $owned=New-PackageBoundaryPackage;$link=Join-Path $owned.Root 'preexisting-file.bin';New-PackageBoundaryUnprotectedFile $link
-        $probe=$probeType.GetMethod('Set').Invoke($null,@($fixture,$link,$sentinel,[uint32]256,$true));Assert-PackageBoundary $probe.ReparseSet 'Preexisting file symbolic fixture did not install successfully.'
+        $owned=New-PackageBoundaryPackage -DeferDirectoryProtection;$link=Join-Path $owned.Root 'preexisting-file.bin';New-PackageBoundaryUnprotectedFile $link
+        Protect-PackageBoundaryDirectories $owned
+        $probe=Invoke-PackageBoundaryProbe $link $sentinel ([uint32]256) $true;Assert-PackageBoundary $probe.ReparseSet 'Preexisting file symbolic fixture did not install successfully.'
         $locked=[IO.File]::Open($sentinel,[IO.FileMode]::Open,[IO.FileAccess]::ReadWrite,[IO.FileShare]::None)
         try{$lease=Open-PackageBoundaryLease $owned.Root;Expect-PackageBoundaryDenial {$lease.ReadBytes('preexisting-file.bin',4096)} 'The guard followed a preexisting symbolic file.'}finally{if($null-ne$lease){$lease.Dispose();$lease=$null};$locked.Dispose()}
     }
     Case-PackageBoundary 'PB10' 'Preexisting package-root junction and directory symbolic links cannot be opened' {
         foreach($symbolic in @($false,$true)){
             $alias=Join-Path $fixture ('RootAlias_'+[guid]::NewGuid().ToString('N'));$null=[IO.Directory]::CreateDirectory($alias)
-            $probe=$probeType.GetMethod('Set').Invoke($null,@($fixture,$alias,$normal,[uint32]256,$symbolic));Assert-PackageBoundary $probe.ReparseSet 'Preexisting root directory reparse fixture did not install successfully.'
+            $probe=Invoke-PackageBoundaryProbe $alias $normal ([uint32]256) $symbolic;Assert-PackageBoundary $probe.ReparseSet 'Preexisting root directory reparse fixture did not install successfully.'
             Expect-PackageBoundaryDenial {Open-PackageBoundaryLease $alias} 'The guard followed a preexisting package-root reparse point.'
         }
     }
     Case-PackageBoundary 'PB11' 'Lazy pinning refuses preexisting intermediate junctions and symbolic directories' {
         foreach($symbolic in @($false,$true)){
-            $owned=New-PackageBoundaryPackage;$link=Join-Path $owned.Root 'preexisting-dir';New-PackageBoundaryUnprotectedDirectory $link
-            $probe=$probeType.GetMethod('Set').Invoke($null,@($fixture,$link,$normal,[uint32]256,$symbolic));Assert-PackageBoundary $probe.ReparseSet 'Preexisting intermediate directory fixture did not install successfully.'
+            $owned=New-PackageBoundaryPackage -DeferDirectoryProtection;$link=Join-Path $owned.Root 'preexisting-dir';New-PackageBoundaryUnprotectedDirectory $link
+            Protect-PackageBoundaryDirectories $owned
+            $probe=Invoke-PackageBoundaryProbe $link $normal ([uint32]256) $symbolic;Assert-PackageBoundary $probe.ReparseSet 'Preexisting intermediate directory fixture did not install successfully.'
             $lease=Open-PackageBoundaryLease $owned.Root
             try{Expect-PackageBoundaryDenial {$lease.ReadBytes('preexisting-dir/never-write.bin',4096)} 'Lazy pinning followed a preexisting intermediate reparse point.'}finally{$lease.Dispose();$lease=$null}
         }
     }
     Case-PackageBoundary 'PB12' 'Hard links are refused before payload content is returned' {
         $owned=New-PackageBoundaryPackage;$link=Join-Path $owned.Root 'hard-link.bin'
-        Assert-PackageBoundary ([bool]$probeType.GetMethod('CreateHardLinkW').Invoke($null,@($link,$sentinel,[IntPtr]::Zero))) 'Hard-link positive control failed.'
+        Assert-PackageBoundary ($probeType::CreateHardLinkW([string]$link,[string]$sentinel,[IntPtr]::Zero)) 'Hard-link positive control failed.'
         $lease=Open-PackageBoundaryLease $owned.Root
         try{Expect-PackageBoundaryDenial {$lease.ReadBytes('hard-link.bin',4096)} 'The guard returned hard-linked normal content.'}finally{$lease.Dispose();$lease=$null}
     }
     Case-PackageBoundary 'PB13' 'Weak and noncanonical file policies cannot be adopted' {
         foreach($noncanonical in @($false,$true)){
-            $owned=New-PackageBoundaryPackage;$file=Join-Path $owned.Root 'invalid-policy.bin';New-PackageBoundaryUnprotectedFile $file
+            $owned=New-PackageBoundaryPackage -DeferDirectoryProtection;$file=Join-Path $owned.Root 'invalid-policy.bin';New-PackageBoundaryUnprotectedFile $file
             if($noncanonical){
                 $sid=[Security.Principal.WindowsIdentity]::GetCurrent().User.Value
                 $raw=New-Object Security.AccessControl.RawSecurityDescriptor ('O:'+$sid+'D:P(A;;FA;;;'+$sid+')(D;;0x110;;;S-1-1-0)(D;;0xc0000;;;S-1-3-4)')
@@ -168,6 +178,7 @@ try{
                 $policy=New-Object Security.AccessControl.FileSecurity;$policy.SetSecurityDescriptorBinaryForm($bytes)
                 [IO.File]::SetAccessControl($file,$policy)
             }
+            Protect-PackageBoundaryDirectories $owned
             $lease=Open-PackageBoundaryLease $owned.Root
             try{Expect-PackageBoundaryDenial {$lease.ReadBytes('invalid-policy.bin',4096)} 'An unprotected or noncanonical file policy was accepted.'}finally{$lease.Dispose();$lease=$null}
         }

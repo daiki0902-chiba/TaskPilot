@@ -20,23 +20,63 @@ $runtime=Join-Path $package 'Runtime/TaskPilot.TestSandbox.dll'
 Assert-TPBuildNoLinks $runtime
 if((Get-TPBuildSha $runtime)-cne$info.RuntimeGuardSha256){throw 'Follow-up verification requires the exact internal package runtime.'}
 $suiteResults=New-Object 'Collections.Generic.List[object]'
+$followupFailures=New-Object 'Collections.Generic.List[string]'
+function Invoke-TPFollowupEvidence([string]$FollowupSuiteId,[scriptblock]$FollowupOperation){
+    try{return (&$FollowupOperation)}catch{
+        $followupFailures.Add($FollowupSuiteId)
+        # These are CI-only synthetic fixtures. Preserve the failure while
+        # allowing independent checks to report their own results as well.
+        Write-Host ('FAIL: '+$FollowupSuiteId+' : '+$_.Exception.GetBaseException().Message)
+        return $null
+    }
+}
+$boundary=Invoke-TPFollowupEvidence 'PackageBoundary' {
 $boundary=& (Join-Path $repo 'tests/Test-AcceptancePackageBoundary.ps1') -OutputRoot $reports
 if(-not$boundary.Passed-or-not$boundary.CompleteNativeCoverage-or$boundary.UnsafeVectorConfirmed-or-not$boundary.NormalFixtureUnchanged-or$boundary.NativeProbes-ne96-or@($boundary.Cases).Count-ne15-or@($boundary.SkippedDetails).Count-ne0-or$boundary.ProductionProfileAccessed-or$boundary.PrivilegesEnabled-or$boundary.OSProtectionSettingsChanged){throw 'New package guard boundary verification failed. Publication remains stopped.'}
+return $boundary
+}
+if($null-ne$boundary){
 $suiteResults.Add($boundary)
+}
+$diagnostics=Invoke-TPFollowupEvidence 'DiagnosticReopen' {
 $diagnostics=& (Join-Path $repo 'tests/Test-DesktopAcceptanceDiagnostics.ps1') -OutputRoot $reports -RuntimeAssembly $runtime
 if(-not$diagnostics.Passed-or-not$diagnostics.NativeReadonlyReopenExecuted-or@($diagnostics.NativeCases).Count-ne11-or-not$diagnostics.NormalFixtureUnchanged-or$diagnostics.RuntimeAssemblySha256-cne$info.RuntimeGuardSha256-or$diagnostics.ProductionProfileAccessed){throw 'Native read-only diagnostic verification failed.'}
 foreach($index in 1..11){$case=@($diagnostics.NativeCases|Where-Object {$_.Id-ceq('D{0:00}'-f$index)});if($case.Count-ne1-or-not$case[0].Passed){throw 'All eleven native diagnostic cases are required.'}}
+return $diagnostics
+}
+if($null-ne$diagnostics){
 $suiteResults.Add($diagnostics)
+}
+$qualification=Invoke-TPFollowupEvidence 'BackendQualification' {
 $qualification=& (Join-Path $repo 'tests/Test-DesktopAcceptanceQualification.ps1') -OutputRoot $reports -RuntimeAssembly $runtime
 if(-not$qualification.Passed-or-not$qualification.NativeExecuted-or@($qualification.NativeCases).Count-ne6-or-not$qualification.NormalFixtureUnchanged-or-not$qualification.PreviousIndependentFixtureUnchanged-or$qualification.RuntimeAssemblySha256-cne$info.RuntimeGuardSha256-or$qualification.ProductionProfileAccessed-or$qualification.FullClientQualificationImplemented){throw 'Native backend probe verification failed or incorrectly claimed full client qualification.'}
 foreach($index in 1..6){$case=@($qualification.NativeCases|Where-Object {$_.Id-ceq('Q{0:00}'-f$index)});if($case.Count-ne1-or-not$case[0].Passed){throw 'All six native backend probe cases are required.'}}
+return $qualification
+}
+if($null-ne$qualification){
 $suiteResults.Add($qualification)
+}
+$msix=Invoke-TPFollowupEvidence 'MsixPlan' {
 $msix=& (Join-Path $repo 'tests/Test-DesktopAcceptanceMsixPlan.ps1') -OutputRoot $reports
 if(-not$msix.Passed){throw 'MSIX planning regression failed.'}
+return $msix
+}
+if($null-ne$msix){
 $suiteResults.Add($msix)
+}
+$hostPolicy=Invoke-TPFollowupEvidence 'HostPolicyObservation' {
 $hostPolicy=& (Join-Path $repo 'tests/Test-DesktopAcceptanceHostPolicy.ps1') -OutputRoot $reports
 if(-not$hostPolicy.Passed-or-not$hostPolicy.NativeExecuted-or$hostPolicy.CanAuthorizeAcceptance-or$hostPolicy.PolicyChanged-or$hostPolicy.AuthorizationManagerChanged-or$hostPolicy.CertificateInstalled-or$hostPolicy.ProductionProfileAccessed){throw 'The default host policy observation must execute without overriding protections or authorizing acceptance.'}
+return $hostPolicy
+}
+if($null-ne$hostPolicy){
 $suiteResults.Add($hostPolicy)
+}
+if($followupFailures.Count-ne0){
+    $attempt=[ordered]@{SourceCommit=$env:GITHUB_SHA;Status='A_FOLLOWUP_FAILED_DESKTOP_BLOCKED';FailedSuites=$followupFailures.ToArray();PassingSuites=$suiteResults.ToArray();CanLaunch=$false;ProductionProfileAccessed=$false;ExecutableUploaded=$false;DistributionZipCreated=$false}
+    Write-TPBuildNewText (Join-Path $reports ('DesktopAcceptanceFollowupAttempt_'+$env:GITHUB_RUN_ID+'_'+$env:GITHUB_RUN_ATTEMPT+'.json')) (ConvertTo-Json -InputObject $attempt -Depth 20)
+    throw ('Acceptance follow-up suites failed: '+($followupFailures.ToArray()-join', ')+'. Publication remains stopped.')
+}
 # Test the full existing suites against this acceptance build's DLL as well as
 # the ordinary build checked in the preceding job step. Fresh processes avoid
 # provider mode or LoadFrom reuse from the qualification probe.
