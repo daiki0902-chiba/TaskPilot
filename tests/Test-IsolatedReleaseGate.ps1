@@ -42,7 +42,7 @@ try{
     Assert-ReleaseGate (@($check.Checks|Where-Object {$_.Name-ceq'FirstUseIsolation'}).Count-eq0) 'A blocked independent request must not inspect normal-profile state.'
     $emptyIdCheck=& (Join-Path $repo 'tools/Test-TaskPilotAcceptancePackage.ps1') -PackageRoot $package -FirstUse -TestEnvironmentId ''
     Assert-ReleaseGate ($emptyIdCheck.Status-ceq'BLOCKED'-and-not$emptyIdCheck.TestAreaPrepared-and@($emptyIdCheck.Checks|Where-Object {$_.Name-ceq'FirstUseIsolation'}).Count-eq0) 'An empty explicitly supplied ID must not enter the normal FirstUse inspection.'
-    Assert-ReleaseGate ([IO.File]::Exists($check.ReportPath)) 'The explicit blocked result must remain reviewable.'
+    Assert-ReleaseGate ($null-eq$check.ReportPath-and@([IO.Directory]::GetFileSystemEntries($results)).Count-eq0) 'A blocked independent request must return its report in memory without inspecting or writing the output path.'
     Expect-ReleaseBlock {& (Join-Path $repo 'tools/Collect-TaskPilotAcceptanceLogs.ps1') -ApplicationDirectory $package -OutputRoot $results -TestMode -TestEnvironmentId '1234567890abcdef1234567890abcdef' -CaseId 'RELEASE-GATE'}
 }finally{$lease.Dispose()}
 Assert-ReleaseGate ([IO.File]::ReadAllText($manifest)-ceq'SYNTHETIC SENTINEL: contents must not be inspected') 'The sentinel changed.'

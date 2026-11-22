@@ -306,7 +306,9 @@ if($TestMode){
 }
 
 $reportPath=$null;$reportDirectory=$null
-if($OutputRoot){
+if($OutputRoot-and$script:TPACIndependentIntent){
+    Add-TPACCheck 'ReportDestination' $false 'TP-ISOLATION-BLOCKED: independent-mode file diagnostics are disabled as well. The blocked result is returned in memory; no output path is inspected or written.'
+}elseif($OutputRoot){
     try{
         $output=Get-TPACFullPath $OutputRoot;Assert-TPACNoNormalStatePath $output;Assert-TPACNoLinks $output;Assert-TPACLocalDrive $output
         if(-not[IO.Directory]::Exists($output)){throw 'OutputRoot must be an existing tester-owned results directory.'}
