@@ -33,6 +33,7 @@ namespace TaskPilot.Runtime
         private bool disposed, faulted, readOnly;
         private string faultReason;
         private string ownerSid;
+        private string defaultOwnerSid;
 
         private sealed class FilePin
         {
@@ -138,6 +139,7 @@ namespace TaskPilot.Runtime
             {
                 context.ProfileRoot = context.NormalizeAbsolute(profileRoot);
                 context.ownerSid = WindowsIdentity.GetCurrent().User.Value;
+                context.defaultOwnerSid = WindowsIdentity.GetCurrent().Owner.Value;
                 string drive = Path.GetPathRoot(context.ProfileRoot);
                 DriveInfo info = new DriveInfo(drive);
                 if (info.DriveType != DriveType.Fixed) throw context.Violation("Test mode requires a local fixed NTFS drive.");
@@ -310,7 +312,11 @@ namespace TaskPilot.Runtime
                 if (size == 0 || size > 1048576) throw Violation("Invalid test-directory security descriptor.");
                 byte[] bytes = new byte[size]; Marshal.Copy(descriptor, bytes, 0, bytes.Length);
                 RawSecurityDescriptor policy = new RawSecurityDescriptor(bytes, 0);
-                if (policy.Owner == null || policy.Owner.Value != ownerSid || policy.DiscretionaryAcl == null || (policy.ControlFlags & ControlFlags.DiscretionaryAclProtected) == 0)
+                bool anchor = String.Equals(path, Path.Combine(ProfileRoot, "TaskPilotTest"), StringComparison.OrdinalIgnoreCase);
+                // The anchor is protected against inherited weakening. Child
+                // directories inherit both deny rules atomically; their owner
+                // cannot disable that inheritance because WRITE_DAC is denied.
+                if (policy.Owner == null || (policy.Owner.Value != ownerSid && policy.Owner.Value != defaultOwnerSid) || policy.DiscretionaryAcl == null || (anchor && (policy.ControlFlags & ControlFlags.DiscretionaryAclProtected) == 0))
                     throw Violation("An existing test directory does not have the required protected policy. It will not be modified or adopted.");
                 bool attributesDenied = false, ownerChangeDenied = false;
                 foreach (GenericAce raw in policy.DiscretionaryAcl)
@@ -338,7 +344,8 @@ namespace TaskPilot.Runtime
                 UnicodeString name = new UnicodeString(); name.Length = checked((ushort)(leaf.Length * 2)); name.MaximumLength = checked((ushort)(name.Length + 2)); name.Buffer = nameMemory;
                 Marshal.StructureToPtr(name, unicodeMemory, false);
                 ObjectAttributes attributes = new ObjectAttributes(); attributes.Length = Marshal.SizeOf(typeof(ObjectAttributes)); attributes.RootDirectory = parentHandle.DangerousGetHandle(); attributes.ObjectName = unicodeMemory;
-                attributes.Attributes = 0x40 | 0x1000; attributes.SecurityDescriptor = securityMemory;
+                attributes.Attributes = 0x40 | 0x1000;
+                attributes.SecurityDescriptor = RequiresDirectoryPolicy(parent) ? IntPtr.Zero : securityMemory;
                 IoStatusBlock result;
                 int status = NtCreateFile(out created, 0x100000 | 0x20000 | ReadAttributes | 1 | 2 | 4 | 0x20, ref attributes, out result, IntPtr.Zero, DirectoryAttribute, ShareReadWrite, 2, 1 | 0x20 | OpenReparsePoint, IntPtr.Zero, 0);
                 if (status < 0)
