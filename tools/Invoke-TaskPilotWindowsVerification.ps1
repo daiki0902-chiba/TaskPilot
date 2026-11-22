@@ -11,6 +11,7 @@ if([Environment]::OSVersion.Platform-ne[PlatformID]::Win32NT -or
     throw 'Native verification requires 64-bit Windows PowerShell Desktop 5.1 on Windows.'
 }
 if(-not$env:RUNNER_TEMP){throw 'RUNNER_TEMP must identify the isolated CI temporary directory.'}
+if($env:GITHUB_SHA-cnotmatch'^[a-f0-9]{40}$'){throw 'A full CI source commit is required for isolated-mode evidence.'}
 . (Join-Path $PSScriptRoot 'TaskPilot.BuildSupport.ps1')
 $root=Get-TPBuildFullPath $VerificationRoot
 $runnerTemp=Get-TPBuildFullPath $env:RUNNER_TEMP
@@ -48,7 +49,7 @@ if($report.Failed-ne0 -or $report.Passed-ne8 -or $report.TestOnlyProvider -or
 
 # Build-TaskPilot returns a result object; compiler informational output is not
 # the artifact contract. Keep build products disjoint from developer dependencies.
-$buildOutput=@(& (Join-Path $PSScriptRoot 'Build-TaskPilot.ps1') -Version '0.4.0.1' -DependencyRoot $dependencyRoot -OutputRoot $buildRoot)
+$buildOutput=@(& (Join-Path $PSScriptRoot 'Build-TaskPilot.ps1') -Version '0.4.0.2' -DependencyRoot $dependencyRoot -OutputRoot $buildRoot)
 $buildResults=@($buildOutput | Where-Object {$null-ne$_.PSObject.Properties['Zip'] -and $null-ne$_.PSObject.Properties['ReleaseRoot']})
 if($buildResults.Count-ne1){throw 'Builder did not return exactly one artifact result.'}
 $build=$buildResults[0]
@@ -61,8 +62,37 @@ if(-not(Test-TPBuildBelow $zip $buildRoot) -or -not(Test-TPBuildBelow $release $
    -not[IO.File]::Exists($zip) -or (Get-TPBuildSha $zip)-cne$build.Sha256){
     throw 'Builder artifact paths or ZIP hash did not match the candidate build.'
 }
+# The new executable is not published until its isolation boundary has been
+# exercised against an entirely synthetic ordinary profile. The suite starts
+# only its synthetic normal-lock holder, never TaskPilot/Application.Run.
+$runtimeAssembly=Join-Path (Join-Path $release 'TaskPilot') 'Runtime/TaskPilot.TestSandbox.dll'
+Assert-TPBuildNoLinks $runtimeAssembly
+if(-not[IO.File]::Exists($runtimeAssembly)){throw 'The precompiled independent-mode runtime DLL is missing.'}
+$nativeBuildInfo=Get-Content -LiteralPath (Join-Path (Join-Path $release 'TaskPilot') 'BuildInfo.json') -Raw -Encoding UTF8|ConvertFrom-Json
+if(-not$nativeBuildInfo.IndependentTestModeSupported-or$nativeBuildInfo.Version-cne'0.4.0.2'-or
+   $nativeBuildInfo.RuntimeGuardSha256-cne(Get-TPBuildSha $runtimeAssembly)){throw 'The compiled runtime does not match the candidate build metadata.'}
+$isolated=& (Join-Path $repo 'tests/Test-IsolatedTestMode.ps1') -RuntimeAssembly $runtimeAssembly -DependencyRoot $dependencyRoot -OutputRoot $reportRoot
+if($null-eq$isolated-or$isolated.Passed-isnot[bool]-or-not$isolated.Passed-or
+   $isolated.NormalFixtureUnchanged-isnot[bool]-or-not$isolated.NormalFixtureUnchanged-or
+   $isolated.ActualExcelFilesGenerated-isnot[bool]-or-not$isolated.ActualExcelFilesGenerated-or
+   $isolated.WindowsClientGUIVerified-isnot[bool]-or$isolated.WindowsClientGUIVerified-or
+   $isolated.ApplicationRunCalled-isnot[bool]-or$isolated.ApplicationRunCalled-or
+   $isolated.RuntimeAssemblySha256-cne$nativeBuildInfo.RuntimeGuardSha256-or
+   $isolated.FailedCases-ne0-or@($isolated.Cases).Count-lt14-or@($isolated.SkippedDetails).Count-ne0){
+    # Preserve the failed proof as well; the workflow always uploads these
+    # reports, but does not upload an executable or acceptance kit on failure.
+    if($null-ne$isolated){
+        $isolated|Add-Member -NotePropertyName SourceCommit -NotePropertyValue $env:GITHUB_SHA -Force
+        Write-TPBuildNewText (Join-Path $reportRoot ('Isolated_'+[guid]::NewGuid().ToString('N')+'.json')) (ConvertTo-Json -InputObject $isolated -Depth 16)
+    }
+    throw 'Independent-mode safety verification failed, was skipped, or made an unsupported Windows client claim. No candidate will be published.'
+}
+$isolated|Add-Member -NotePropertyName SourceCommit -NotePropertyValue $env:GITHUB_SHA -Force
+$isolated|Add-Member -NotePropertyName RunnerImage -NotePropertyValue $env:ImageOS -Force
+$isolatedName='Isolated_'+[guid]::NewGuid().ToString('N')+'.json'
+Write-TPBuildNewText (Join-Path $reportRoot $isolatedName) (ConvertTo-Json -InputObject $isolated -Depth 16)
 $null=[IO.Directory]::CreateDirectory($candidateRoot)
-$candidateName='TaskPilot_0.4.0.1_DEVELOPMENT_NOT_FOR_SALE.zip'
+$candidateName='TaskPilot_0.4.0.2_DEVELOPMENT_NOT_FOR_SALE.zip'
 Copy-TPBuildNewFile $zip (Join-Path $candidateRoot $candidateName) $build.Sha256
 Write-TPBuildNewText (Join-Path $candidateRoot ($candidateName+'.sha256')) ($build.Sha256+'  '+$candidateName+"`n")
 foreach($name in @('BuildInfo.json','SoftwareBillOfMaterials.json','FileHashes.json')){
@@ -79,6 +109,10 @@ $verification=[ordered]@{
     PowerShellVersion=$PSVersionTable.PSVersion.ToString()
     NativeWindowsAutomatedGroupsPassed=$report.Passed
     TestReport=$newReports[0].Name
+    IsolatedModeTestReport=$isolatedName
+    IsolatedModeAutomatedTestsPassed=$true
+    SyntheticNormalFixtureUnchanged=$true
+    ActualExcelFilesGeneratedBySyntheticSuite=$true
     SkippedDetails=@($report.SkippedDetails)
     ExecutableGenerated=$build.ExecutableGenerated
     CandidateSha256=$build.Sha256
@@ -89,7 +123,7 @@ $verification=[ordered]@{
     RuntimeAcceptance=$build.RuntimeAcceptance
 }
 Write-TPBuildNewText (Join-Path $candidateRoot 'WindowsVerification.json') (ConvertTo-Json -InputObject $verification -Depth 8)
-$notice='DEVELOPMENT CANDIDATE - NOT FOR SALE. Unsigned. Automated native tests and compilation run on Windows Server 2022. Windows 10/11 acceptance, interactive WinForms behavior and notification delivery remain unverified. Complete the Windows acceptance checklist before sales distribution.'
+$notice='DEVELOPMENT CANDIDATE - NOT FOR SALE. Unsigned. Native storage regressions and independent-mode filesystem/Excel tests passed using synthetic profiles on Windows Server 2022. Windows 10/11 acceptance, generated-EXE startup, interactive WinForms behavior, external Excel viewing and notification delivery remain unverified.'
 Write-TPBuildNewText (Join-Path $candidateRoot 'DEVELOPMENT_NOT_FOR_SALE.txt') ($notice+"`n")
 if($env:GITHUB_STEP_SUMMARY){[IO.File]::AppendAllText($env:GITHUB_STEP_SUMMARY,('Native automated test groups passed: '+$report.Passed+".`n`n"+$notice+"`n"),[Text.UTF8Encoding]::new($false))}
 Write-Host $notice

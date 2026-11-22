@@ -6,6 +6,8 @@ param(
     [ValidateLength(0,120)][string]$CaseId='',
     [ValidateLength(0,5000)][string]$Reproduction='',
     [string]$LogDirectory,
+    [switch]$TestMode,
+    [string]$TestEnvironmentId,
     [ValidateRange(1,100)][int]$MaximumLogFiles=50,
     [ValidateRange(1,20)][int]$MaximumLogFileMiB=10,
     [ValidateRange(1,100)][int]$MaximumTotalLogMiB=50
@@ -51,17 +53,59 @@ function Get-AcceptanceSha([string]$Path){
     $sha=[Security.Cryptography.SHA256]::Create()
     try{([BitConverter]::ToString($sha.ComputeHash($stream))).Replace('-','').ToLowerInvariant()}finally{$sha.Dispose();$stream.Dispose()}
 }
+function Assert-AcceptanceNoNormalState([string]$Path){
+    if(-not$TestMode-or[string]::IsNullOrWhiteSpace($localAppData)){return}
+    foreach($leaf in @('TaskPilot','TaskPilot4','TaskPilot4Logs','TaskPilot4LegacyBackups','TaskPilot.storage.lock','TaskPilot4.storage.lock')){
+        if(Test-AcceptanceBelow $Path (Join-Path $localAppData $leaf)){throw 'Independent diagnostics must not inspect normal TaskPilot state.'}
+    }
+}
+function Open-AcceptanceTestScope([string]$Application,[string]$Profile,[string]$Id){
+    $guard=Join-Path $Application 'Runtime/TaskPilot.TestSandbox.dll'
+    $hashFile=Join-Path $Application 'FileHashes.json'
+    foreach($path in @($guard,$hashFile)){Assert-AcceptanceNoLinks $path}
+    if(-not[IO.File]::Exists($guard)-or-not[IO.File]::Exists($hashFile)){throw 'The isolated-mode boundary or product hash manifest is missing; test logs were not read.'}
+    if(([IO.FileInfo]$hashFile).Length-gt2097152){throw 'The product hash manifest exceeds the diagnostic limit.'}
+    $hashes=Get-Content -LiteralPath $hashFile -Raw -Encoding UTF8|ConvertFrom-Json
+    $entry=@($hashes.Files|Where-Object {$_.Path-ceq'Runtime/TaskPilot.TestSandbox.dll'})
+    if($entry.Count-ne1-or$entry[0].Sha256-cne(Get-AcceptanceSha $guard)){throw 'The isolated-mode boundary does not match its reviewed package manifest; no test log was read.'}
+    # Do not remove origin metadata just to enable diagnostics.
+    $streams=@(Get-Item -LiteralPath $guard -Stream * -ErrorAction Stop)
+    $zone=@($streams|Where-Object {$_.Stream-ieq'Zone.Identifier'})
+    if($zone.Count-gt1-or($zone.Count-eq1-and$zone[0].Length-gt65536)){throw 'The boundary origin metadata is unreadable or ambiguous.'}
+    if($zone.Count-eq1){
+        $origin=Get-Content -LiteralPath $guard -Stream Zone.Identifier -Raw -ErrorAction Stop
+        $matches=[regex]::Matches($origin,'(?m)^\s*ZoneId\s*=\s*([0-9]+)\s*$')
+        if($matches.Count-ne1-or$matches[0].Groups[1].Value-notin@('0','1','2')){throw 'The boundary DLL is blocked or has unsupported origin metadata; no test log was read.'}
+    }
+    $assembly=[Reflection.Assembly]::LoadFrom($guard)
+    if((Get-AcceptanceFullPath $assembly.Location)-ine(Get-AcceptanceFullPath $guard)){throw 'A different boundary DLL is already loaded; start a fresh Windows PowerShell process.'}
+    $type=$assembly.GetType('TaskPilot.Runtime.Sandbox',$true)
+    $open=$type.GetMethod('OpenExisting',[Reflection.BindingFlags]'Public,Static',$null,[Type[]]@([string],[string]),$null)
+    if($null-eq$open){throw 'Read-only isolated diagnostics require the reviewed OpenExisting boundary factory.'}
+    return $open.Invoke($null,[object[]]@($Profile,$Id))
+}
 
-$application=Get-AcceptanceFullPath $ApplicationDirectory
-$output=Get-AcceptanceFullPath $OutputRoot
 $localAppData=[Environment]::GetFolderPath('LocalApplicationData')
 $roamingAppData=[Environment]::GetFolderPath('ApplicationData')
+$testRoot=$null;$testScope=$null
+if($TestMode){
+    if($TestEnvironmentId-cnotmatch'^[a-f0-9]{32}$'){throw 'TestMode requires a lowercase 32-digit GUID TestEnvironmentId.'}
+    if($PSBoundParameters.ContainsKey('LogDirectory')){throw 'LogDirectory overrides are forbidden in TestMode. Only that environment Logs directory can be read.'}
+    if([string]::IsNullOrWhiteSpace($localAppData)){throw 'The actual LocalApplicationData folder is unavailable.'}
+    $testRoot=Join-Path (Join-Path $localAppData 'TaskPilotTest') $TestEnvironmentId
+    $LogDirectory=Join-Path $testRoot 'Logs'
+}elseif($PSBoundParameters.ContainsKey('TestMode')){throw 'Explicit TestMode:false is invalid; normal log fallback is not permitted.'}
+elseif(-not[string]::IsNullOrEmpty($TestEnvironmentId)){throw 'TestEnvironmentId requires explicit TestMode.'}
+$application=Get-AcceptanceFullPath $ApplicationDirectory
+$output=Get-AcceptanceFullPath $OutputRoot
+foreach($path in @($application,$output)){Assert-AcceptanceNoNormalState $path}
 if(-not$LogDirectory){
     if([string]::IsNullOrWhiteSpace($localAppData)){throw 'LocalApplicationData is unavailable; supply a test LogDirectory explicitly.'}
     $LogDirectory=Join-Path $localAppData 'TaskPilot4Logs'
 }
 $logs=Get-AcceptanceFullPath $LogDirectory
-foreach($path in @($application,$output,$logs)){Assert-AcceptanceNoLinks $path}
+foreach($path in @($application,$output)){Assert-AcceptanceNoLinks $path}
+if(-not$TestMode){Assert-AcceptanceNoLinks $logs}
 if(-not[IO.Directory]::Exists($application)){throw 'ApplicationDirectory must be an existing folder containing the candidate TaskPilot.exe.'}
 if(-not[IO.Directory]::Exists($output)){throw 'OutputRoot must be an existing tester-owned folder, for example a folder on the Desktop.'}
 if([Environment]::OSVersion.Platform-eq[PlatformID]::Win32NT){
@@ -73,6 +117,7 @@ if([Environment]::OSVersion.Platform-eq[PlatformID]::Win32NT){
 if((Test-AcceptanceBelow $output $application)-or(Test-AcceptanceBelow $output $logs)){
     throw 'OutputRoot must be outside the application and log folders.'
 }
+if($TestMode-and(Test-AcceptanceBelow $output $testRoot)){throw 'Isolated diagnostic output must be outside the environment being inspected.'}
 $protected=New-Object 'Collections.Generic.List[string]'
 foreach($path in @($localAppData,$roamingAppData)){if(-not[string]::IsNullOrWhiteSpace($path)){$protected.Add((Get-AcceptanceFullPath $path))}}
 if([Environment]::OSVersion.Platform-eq[PlatformID]::Win32NT-and-not[string]::IsNullOrWhiteSpace($localAppData)){
@@ -105,6 +150,7 @@ $environment=[ordered]@{
     ProcessBits=[IntPtr]::Size*8;Is64BitOperatingSystem=[Environment]::Is64BitOperatingSystem
     ClrVersion=[Environment]::Version.ToString();DotNetFrameworkRelease=$frameworkRelease
     ApplicationDirectory=$application;LogDirectory=$logs
+    TestMode=[bool]$TestMode;TestEnvironmentId=$TestEnvironmentId;ExpectedTestRoot=$testRoot
     RealWindowsAcceptanceEstablished=$false
 }
 
@@ -115,7 +161,8 @@ $relativeFiles=@(
     'Modules/TaskPilot.Storage/provider/System.Data.SQLite.dll',
     'Modules/TaskPilot.Storage/provider/x64/SQLite.Interop.dll',
     'Modules/TaskPilot.Storage/provider/x86/SQLite.Interop.dll',
-    'Modules/ImportExcel/EPPlus.dll','Modules/ImportExcel/ImportExcel.psd1'
+    'Modules/ImportExcel/EPPlus.dll','Modules/ImportExcel/ImportExcel.psd1',
+    'Runtime/TaskPilot.Runtime.ps1','Runtime/TaskPilot.TestSandbox.dll','Codec/TaskPilotMigrationCodec.dll'
 )
 foreach($relative in $relativeFiles){
     $entry=[ordered]@{Path=$relative;State='Missing';Length=$null;Sha256=$null;FileVersion=$null;SignatureStatus=$null;SignerSubject=$null;SignerThumbprint=$null;ZoneState='NotChecked';ZoneId=$null;Error=$null}
@@ -160,9 +207,22 @@ foreach($relative in $relativeFiles){
 
 $totalBytes=[long]0;$selected=0;$scanned=0
 $fileLimit=[long]$MaximumLogFileMiB*1MB;$totalLimit=[long]$MaximumTotalLogMiB*1MB
-if(-not[IO.Directory]::Exists($logs)){$warnings.Add('The log folder does not exist. Startup may have failed before TaskPilot could create a log; collect the on-screen error manually.')}
+if($TestMode){
+    try{
+        if(-not$diagnosticIsWindows-or$PSVersionTable.PSEdition-ne'Desktop'-or$PSVersionTable.PSVersion.Major-ne5-or-not[Environment]::Is64BitProcess){throw 'Isolated log reading requires native x64 Windows PowerShell 5.1.'}
+        $testScope=Open-AcceptanceTestScope $application $localAppData $TestEnvironmentId
+        if([string]$testScope.Root-cne$testRoot){throw 'The boundary returned a different test root.'}
+        $testScope.ValidateTree()
+    }catch{
+        $warnings.Add('Isolated test logs were not read: '+$_.Exception.Message)
+        if($null-ne$testScope){$testScope.Dispose();$testScope=$null}
+    }
+}
+if($TestMode-and$null-eq$testScope){$warnings.Add('No normal log fallback is allowed in TestMode. Capture the on-screen error if the test environment is absent or unsafe.')}
+elseif(($TestMode-and-not$testScope.Exists($logs))-or(-not$TestMode-and-not[IO.Directory]::Exists($logs))){$warnings.Add('The log folder does not exist. Startup may have failed before TaskPilot could create a log; collect the on-screen error manually.')}
 else{
     try{
+        if($TestMode){$testScope.ValidateTree()}
         foreach($fileInfo in ([IO.DirectoryInfo]$logs).EnumerateFileSystemInfos()){
             $scanned++;if($scanned-gt1000){$warnings.Add('Stopped after scanning 1000 top-level log entries. No subfolder was traversed.');break}
             if($fileInfo.Name-cnotmatch'^(actions\.log|errors\.log|MigrationInspection_[0-9a-fA-F]{32}\.json|MigrationResult_[0-9a-fA-F]{32}\.json)$'){continue}
@@ -170,6 +230,25 @@ else{
             $result=[ordered]@{Name=$fileInfo.Name;Status='NotCopied';ObservedLength=$null;CopiedBytes=0;Sha256=$null;Error=$null}
             $read=$null;$write=$null
             try{
+                if($TestMode){
+                    $null=$testScope.AssertPath($fileInfo.FullName)
+                    $length=$testScope.GetFileLength($fileInfo.FullName);$result.ObservedLength=$length
+                    if($length-gt$fileLimit){$result.Status='SkippedFileSizeLimit'}
+                    elseif($totalBytes+$length-gt$totalLimit){$result.Status='SkippedTotalSizeLimit'}
+                    else{
+                        $snapshot=$testScope.ReadPrefix($fileInfo.FullName,[int]($fileLimit+1))
+                        if($snapshot.Length-gt$fileLimit-or$totalBytes+$snapshot.Length-gt$totalLimit){$result.Status='SkippedChangedSizeLimit'}
+                        else{
+                            $to=Join-Path $copiedLogs $fileInfo.Name
+                            $write=[IO.File]::Open($to,[IO.FileMode]::CreateNew,[IO.FileAccess]::Write,[IO.FileShare]::None)
+                            $write.Write($snapshot,0,$snapshot.Length);$write.Flush($true);$write.Dispose();$write=$null
+                            $result.CopiedBytes=$snapshot.Length;$totalBytes+=$snapshot.Length
+                            $result.Sha256=Get-AcceptanceSha $to;$result.Status='CopiedBestEffortSnapshot'
+                        }
+                    }
+                    $logResults.Add([pscustomobject]$result)
+                    continue
+                }
                 Assert-AcceptanceNoLinks $fileInfo.FullName
                 if(($fileInfo.Attributes-band[IO.FileAttributes]::Directory)-ne0){throw 'A log allowlist name is a directory; it was not traversed.'}
                 $read=[IO.File]::Open($fileInfo.FullName,[IO.FileMode]::Open,[IO.FileAccess]::Read,[IO.FileShare]::ReadWrite)
@@ -186,12 +265,13 @@ else{
                     $result.Sha256=Get-AcceptanceSha $to
                     $result.Status=if($result.CopiedBytes-eq$length){'CopiedBestEffortSnapshot'}else{'CopiedShortRead'}
                 }
-            }catch{$result.Status='ReadOrCopyFailed';$result.Error=$_.Exception.Message}
+            }catch{$result.Status='ReadOrCopyFailed';$result.Error=$_.Exception.Message;if($TestMode){$logResults.Add([pscustomobject]$result);throw}}
             finally{if($null-ne$write){$write.Dispose()};if($null-ne$read){$read.Dispose()}}
             $logResults.Add([pscustomobject]$result)
         }
     }catch{$warnings.Add('Log enumeration stopped: '+$_.Exception.Message)}
 }
+if($null-ne$testScope){$testScope.Dispose();$testScope=$null}
 $collection=[ordered]@{
     CapturedAtUtc=[datetime]::UtcNow.ToString('o');SourceDataModified=$false
     LogPolicy='Top-level allowlist only; no database, CSV, Excel, backup, or arbitrary subfolder copied. Open logs are best-effort snapshots.'

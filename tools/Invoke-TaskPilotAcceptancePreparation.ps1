@@ -28,7 +28,7 @@ if($root-ine$expectedRoot-or-not(Test-TPBuildBelow $root $runnerTemp)-or-not[IO.
     throw 'VerificationRoot must be the existing isolated output of this CI run.'
 }
 $candidateDirectory=Join-Path $root 'Candidate'
-$candidate=Join-Path $candidateDirectory 'TaskPilot_0.4.0.1_DEVELOPMENT_NOT_FOR_SALE.zip'
+$candidate=Join-Path $candidateDirectory 'TaskPilot_0.4.0.2_DEVELOPMENT_NOT_FOR_SALE.zip'
 $verificationPath=Join-Path $candidateDirectory 'WindowsVerification.json'
 foreach($path in @($candidate,$verificationPath)){
     Assert-TPBuildNoLinks $path
@@ -37,6 +37,8 @@ foreach($path in @($candidate,$verificationPath)){
 $proof=Get-Content -LiteralPath $verificationPath -Raw -Encoding UTF8|ConvertFrom-Json
 if($proof.Commit-cne$env:GITHUB_SHA-or$proof.CandidateSha256-cnotmatch'^[a-f0-9]{64}$'-or
    $proof.TestReport-cnotmatch'^Commercial_[a-f0-9]{32}[.]json$'-or
+   $proof.IsolatedModeTestReport-cnotmatch'^Isolated_[a-f0-9]{32}[.]json$'-or
+   -not$proof.IsolatedModeAutomatedTestsPassed-or-not$proof.SyntheticNormalFixtureUnchanged-or
    $proof.NativeWindowsAutomatedGroupsPassed-ne8-or-not$proof.ExecutableGenerated-or
    $proof.SignatureStatus-cne'NotSigned'-or$proof.Windows10And11AcceptanceVerified-or
    $proof.InteractiveWinFormsVerified-or$proof.NotificationDeliveryVerified){
@@ -46,6 +48,13 @@ if((Get-TPBuildSha $candidate)-cne$proof.CandidateSha256){throw 'Native candidat
 $nativeTestReport=Join-Path (Join-Path $repo 'TestResults') $proof.TestReport
 Assert-TPBuildNoLinks $nativeTestReport
 if(-not[IO.File]::Exists($nativeTestReport)){throw 'The native commercial test report is missing.'}
+$isolatedTestReport=Join-Path (Join-Path $repo 'TestResults') $proof.IsolatedModeTestReport
+Assert-TPBuildNoLinks $isolatedTestReport
+if(-not[IO.File]::Exists($isolatedTestReport)){throw 'The native independent-mode safety report is missing.'}
+$isolated=Get-Content -LiteralPath $isolatedTestReport -Raw -Encoding UTF8|ConvertFrom-Json
+if($isolated.SourceCommit-cne$env:GITHUB_SHA-or-not$isolated.Passed-or-not$isolated.NormalFixtureUnchanged-or
+   -not$isolated.ActualExcelFilesGenerated-or$isolated.ApplicationRunCalled-or$isolated.WindowsClientGUIVerified-or
+   $isolated.FailedCases-ne0-or@($isolated.Cases).Count-lt14-or@($isolated.SkippedDetails).Count-ne0){throw 'Independent-mode evidence does not authorize publishing this candidate.'}
 $reportDirectory=Join-Path (Join-Path $repo 'TestResults') ('AcceptancePreparation_'+$env:GITHUB_RUN_ID+'_'+$env:GITHUB_RUN_ATTEMPT)
 Assert-TPBuildNoLinks $reportDirectory
 if(Test-TPBuildPathExists $reportDirectory){throw 'Acceptance preparation needs a new report directory.'}
@@ -61,13 +70,16 @@ $summary=[ordered]@{
     Windows11AcceptanceVerified=$false
     InteractiveGuiVerified=$false
     NotificationDeliveryVerified=$false
-    ActualExcelOutputVerified=$false
+    WindowsClientExcelOutputVerified=$false
     ApplicationLaunched=$false
     SourceDataModified=$false
     Package=$null
     PackagingTests=$null
     ToolsTests=$null
     PreflightStatus=$null
+    IndependentPreflightStatus=$null
+    IndependentModeSyntheticChecksPassed=$true
+    ActualExcelGeneratedBySyntheticSuite=$true
     Collector=$null
     Error=$null
 }
@@ -78,6 +90,7 @@ try{
         ExpectedSourceCommit=$env:GITHUB_SHA
         WindowsVerificationPath=$verificationPath
         WindowsTestReportPath=$nativeTestReport
+        IsolatedModeTestReportPath=$isolatedTestReport
         BasePullRequestHead=$env:GITHUB_SHA
         ServerEvidenceRunUrl=$summary.ServerRunUrl
     }
@@ -88,7 +101,7 @@ try{
     Write-TPBuildNewText (Join-Path $reportDirectory 'PackagingTests.json') (ConvertTo-Json -InputObject $packagingTests -Depth 8)
     $summary.PackagingTests=$packagingTests
     $package=& (Join-Path $PSScriptRoot 'New-TaskPilotAcceptancePackage.ps1') @arguments -OutputRoot (Join-Path $root 'Acceptance')
-    if($package.ApplicationFiles-ne136-or$package.FileCount-lt148-or$package.Windows10Verified-or$package.Windows11Verified-or
+    if($package.ApplicationFiles-lt139-or$package.FileCount-lt153-or$package.Windows10Verified-or$package.Windows11Verified-or
        (Get-TPBuildSha $package.Zip)-cne$package.Sha256){throw 'Acceptance kit output or safety boundaries did not match the packaging contract.'}
     $summary.Package=$package
     Write-TPBuildNewText (Join-Path $reportDirectory 'AcceptancePackage.json') (ConvertTo-Json -InputObject $package -Depth 8)
@@ -107,6 +120,17 @@ try{
     $summary.PreflightStatus=$preflight.Status
     Write-TPBuildNewText (Join-Path $reportDirectory 'Preflight.json') (ConvertTo-Json -InputObject $preflight -Depth 12)
 
+    # On Server, the independent-mode check must stop at the client-host gate.
+    # It must not inspect ordinary TaskPilot paths or create a real profile's
+    # test environment just to make this CI check green.
+    $independent=& (Join-Path $PSScriptRoot 'Test-TaskPilotAcceptancePackage.ps1') -PackageRoot $package.PackageRoot -OutputRoot $reportDirectory -TestMode -TestEnvironmentId ([guid]::NewGuid().ToString('N'))
+    $independentChecks=@($independent.Checks|Where-Object {$_.Name-ceq'TestModeIsolation'})
+    if($independent.Status-cne'BLOCKED'-or$independentChecks.Count-ne1-or$independentChecks[0].Passed-or$independent.TestAreaPrepared){
+        throw 'Server independent-mode preflight must be blocked without preparing any real profile test area.'
+    }
+    $summary.IndependentPreflightStatus=$independent.Status
+    Write-TPBuildNewText (Join-Path $reportDirectory 'IndependentPreflight.json') (ConvertTo-Json -InputObject $independent -Depth 12)
+
     $toolsTests=& (Join-Path $repo 'tests/Test-AcceptanceTools.ps1') -PackageRoot $package.PackageRoot -OutputRoot $reportDirectory
     if(-not$toolsTests.Passed-or$toolsTests.ClientAcceptanceVerified-or$toolsTests.ApplicationLaunched){throw 'Acceptance diagnostic/preflight fixture tests failed or made an unsupported client/app-execution claim.'}
     $summary.ToolsTests=$toolsTests
@@ -124,7 +148,7 @@ try{
         Copy-TPBuildNewFile $source (Join-Path $reportDirectory ('Collector'+$name)) (Get-TPBuildSha $source)
     }
     $summary.Status='PASSED_SERVER_PREPARATION_ONLY'
-    $notice='Acceptance kit preparation passed on Windows Server 2022. Client preflight correctly reports BLOCKED on Server. Windows 10/11 EXE startup, interactive UI, notifications and actual Excel output remain unverified.'
+    $notice='Independent-mode acceptance kit preparation passed on Windows Server 2022. Both client preflight modes correctly report BLOCKED on Server. Synthetic independent-mode storage and real Excel generation were verified; Windows 10/11 generated-EXE startup, interactive UI, notification delivery and external Excel viewing remain unverified.'
     if($env:GITHUB_STEP_SUMMARY){[IO.File]::AppendAllText($env:GITHUB_STEP_SUMMARY,($notice+"`n"),[Text.UTF8Encoding]::new($false))}
     Write-Host $notice
 }catch{$summary.Status='FAILED';$summary.Error=$_.Exception.Message;throw}

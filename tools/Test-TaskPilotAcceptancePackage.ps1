@@ -3,13 +3,16 @@
 param(
     [Parameter(Mandatory=$true)][string]$PackageRoot,
     [string]$OutputRoot,
-    [switch]$FirstUse
+    [switch]$FirstUse,
+    [switch]$TestMode,
+    [string]$TestEnvironmentId
 )
 $ErrorActionPreference='Stop'
 Set-StrictMode -Version 2.0
 
-# Standalone acceptance-only checker. It never loads TaskPilot/provider code,
-# launches the EXE, removes download-origin metadata, or opens user databases.
+# Standalone checker. It never launches the EXE, loads the SQLite provider,
+# removes origin metadata, or opens user databases. Explicit TestMode can load
+# the verified boundary DLL and prepare ONLY its marker/empty test directories.
 function Get-TPACFullPath([string]$Path){
     $provider=$null;$drive=$null
     $full=$ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($Path,[ref]$provider,[ref]$drive)
@@ -32,6 +35,14 @@ function Assert-TPACNoLinks([string]$Path){
 function Test-TPACBelow([string]$Path,[string]$Parent){
     $base=$Parent.TrimEnd([IO.Path]::DirectorySeparatorChar,[IO.Path]::AltDirectorySeparatorChar)
     return $Path.Equals($base,[StringComparison]::OrdinalIgnoreCase)-or$Path.StartsWith($base+[IO.Path]::DirectorySeparatorChar,[StringComparison]::OrdinalIgnoreCase)
+}
+function Assert-TPACNoNormalStatePath([string]$Path){
+    # Lexical rejection is deliberately before attributes/exists/content I/O.
+    # Independent mode must not inspect normal TaskPilot state to allow launch.
+    if(-not$script:TPACIndependentIntent-or[string]::IsNullOrWhiteSpace($localAppData)){return}
+    foreach($leaf in @('TaskPilot','TaskPilot4','TaskPilot4Logs','TaskPilot4LegacyBackups','TaskPilot.storage.lock','TaskPilot4.storage.lock')){
+        if(Test-TPACBelow $Path (Join-Path $localAppData $leaf)){throw 'Independent test inspection must not access normal TaskPilot state.'}
+    }
 }
 function Assert-TPACLocalDrive([string]$Path){
     if(-not$tpacIsWindows){return}
@@ -110,6 +121,19 @@ $signatureEvidence=New-Object 'Collections.Generic.List[object]'
 $tpacIsWindows=[Environment]::OSVersion.Platform-eq[PlatformID]::Win32NT
 $localAppData=[Environment]::GetFolderPath('LocalApplicationData')
 $roamingAppData=[Environment]::GetFolderPath('ApplicationData')
+$modeValid=$true;$expectedTestRoot=$null;$testAreaPrepared=$false
+$script:TPACIndependentIntent=$PSBoundParameters.ContainsKey('TestMode')-or$PSBoundParameters.ContainsKey('TestEnvironmentId')
+$requestedMode=if($TestMode){'INDEPENDENT_TEST'}elseif($FirstUse){'NORMAL_FIRST_USE'}else{'PACKAGE_ONLY'}
+try{
+    if($PSBoundParameters.ContainsKey('TestMode')-and-not$TestMode){throw 'Explicit TestMode:false is invalid; no normal inspection fallback is permitted.'}
+    if($TestMode){
+        if($FirstUse){throw 'TestMode and FirstUse are separate checks and cannot be combined.'}
+        if($TestEnvironmentId-cnotmatch'^[a-f0-9]{32}$'){throw 'TestMode requires a lowercase 32-digit GUID TestEnvironmentId.'}
+        if([string]::IsNullOrWhiteSpace($localAppData)){throw 'The actual Windows LocalApplicationData folder is unavailable.'}
+        $expectedTestRoot=Join-Path (Join-Path $localAppData 'TaskPilotTest') $TestEnvironmentId
+    }elseif(-not[string]::IsNullOrEmpty($TestEnvironmentId)){throw 'TestEnvironmentId is allowed only with explicit TestMode.'}
+    Add-TPACCheck 'ModeArguments' $true ('Mode='+$requestedMode)
+}catch{$modeValid=$false;Add-TPACCheck 'ModeArguments' $false $_.Exception.Message}
 $userSid=$null;$frameworkRelease=$null;$os=$null;$osError=$null
 if($tpacIsWindows){
     try{$userSid=[Security.Principal.WindowsIdentity]::GetCurrent().User.Value}catch{$userSid='UNAVAILABLE'}
@@ -128,7 +152,9 @@ Add-TPACCheck 'DotNetFramework' ($tpacIsWindows-and$null-ne$frameworkRelease-and
 
 $root=$null;$manifest=$null;$manifestSha=$null;$validatedFiles=@();$packageValid=$false;$candidateCommit=$null;$candidateSha=$null
 try{
+    if(-not$modeValid){throw 'Mode arguments are invalid; package and profile contents were not inspected.'}
     $root=Get-TPACFullPath $PackageRoot
+    Assert-TPACNoNormalStatePath $root
     Assert-TPACNoLinks $root
     if(-not[IO.Directory]::Exists($root)){throw 'PackageRoot must be the extracted acceptance-kit directory.'}
     Assert-TPACLocalDrive $root
@@ -138,7 +164,7 @@ try{
     $format=Get-TPACProperty $manifest 'FormatVersion'
     if(($format-isnot[int]-and$format-isnot[long])-or$format-ne1){throw 'Unsupported acceptance-manifest format.'}
     $candidateCommit=Get-TPACProperty $manifest 'CandidateSourceCommit';$candidateSha=Get-TPACProperty $manifest 'CandidateZipSha256'
-    if((Get-TPACProperty $manifest 'BinaryVersion')-cne'0.4.0.1'-or$candidateSha-isnot[string]-or$candidateSha-cnotmatch'^[a-f0-9]{64}$'-or$candidateCommit-isnot[string]-or$candidateCommit-cnotmatch'^[a-f0-9]{40}$'){throw 'Manifest does not describe a versioned PR #1 acceptance binary with complete source/ZIP hashes.'}
+    if((Get-TPACProperty $manifest 'BinaryVersion')-cne'0.4.0.2'-or$candidateSha-isnot[string]-or$candidateSha-cnotmatch'^[a-f0-9]{64}$'-or$candidateCommit-isnot[string]-or$candidateCommit-cnotmatch'^[a-f0-9]{40}$'){throw 'Manifest does not describe the independent-test-mode PR #1 binary with complete source/ZIP hashes.'}
     foreach($field in @('Windows10Verified','Windows11Verified','InteractiveGuiVerified')){
         Assert-TPACBoolean $manifest $field $false
     }
@@ -159,7 +185,7 @@ try{
         if(([IO.FileInfo]$file).Length-ne$length-or(Get-FileHash -LiteralPath $file -Algorithm SHA256 -ErrorAction Stop).Hash.ToLowerInvariant()-cne$hash){throw ('Package size/hash mismatch: '+$relative)}
         $allFiles.Add([pscustomobject]@{Path=$relative;FullName=$file})
     }
-    foreach($required in @('Application/TaskPilot/TaskPilot.exe','Application/TaskPilot/TaskPilot.exe.config','Application/TaskPilot/Modules/TaskPilot.Storage/TaskPilot.Storage.psm1','Application/TaskPilot/Modules/TaskPilot.Storage/provider/System.Data.SQLite.dll','Application/TaskPilot/Modules/TaskPilot.Storage/provider/x64/SQLite.Interop.dll','Application/TaskPilot/Modules/TaskPilot.Storage/provider/x86/SQLite.Interop.dll','Application/TaskPilot/Modules/ImportExcel/EPPlus.dll','Application/TaskPilot/Modules/ImportExcel/ImportExcel.psd1','Application/TaskPilot/Adapters/TaskPilot.GuiStartup.ps1','Application/TaskPilot/Codec/TaskPilotMigrationCodec.cs','Application/TaskPilot/schema/001_initial.sql','README-ja.md','TEST-CASES-ja.md','RESULT-TEMPLATE-ja.md','LOGS-ja.md','DISTRIBUTION-OPTIONS-ja.md','FILE-LIST.tsv','Tools/Test-TaskPilotAcceptancePackage.ps1','Tools/Collect-TaskPilotAcceptanceLogs.ps1','Evidence/windows-native-results.json','Evidence/windows-native-verification.json','Evidence/windows-build-info.json')){
+    foreach($required in @('Application/TaskPilot/TaskPilot.exe','Application/TaskPilot/TaskPilot.exe.config','Application/TaskPilot/Modules/TaskPilot.Storage/TaskPilot.Storage.psm1','Application/TaskPilot/Modules/TaskPilot.Storage/provider/System.Data.SQLite.dll','Application/TaskPilot/Modules/TaskPilot.Storage/provider/x64/SQLite.Interop.dll','Application/TaskPilot/Modules/TaskPilot.Storage/provider/x86/SQLite.Interop.dll','Application/TaskPilot/Modules/ImportExcel/EPPlus.dll','Application/TaskPilot/Modules/ImportExcel/ImportExcel.psd1','Application/TaskPilot/Adapters/TaskPilot.GuiStartup.ps1','Application/TaskPilot/Adapters/TaskPilot.GuiIsolation.ps1','Application/TaskPilot/Runtime/TaskPilot.Runtime.ps1','Application/TaskPilot/Runtime/TaskPilot.TestSandbox.dll','Application/TaskPilot/Codec/TaskPilotMigrationCodec.cs','Application/TaskPilot/Codec/TaskPilotMigrationCodec.dll','Application/TaskPilot/schema/001_initial.sql','README-ja.md','TEST-MODE-ja.md','TEST-CASES-ja.md','RESULT-TEMPLATE-ja.md','LOGS-ja.md','DISTRIBUTION-OPTIONS-ja.md','FILE-LIST.tsv','Tools/Test-TaskPilotAcceptancePackage.ps1','Tools/Collect-TaskPilotAcceptanceLogs.ps1','Evidence/windows-native-results.json','Evidence/windows-native-verification.json','Evidence/windows-build-info.json','Evidence/windows-isolated-mode-results.json')){
         if(-not$names.Contains($required)){throw ('Required acceptance file is absent from the manifest: '+$required)}
     }
     $actual=@(Get-TPACFiles $root)
@@ -180,16 +206,27 @@ try{
     if((Get-TPACProperty $nativeResult 'Passed')-ne8-or(Get-TPACProperty $nativeResult 'Failed')-ne0-or(Get-TPACProperty $nativeResult 'ProcessBits')-ne64-or(Get-TPACProperty $nativeResult 'PowerShell')-notlike'5.1.*'){throw 'Native test evidence must show eight successful groups using 64-bit Windows PowerShell 5.1.'}
     $built=Get-TPACJson (Join-Path $root 'Application/TaskPilot/BuildInfo.json')
     $builtEvidence=Get-TPACJson (Join-Path $root 'Evidence/windows-build-info.json')
-    foreach($field in @('Product','Version','Architecture','SourceSha256','DependencyLockSha256','RuntimeAllowlistSha256','BuildId','SignatureStatus')){
+    foreach($field in @('Product','Version','Architecture','SourceSha256','RuntimeGuardSourceSha256','RuntimeGuardSha256','CodecSourceSha256','CodecRuntimeSha256','DependencyLockSha256','RuntimeAllowlistSha256','BuildId','SignatureStatus')){
         if((Get-TPACProperty $built $field)-cne(Get-TPACProperty $builtEvidence $field)){throw ('Packaged BuildInfo does not match the native build evidence: '+$field)}
     }
-    if((Get-TPACProperty $built 'Product')-cne'TaskPilot'-or(Get-TPACProperty $built 'Version')-cne'0.4.0.1'-or(Get-TPACProperty $built 'Architecture')-cne'x64'){throw 'Unexpected application product/version/architecture.'}
+    if((Get-TPACProperty $built 'Product')-cne'TaskPilot'-or(Get-TPACProperty $built 'Version')-cne'0.4.0.2'-or(Get-TPACProperty $built 'Architecture')-cne'x64'){throw 'Unexpected application product/version/architecture.'}
     Assert-TPACBoolean $built 'StartupDownloads' $false
+    Assert-TPACBoolean $built 'IndependentTestModeSupported' $true
+    if((Get-TPACProperty $built 'RuntimeGuardSha256')-cne(Get-FileHash -LiteralPath (Join-Path $root 'Application/TaskPilot/Runtime/TaskPilot.TestSandbox.dll') -Algorithm SHA256).Hash.ToLowerInvariant()-or(Get-TPACProperty $built 'CodecRuntimeSha256')-cne(Get-FileHash -LiteralPath (Join-Path $root 'Application/TaskPilot/Codec/TaskPilotMigrationCodec.dll') -Algorithm SHA256).Hash.ToLowerInvariant()){throw 'The packaged runtime/codec DLL does not match the native build identity.'}
+    $isolatedEvidence=Get-TPACJson (Join-Path $root 'Evidence/windows-isolated-mode-results.json')
+    foreach($field in @('Passed','NormalFixtureUnchanged','ActualExcelFilesGenerated')){Assert-TPACBoolean $isolatedEvidence $field $true}
+    foreach($field in @('WindowsClientGUIVerified','ApplicationRunCalled')){Assert-TPACBoolean $isolatedEvidence $field $false}
+    if((Get-TPACProperty $isolatedEvidence 'SourceCommit')-cne$candidateCommit){throw 'Independent mode test evidence belongs to a different source commit.'}
+    if(@(Get-TPACProperty $isolatedEvidence 'SkippedDetails').Count-ne0){throw 'Required independent mode boundary cases must not be skipped.'}
+    if(@(Get-TPACProperty $isolatedEvidence 'Cases').Count-lt14){throw 'Independent mode evidence must cover the required isolation cases.'}
+    if(@((Get-TPACProperty $isolatedEvidence 'Cases')|Where-Object {$_.Passed-isnot[bool]-or-not$_.Passed}).Count-ne0){throw 'Independent mode safety evidence contains a failed case.'}
+    if((Get-TPACProperty $isolatedEvidence 'RuntimeAssemblySha256')-cne(Get-TPACProperty $built 'RuntimeGuardSha256')){throw 'The tested runtime does not match the packaged guard.'}
     $manifestSha=(Get-FileHash -LiteralPath $manifestPath -Algorithm SHA256 -ErrorAction Stop).Hash.ToLowerInvariant()
     $validatedFiles=$allFiles.ToArray();$packageValid=$true
     Add-TPACCheck 'PackageIntegrity' $true ($validatedFiles.Count.ToString()+' listed files match; no extra files or links. These hashes are QA evidence, not publisher authentication.')
 }catch{Add-TPACCheck 'PackageIntegrity' $false $_.Exception.Message}
 
+$originOK=$false
 if($packageValid-and$tpacIsWindows){
     $originOK=$true
     foreach($entry in $validatedFiles){
@@ -198,7 +235,7 @@ if($packageValid-and$tpacIsWindows){
         catch{$originOK=$false;$originEvidence.Add([pscustomobject]@{Path=$entry.Path;State='UNREADABLE';ZoneIds=@();Blocked=$true;Error=$_.Exception.Message})}
     }
     Add-TPACCheck 'DownloadOrigin' $originOK 'Read-only stream inspection. ZoneId 3/4 or unreadable origin metadata blocks the test; nothing is unblocked automatically.'
-    foreach($relative in @('Application/TaskPilot/TaskPilot.exe','Application/TaskPilot/Modules/TaskPilot.Storage/provider/System.Data.SQLite.dll','Application/TaskPilot/Modules/TaskPilot.Storage/provider/x64/SQLite.Interop.dll','Application/TaskPilot/Modules/TaskPilot.Storage/provider/x86/SQLite.Interop.dll','Application/TaskPilot/Modules/ImportExcel/EPPlus.dll')){
+    foreach($relative in @('Application/TaskPilot/TaskPilot.exe','Application/TaskPilot/Modules/TaskPilot.Storage/provider/System.Data.SQLite.dll','Application/TaskPilot/Modules/TaskPilot.Storage/provider/x64/SQLite.Interop.dll','Application/TaskPilot/Modules/TaskPilot.Storage/provider/x86/SQLite.Interop.dll','Application/TaskPilot/Modules/ImportExcel/EPPlus.dll','Application/TaskPilot/Runtime/TaskPilot.TestSandbox.dll','Application/TaskPilot/Codec/TaskPilotMigrationCodec.dll')){
         try{
             $signaturePath=Join-Path $root ($relative.Replace('/',[string][IO.Path]::DirectorySeparatorChar))
             $signatureCommand=Get-Command -Name 'Microsoft.PowerShell.Security\Get-AuthenticodeSignature' -CommandType Cmdlet -ErrorAction Stop
@@ -213,7 +250,7 @@ if($packageValid-and$tpacIsWindows){
 }else{Add-TPACCheck 'DownloadOrigin' $false 'Not verified: requires an intact package and Windows stream inspection.'}
 
 $isolation='NOT_CHECKED'
-if($FirstUse){
+if($FirstUse-and-not$TestMode-and$modeValid){
     try{
         if(-not$tpacIsWindows-or[string]::IsNullOrWhiteSpace($localAppData)){throw 'First-use isolation requires the actual Windows LocalApplicationData folder.'}
         Assert-TPACNoLinks $localAppData
@@ -227,11 +264,34 @@ if($FirstUse){
         Add-TPACCheck 'FirstUseIsolation' $true 'No known TaskPilot data, logs, backups or lock paths exist in this Windows profile. A dedicated test user/VM remains required.'
     }catch{$isolation='BLOCKED';Add-TPACCheck 'FirstUseIsolation' $false $_.Exception.Message}
 }
+if($TestMode){
+    $testScope=$null
+    try{
+        if(-not$modeValid){throw 'Independent mode arguments are invalid; no test area was opened.'}
+        if(-not$hostSupported){throw 'Independent test readiness requires Windows 10/11 x64 with Desktop PowerShell 5.1; no profile area was opened on this host.'}
+        if(-not$packageValid-or-not$originOK){throw 'Verified package bytes and readable, unblocked origin metadata are required before loading the boundary DLL.'}
+        $guard=Join-Path $root 'Application/TaskPilot/Runtime/TaskPilot.TestSandbox.dll'
+        Assert-TPACNoLinks $guard
+        $assembly=[Reflection.Assembly]::LoadFrom($guard)
+        if((Get-TPACFullPath $assembly.Location)-ine(Get-TPACFullPath $guard)){throw 'A different boundary DLL is already loaded. Start a fresh Windows PowerShell process.'}
+        $type=$assembly.GetType('TaskPilot.Runtime.Sandbox',$true)
+        $factory=$type.GetMethod('Create',[Reflection.BindingFlags]'Public,Static',$null,[Type[]]@([string],[string]),$null)
+        if($null-eq$factory){throw 'The packaged boundary does not expose the reviewed factory.'}
+        # Only the actual Windows profile API and strict GUID feed the fixed
+        # namespace. No normal TaskPilot path is probed in this branch.
+        $testScope=$factory.Invoke($null,[object[]]@($localAppData,$TestEnvironmentId))
+        if([string]$testScope.Root-cne$expectedTestRoot){throw 'The boundary returned a different test root.'}
+        $testScope.ValidateTree()
+        $testAreaPrepared=$true;$isolation='INDEPENDENT_TEST_AREA_VALIDATED'
+        Add-TPACCheck 'TestModeIsolation' $true ('Validated only '+$expectedTestRoot+'. Marker/empty test directories may be prepared; normal data was not inspected.')
+    }catch{$isolation='BLOCKED';Add-TPACCheck 'TestModeIsolation' $false $_.Exception.Message}
+    finally{if($null-ne$testScope){$testScope.Dispose()}}
+}
 
 $reportPath=$null;$reportDirectory=$null
 if($OutputRoot){
     try{
-        $output=Get-TPACFullPath $OutputRoot;Assert-TPACNoLinks $output;Assert-TPACLocalDrive $output
+        $output=Get-TPACFullPath $OutputRoot;Assert-TPACNoNormalStatePath $output;Assert-TPACNoLinks $output;Assert-TPACLocalDrive $output
         if(-not[IO.Directory]::Exists($output)){throw 'OutputRoot must be an existing tester-owned results directory.'}
         if($null-eq$root-or(Test-TPACBelow $output $root)){throw 'Results must be outside the acceptance package.'}
         foreach($profilePath in @($localAppData,$roamingAppData)){
@@ -246,11 +306,15 @@ if($OutputRoot){
     }catch{Add-TPACCheck 'ReportDestination' $false $_.Exception.Message;$reportDirectory=$null}
 }
 $failed=@($script:TPACChecks|Where-Object {-not$_.Passed}).Count
-$status=if($failed-gt0){'BLOCKED'}elseif(-not$FirstUse){'PACKAGE_CHECK_ONLY'}else{'READY_FOR_MANUAL_TEST'}
+$status=if($failed-gt0){'BLOCKED'}elseif($TestMode){'READY_FOR_ISOLATED_TEST'}elseif(-not$FirstUse){'PACKAGE_CHECK_ONLY'}else{'READY_FOR_MANUAL_TEST'}
 $report=[pscustomobject][ordered]@{
     Stage='Windows 10/11 acceptance preparation - NOT FOR SALE'
     CapturedAtUtc=[datetime]::UtcNow.ToString('o')
     Status=$status
+    Mode=$requestedMode
+    TestEnvironmentId=$TestEnvironmentId
+    ExpectedTestRoot=$expectedTestRoot
+    TestAreaPrepared=$testAreaPrepared
     PackageRoot=$root
     PackageManifestSha256=$manifestSha
     CandidateSourceCommit=$candidateCommit
@@ -262,7 +326,7 @@ $report=[pscustomobject][ordered]@{
     Signatures=$signatureEvidence.ToArray()
     DownloadOrigin=$originEvidence.ToArray()
     ReportPath=$null
-    Boundaries=@('No application or provider code was executed.','No user database or legacy data content was read or changed.','No origin metadata, execution policy or OS security setting was changed.','Unsigned development candidate; QA hashes do not authenticate its publisher.','Windows 10/11 interactive UI, notifications and Excel output remain unverified by this checker.','Without FirstUse, profile isolation has not been checked; do not use PACKAGE_CHECK_ONLY as launch approval.')
+    Boundaries=@('No application entry point or SQLite provider was executed. Explicit TestMode can load the verified boundary DLL and prepare only its test marker/directories.','No normal user database or legacy data content was read or changed.','No origin metadata, execution policy or OS security setting was changed.','Unsigned development candidate; QA hashes do not authenticate its publisher.','Windows 10/11 interactive UI, notifications and Excel output remain unverified by this checker.','Normal FirstUse and explicit TestMode are separate checks. PACKAGE_CHECK_ONLY never approves launch.')
 }
 if($null-ne$reportDirectory){
     try{

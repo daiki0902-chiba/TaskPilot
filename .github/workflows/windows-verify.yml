@@ -12,6 +12,7 @@ on:
       - 'Modules/**'
       - 'Adapters/**'
       - 'Codec/**'
+      - 'Runtime/**'
       - 'schema/**'
       - 'tests/**'
       - 'build/**'
@@ -19,7 +20,6 @@ on:
       - 'docs/user/README.md'
       - 'docs/acceptance/**'
       - 'docs/build/THIRD-PARTY-NOTICES.md'
-      - 'docs/acceptance/**'
       - '.github/workflows/windows-verify.yml'
   workflow_dispatch:
 
@@ -56,7 +56,7 @@ jobs:
         run: |
           & .\reference\Test-Storage.ps1
 
-      - name: Test native SQLite and compile an unsigned development candidate
+      - name: Test native SQLite and independent mode before publishing a candidate
         run: |
           $verificationRoot = Join-Path $env:RUNNER_TEMP ('TaskPilot-native-' + $env:GITHUB_RUN_ID + '-' + $env:GITHUB_RUN_ATTEMPT)
           & .\tools\Invoke-TaskPilotWindowsVerification.ps1 -VerificationRoot $verificationRoot
@@ -71,7 +71,10 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4, official ref verified 2026-11-19
         with:
           name: TaskPilot-Windows-Server-native-test-reports-${{ github.run_id }}-${{ github.run_attempt }}
-          path: TestResults/Commercial_*.json
+          path: |
+            TestResults/Commercial_*.json
+            TestResults/Isolated_*.json
+            TestResults/IsolatedMode_*/IsolatedTestModeResult.json
           if-no-files-found: warn
           retention-days: 14
 
@@ -80,8 +83,8 @@ jobs:
         with:
           name: TaskPilot-DEVELOPMENT-NOT-FOR-SALE-${{ github.run_id }}-${{ github.run_attempt }}
           path: |
-            ${{ runner.temp }}/TaskPilot-native-${{ github.run_id }}-${{ github.run_attempt }}/Candidate/TaskPilot_0.4.0.1_DEVELOPMENT_NOT_FOR_SALE.zip
-            ${{ runner.temp }}/TaskPilot-native-${{ github.run_id }}-${{ github.run_attempt }}/Candidate/TaskPilot_0.4.0.1_DEVELOPMENT_NOT_FOR_SALE.zip.sha256
+            ${{ runner.temp }}/TaskPilot-native-${{ github.run_id }}-${{ github.run_attempt }}/Candidate/TaskPilot_0.4.0.2_DEVELOPMENT_NOT_FOR_SALE.zip
+            ${{ runner.temp }}/TaskPilot-native-${{ github.run_id }}-${{ github.run_attempt }}/Candidate/TaskPilot_0.4.0.2_DEVELOPMENT_NOT_FOR_SALE.zip.sha256
             ${{ runner.temp }}/TaskPilot-native-${{ github.run_id }}-${{ github.run_attempt }}/Candidate/BuildInfo.json
             ${{ runner.temp }}/TaskPilot-native-${{ github.run_id }}-${{ github.run_attempt }}/Candidate/SoftwareBillOfMaterials.json
             ${{ runner.temp }}/TaskPilot-native-${{ github.run_id }}-${{ github.run_attempt }}/Candidate/FileHashes.json
@@ -95,8 +98,8 @@ jobs:
         with:
           name: TaskPilot-Windows10-11-ACCEPTANCE-NOT-FOR-SALE-${{ github.run_id }}-${{ github.run_attempt }}
           path: |
-            ${{ runner.temp }}/TaskPilot-native-${{ github.run_id }}-${{ github.run_attempt }}/Acceptance/TaskPilot_Windows_Acceptance_0.4.0.1.zip
-            ${{ runner.temp }}/TaskPilot-native-${{ github.run_id }}-${{ github.run_attempt }}/Acceptance/TaskPilot_Windows_Acceptance_0.4.0.1.zip.sha256
+            ${{ runner.temp }}/TaskPilot-native-${{ github.run_id }}-${{ github.run_attempt }}/Acceptance/TaskPilot_Windows_Acceptance_0.4.0.2.zip
+            ${{ runner.temp }}/TaskPilot-native-${{ github.run_id }}-${{ github.run_attempt }}/Acceptance/TaskPilot_Windows_Acceptance_0.4.0.2.zip.sha256
           if-no-files-found: error
           retention-days: 14
 
@@ -110,6 +113,7 @@ jobs:
             TestResults/AcceptancePreparation_${{ github.run_id }}_${{ github.run_attempt }}/PackagingTests.json
             TestResults/AcceptancePreparation_${{ github.run_id }}_${{ github.run_attempt }}/AcceptancePackage.json
             TestResults/AcceptancePreparation_${{ github.run_id }}_${{ github.run_attempt }}/Preflight.json
+            TestResults/AcceptancePreparation_${{ github.run_id }}_${{ github.run_attempt }}/IndependentPreflight.json
             TestResults/AcceptancePreparation_${{ github.run_id }}_${{ github.run_attempt }}/ToolsTests.json
             TestResults/AcceptancePreparation_${{ github.run_id }}_${{ github.run_attempt }}/CollectorEnvironment.json
             TestResults/AcceptancePreparation_${{ github.run_id }}_${{ github.run_attempt }}/CollectorCandidateFiles.json

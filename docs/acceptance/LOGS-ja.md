@@ -1,6 +1,6 @@
 # エラーが出たときの記録とログ採取
 
-これはWindows 10/11の**専用テストユーザー／復元可能なVM**で使う受入試験の手順です。普段の業務データを使うユーザーでは実行しません。採取ツールはアプリを起動・終了せず、既存データ・ログ・DLL・設定を変更しません。管理者権限、Python、追加モジュール、外部への自動送信は不要です。
+これはWindows 10/11の受入試験用手順です。通常の初回試験は専用テストユーザー/VMだけで実施します。独立モードの採取は、対象ビルドと実施条件を確認した後、同じ `-TestMode -TestEnvironmentId` を明示し、テスト領域だけを対象とします。[独立モードの条件](TEST-MODE-ja.md)を満たす前に、既存業務ユーザーでの実行を案内するものではありません。採取ツールはアプリを起動・終了せず、元ログ・DLL・設定を変更しません。管理者権限、Python、追加モジュール、外部への自動送信は不要です。
 
 ## 最初に記録すること
 
@@ -11,7 +11,29 @@
 
 ## 採取ツールの実行
 
-アプリを起動したのと同じ**専用テストユーザー**でWindows PowerShell 5.1を開きます。`ApplicationDirectory`は`TaskPilot.exe`が入っているフォルダー、`OutputRoot`は既に存在するデスクトップ上の別フォルダーです。出力先はローカルドライブを使い、ネットワーク共有・割り当てたネットワークドライブを指定しません。アプリ、ログ、AppDataの配下を出力先に指定すると停止します。OneDrive等で同期されているデスクトップは避け、専用テストユーザーの同期されていない場所を使ってください。
+アプリを起動したのと同じユーザーでWindows PowerShell 5.1を開きます。`ApplicationDirectory`は`TaskPilot.exe`が入っているフォルダー、`OutputRoot`は既に存在する端末内の別の結果フォルダーです。出力先はローカルドライブを使い、ネットワーク共有・割り当てたネットワークドライブを指定しません。アプリ、ログ、AppData、独立テスト領域の配下を出力先に指定すると停止します。OneDrive等で同期されている場所も避けます。
+
+### 独立モード用の採取
+
+次は独立モードの受入担当者向けのコマンドです。キットと結果フォルダーを設定し、起動前検査時に保存したIDを使います。新しいIDをここで生成しません。
+
+```powershell
+$tpApp = Join-Path $tpKit 'Application\TaskPilot'
+$tpTools = Join-Path $tpKit 'Tools'
+$tpEnvironmentId = (Get-Content -LiteralPath (Join-Path $tpResults 'TestEnvironmentId.txt') -Raw -Encoding UTF8).Trim()
+& (Join-Path $tpTools 'Collect-TaskPilotAcceptanceLogs.ps1') `
+    -ApplicationDirectory $tpApp `
+    -OutputRoot $tpResults `
+    -TestMode -TestEnvironmentId $tpEnvironmentId `
+    -CaseId 'TM-08' `
+    -Reproduction 'UAT合成データのバックアップ復元時に発生したエラー。'
+```
+
+この指定では `%LOCALAPPDATA%\TaskPilotTest\<ID>\Logs` だけを読みます。`-LogDirectory` の併用は禁止です。境界DLL・取得元・領域マーカーを検査し、既存のテスト領域を読み取り用に開きます。領域が存在しない・安全でない・ブロックされている場合は理由を記録し、通常ログを代わりに読みません。ログ採取のために新しいテスト領域やDBを作りません。
+
+### 通常の初回試験用の採取
+
+次はTaskPilotの業務データを持たない**専用テストユーザー/VMだけ**の例です。独立モードのエラーで、このコマンドへ切り替えません。
 
 ```powershell
 # 次の2つのパスは、実際に展開した場所へ置き換えてください。
@@ -35,18 +57,18 @@ New-Item -ItemType Directory -Path $tpEvidence -ErrorAction Stop | Out-Null
 | 出力 | 内容 |
 | --- | --- |
 | `Environment.json` | 採取UTC時刻、ケースID・手入力の再現手順、OS版・ビルド情報、PowerShell版、プロセスbit数、CLR/.NET Framework Release、指定したアプリ・ログのパス。機器のシリアル番号・IP・環境変数の全ダンプは採取しません。 |
-| `CandidateFiles.json` | 固定したEXE・設定・配布メタデータ・SQLite DLL・EPPlus DLL等の存在、サイズ、SHA-256、版情報、署名状態・公開証明書情報、Zone.Identifierの有無・ZoneId。ファイル本体やZone.Identifierの取得元URLはコピーしません。 |
-| `Logs/` | `%LOCALAPPDATA%\TaskPilot4Logs`直下の`actions.log`、`errors.log`、`MigrationInspection_（32桁GUID）.json`、`MigrationResult_（32桁GUID）.json`だけ。サブフォルダーは辿りません。 |
+| `CandidateFiles.json` | 固定したEXE・設定・配布メタデータ・SQLite DLL・EPPlus DLL・テスト境界DLL等の存在、サイズ、SHA-256、版情報、署名状態・公開証明書情報、Zone.Identifierの有無・ZoneId。ファイル本体やZone.Identifierの取得元URLはコピーしません。 |
+| `Logs/` | 独立モードはそのIDの`Logs`、通常初回試験は専用ユーザーの`TaskPilot4Logs`。直下の`actions.log`、`errors.log`、`MigrationInspection_（32桁GUID）.json`、`MigrationResult_（32桁GUID）.json`だけ。下位フォルダーを辿らず、独立モードで旧データ移行ログを新たに生成しません。 |
 | `Collection.json` | 採取・未採取・失敗したファイル、採取バイト数、ハッシュ、サイズ上限や読み取り失敗の理由。 |
 | `REVIEW-BEFORE-SHARING.txt` | 共有前の内容確認に関する注意。 |
 
 既定ではログ50件・各10MiB・合計50MiBまでです。上限超過、アクセス拒否、リンク／ジャンクション、途中で読み取れなくなった場合は理由を記録します。ログはベストエフォートのコピーであり、アプリ起動中の追記・変更を完全に検出する保証はありません。アプリ候補ファイルの診断読み取りも各32MiBまでです。必要なログが上限を超えた場合、元ログを切り詰めず、調査担当に採取方法を相談します。
 
-**DB、CSV、Excel、バックアップ、`active-store.json`、タスク・サブタスク等のユーザーデータを自動コピーしません。** `-LogDirectory`はテスト用コピーを調査する場合の明示指定用です。普段の業務ユーザーのフォルダーを指定しません。
+**DB、CSV、Excel、バックアップ、`active-store.json`、タスク・サブタスク等のユーザーデータを自動コピーしません。** 通常の開発用 `-LogDirectory` 指定は合成コピー専用です。独立モードではこの上書き指定を受け付けません。普段の業務ログや他IDの保存先を指定しません。
 
 ## ログがない場合
 
-DLLのロード拒否など、ログ初期化より前に停止すると`TaskPilot4Logs`が存在しないことがあります。`errors.log`がないことは成功の証拠ではありません。画面の全文、発生時刻、`CandidateFiles.json`の署名・ZoneId、OS・配布物ハッシュを添えます。ログ保存そのものに失敗したと表示された場合も、その画面を記録します。DBを作り直したり、DLLを解除して状況を消したりしません。
+DLLのロード拒否など、ログ初期化より前に停止すると選択モードのログフォルダーが存在しないことがあります。`errors.log`がないことは成功の証拠ではありません。画面の全文、発生時刻、モードとID、`CandidateFiles.json`の署名・ZoneId、OS・配布物ハッシュを添えます。独立領域の読み取りが停止しても通常ログへfallbackしません。ログ保存そのものに失敗した場合も画面を記録します。DBを作り直したり、DLLを解除して状況を消したりしません。
 
 アプリが無言で終了する場合は、必要に応じてWindowsの「イベントビューアー」→「Windowsログ」→「Application」で**同じ発生時刻**の`.NET Runtime`／`Application Error`を確認します。関連イベントだけの画面または「選択したイベントの保存」を使い、ログ全体は送らないでください。アクセス拒否なら管理者へ昇格せず、その旨を記録します。イベントには他のアプリ・ユーザー情報も含まれ得ます。
 

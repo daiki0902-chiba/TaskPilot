@@ -32,12 +32,33 @@ function Get-TPATSnapshot([string]$Root){
 $original=Get-TPATSnapshot $kit
 $initial=& $checker -PackageRoot $kit -OutputRoot $fixture
 Assert-TPAT ((Get-TPATCheck $initial 'PackageIntegrity').Passed) 'The intact package must pass file/evidence checks.'
-Assert-TPAT ($initial.Status-cne'READY_FOR_MANUAL_TEST'-and$initial.Isolation-ceq'NOT_CHECKED') 'A file check without FirstUse must never approve launch.'
+Assert-TPAT ($initial.Status-notin@('READY_FOR_MANUAL_TEST','READY_FOR_ISOLATED_TEST')-and$initial.Isolation-ceq'NOT_CHECKED') 'A file check without FirstUse or TestMode must never approve launch.'
 Assert-TPAT ([IO.File]::Exists($initial.ReportPath)) 'A preflight report must be written to a new results child.'
 $fresh=& $checker -PackageRoot $kit -OutputRoot $fixture -FirstUse
 $osCheck=Get-TPATCheck $fresh 'Windows10Or11Desktop51x64'
 if(-not$osCheck.Passed){Assert-TPAT ($fresh.Status-ceq'BLOCKED') 'Server/Linux must not claim Windows 10/11 readiness.'}
 if($tpToolIsWindows){Assert-TPAT ((Get-TPATCheck $fresh 'DownloadOrigin').Passed) 'Native fixture origin streams must be readable without security changes.'}
+$id='1234567890abcdef1234567890abcdef'
+$invalidMode=& $checker -PackageRoot $kit -TestMode -TestEnvironmentId '../outside'
+Assert-TPAT ($invalidMode.Status-ceq'BLOCKED'-and-not(Get-TPATCheck $invalidMode 'ModeArguments').Passed-and-not$invalidMode.TestAreaPrepared) 'Invalid independent-mode IDs must block without preparing any profile area.'
+Assert-TPAT (@($invalidMode.Checks|Where-Object {$_.Name-ceq'FirstUseIsolation'}).Count-eq0) 'Independent mode must never run the normal-profile presence check.'
+$missingModeId=& $checker -PackageRoot $kit -TestMode
+Assert-TPAT ($missingModeId.Status-ceq'BLOCKED'-and-not(Get-TPATCheck $missingModeId 'ModeArguments').Passed-and-not$missingModeId.TestAreaPrepared) 'Independent mode without an ID must block before any test area is opened.'
+Assert-TPAT (@($missingModeId.Checks|Where-Object {$_.Name-ceq'FirstUseIsolation'}).Count-eq0) 'A missing test ID must not fall back to normal first use.'
+$conflictingMode=& $checker -PackageRoot $kit -FirstUse -TestMode -TestEnvironmentId $id
+Assert-TPAT ($conflictingMode.Status-ceq'BLOCKED'-and-not(Get-TPATCheck $conflictingMode 'ModeArguments').Passed-and-not$conflictingMode.TestAreaPrepared) 'FirstUse and independent mode must not be combined.'
+Assert-TPAT (@($conflictingMode.Checks|Where-Object {$_.Name-ceq'FirstUseIsolation'}).Count-eq0) 'A conflicting independent-mode request must not inspect normal state.'
+$falseMode=& $checker -PackageRoot $kit -FirstUse -TestMode:$false
+Assert-TPAT ($falseMode.Status-ceq'BLOCKED'-and-not(Get-TPATCheck $falseMode 'ModeArguments').Passed-and-not$falseMode.TestAreaPrepared) 'An explicitly false test-mode flag must not fall back to normal first use.'
+Assert-TPAT (@($falseMode.Checks|Where-Object {$_.Name-ceq'FirstUseIsolation'}).Count-eq0) 'A false test-mode request must not inspect normal state.'
+$orphanId=& $checker -PackageRoot $kit -TestEnvironmentId $id
+Assert-TPAT ($orphanId.Status-ceq'BLOCKED'-and-not(Get-TPATCheck $orphanId 'ModeArguments').Passed) 'An ID alone must not silently select a mode.'
+if(-not$osCheck.Passed){
+    $serverMode=& $checker -PackageRoot $kit -TestMode -TestEnvironmentId $id
+    Assert-TPAT ($serverMode.Status-ceq'BLOCKED'-and-not$serverMode.TestAreaPrepared) 'Server/Linux must not create the real profile test root or approve client launch.'
+    Assert-TPAT (-not(Get-TPATCheck $serverMode 'TestModeIsolation').Passed) 'Independent mode must have its own failed isolation result on an unsupported host.'
+    Assert-TPAT (@($serverMode.Checks|Where-Object {$_.Name-ceq'FirstUseIsolation'}).Count-eq0) 'Server independent-mode preparation must not inspect normal data.'
+}
 
 # Every negative mutation is in a new synthetic copy, never in the supplied kit.
 $copy=Join-Path $fixture 'KitCopy'
@@ -97,6 +118,15 @@ Assert-TPAT ($again.Directory-cne$collected.Directory) 'Repeated collection must
 $rejected=$false
 try{& $collector -ApplicationDirectory $app -OutputRoot $app -LogDirectory $logs|Out-Null}catch{$rejected=$true}
 Assert-TPAT $rejected 'Diagnostic output inside the application must be refused.'
+$rejected=$false
+try{& $collector -ApplicationDirectory $app -OutputRoot $logOutput -TestMode -TestEnvironmentId $id -LogDirectory $logs|Out-Null}catch{$rejected=$true}
+Assert-TPAT $rejected 'Isolated diagnostics must reject arbitrary LogDirectory overrides before reading them.'
+$rejected=$false
+try{& $collector -ApplicationDirectory $app -OutputRoot $logOutput -TestMode -TestEnvironmentId '../bad'|Out-Null}catch{$rejected=$true}
+Assert-TPAT $rejected 'Isolated diagnostic IDs must reject traversal before accessing a profile.'
+$rejected=$false
+try{& $collector -ApplicationDirectory $app -OutputRoot $logOutput -TestMode:$false -LogDirectory $logs|Out-Null}catch{$rejected=$true}
+Assert-TPAT $rejected 'A false diagnostic test-mode flag must not select the ordinary log path.'
 [IO.File]::WriteAllBytes((Join-Path $logs 'errors.log'),(New-Object byte[] 2097152))
 $large=& $collector -ApplicationDirectory $app -OutputRoot $logOutput -LogDirectory $logs -MaximumLogFileMiB 1
 $collection=Get-Content -LiteralPath (Join-Path $large.Directory 'Collection.json') -Raw -Encoding UTF8|ConvertFrom-Json
@@ -114,7 +144,7 @@ $missing=& $collector -ApplicationDirectory $app -OutputRoot $logOutput -LogDire
 Assert-TPAT ($missing.Warnings-ge1-and$missing.LogsSelected-eq0) 'Missing logs must be recorded, never inferred as success.'
 if($tpToolIsWindows){
     $candidateFiles=@(Get-Content -LiteralPath (Join-Path $collected.Directory 'CandidateFiles.json') -Raw -Encoding UTF8|ConvertFrom-Json)
-    foreach($relative in @('TaskPilot.exe','Modules/TaskPilot.Storage/provider/System.Data.SQLite.dll','Modules/TaskPilot.Storage/provider/x64/SQLite.Interop.dll','Modules/TaskPilot.Storage/provider/x86/SQLite.Interop.dll','Modules/ImportExcel/EPPlus.dll')){
+    foreach($relative in @('TaskPilot.exe','Modules/TaskPilot.Storage/provider/System.Data.SQLite.dll','Modules/TaskPilot.Storage/provider/x64/SQLite.Interop.dll','Modules/TaskPilot.Storage/provider/x86/SQLite.Interop.dll','Modules/ImportExcel/EPPlus.dll','Runtime/TaskPilot.TestSandbox.dll','Codec/TaskPilotMigrationCodec.dll')){
         $entry=@($candidateFiles|Where-Object {$_.Path-ceq$relative})
         Assert-TPAT ($entry.Count-eq1-and$entry[0].State-ceq'Present'-and$entry[0].SignatureStatus-ne'Unavailable'-and$entry[0].ZoneState-notin@('ReadFailed','Unavailable')) ('Windows metadata must be readable for '+$relative)
     }

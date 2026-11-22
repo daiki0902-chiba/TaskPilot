@@ -2,12 +2,13 @@
 [CmdletBinding()]
 param(
     [Parameter(Mandatory=$true)][string]$CandidateZipPath,
-    [ValidatePattern('^[0-9a-f]{64}$')][string]$ExpectedCandidateSha256='e977b31a8f6eb25c66b8d6d0658b421db13b2db1849b00c33a3234d5d1b70795',
-    [ValidatePattern('^[0-9a-f]{40}$')][string]$ExpectedSourceCommit='9c7ad91674f7c47784b51305c080405f7c534d80',
-    [string]$WindowsVerificationPath,
-    [string]$WindowsTestReportPath,
-    [ValidatePattern('^[0-9a-f]{40}$')][string]$BasePullRequestHead='c683d4ee80dcd9e66656e3feca04e96072910517',
-    [string]$ServerEvidenceRunUrl='https://github.com/daiki0902-chiba/TaskPilot/actions/runs/44640521434'
+    [Parameter(Mandatory=$true)][ValidatePattern('^[0-9a-f]{64}$')][string]$ExpectedCandidateSha256,
+    [Parameter(Mandatory=$true)][ValidatePattern('^[0-9a-f]{40}$')][string]$ExpectedSourceCommit,
+    [Parameter(Mandatory=$true)][string]$WindowsVerificationPath,
+    [Parameter(Mandatory=$true)][string]$WindowsTestReportPath,
+    [Parameter(Mandatory=$true)][string]$IsolatedModeTestReportPath,
+    [Parameter(Mandatory=$true)][ValidatePattern('^[0-9a-f]{40}$')][string]$BasePullRequestHead,
+    [Parameter(Mandatory=$true)][ValidatePattern('^https://github[.]com/daiki0902-chiba/TaskPilot/actions/runs/[0-9]+$')][string]$ServerEvidenceRunUrl
 )
 $ErrorActionPreference='Stop';Set-StrictMode -Version 2.0
 $repo=Split-Path -Parent $PSScriptRoot
@@ -34,8 +35,7 @@ $null=[IO.Directory]::CreateDirectory($root)
 $builder=Join-Path $repo 'tools/New-TaskPilotAcceptancePackage.ps1'
 $candidate=Get-TPBuildFullPath $CandidateZipPath
 $before=Get-TPBuildSha $candidate
-$arguments=@{ExpectedCandidateSha256=$ExpectedCandidateSha256;ExpectedSourceCommit=$ExpectedSourceCommit;BasePullRequestHead=$BasePullRequestHead;ServerEvidenceRunUrl=$ServerEvidenceRunUrl}
-foreach($name in @('WindowsVerificationPath','WindowsTestReportPath')){if($PSBoundParameters.ContainsKey($name)){$arguments[$name]=$PSBoundParameters[$name]}}
+$arguments=@{ExpectedCandidateSha256=$ExpectedCandidateSha256;ExpectedSourceCommit=$ExpectedSourceCommit;BasePullRequestHead=$BasePullRequestHead;ServerEvidenceRunUrl=$ServerEvidenceRunUrl;WindowsVerificationPath=$WindowsVerificationPath;WindowsTestReportPath=$WindowsTestReportPath;IsolatedModeTestReportPath=$IsolatedModeTestReportPath}
 
 # Load only the reviewed archive-validation functions; do not run the builder.
 $tokens=$null;$errors=$null;$ast=[Management.Automation.Language.Parser]::ParseFile($builder,[ref]$tokens,[ref]$errors)
@@ -80,11 +80,50 @@ Assert-AcceptancePackaging ((Get-TPBuildSha $sentinel)-ceq$sentinelHash-and@(Get
 Reject-AcceptancePackaging {& $builder -CandidateZipPath $candidate -OutputRoot (Join-Path $repo 'forbidden-acceptance-test') @arguments} '*disjoint*'
 Assert-AcceptancePackaging (-not(Test-TPBuildPathExists (Join-Path $repo 'forbidden-acceptance-test'))) 'Builder created output inside source.'
 
+# A valid old/native regression report cannot replace proof of mode isolation.
+# Tamper only new fixture copies of the supplied report, never its source.
+$proofBefore=Get-TPBuildSha $IsolatedModeTestReportPath
+$proofNumber=0
+foreach($failure in @('NormalFixtureChanged','ExcelNotGenerated','ClientClaimed','SourceMismatch','SkippedBoundaryCase','TooFewCases','FailedNativeCase')){
+    $proofNumber++
+    $fake=Get-Content -LiteralPath $IsolatedModeTestReportPath -Raw -Encoding UTF8|ConvertFrom-Json
+    $pattern='*Boolean field*'
+    switch($failure){
+        'NormalFixtureChanged'{$fake.NormalFixtureUnchanged=$false}
+        'ExcelNotGenerated'{$fake.ActualExcelFilesGenerated=$false}
+        'ClientClaimed'{$fake.WindowsClientGUIVerified=$true}
+        'SourceMismatch'{$fake.SourceCommit='0'*40;if($fake.SourceCommit-ceq$ExpectedSourceCommit){$fake.SourceCommit='1'*40};$pattern='*identify this source*'}
+        'SkippedBoundaryCase'{$fake.SkippedDetails=@('synthetic missing boundary case');$pattern='*safety checks were skipped*'}
+        'TooFewCases'{$fake.Cases=@($fake.Cases|Select-Object -First 1);$pattern='*at least 14 passed*'}
+        'FailedNativeCase'{$fake.Cases[0].Passed=$false;$pattern='*at least 14 passed*'}
+    }
+    $fakeProof=Join-Path (Join-Path $root ('invalid-isolation-proof_'+$proofNumber)) ([IO.Path]::GetFileName($IsolatedModeTestReportPath))
+    Write-TPBuildNewText $fakeProof (ConvertTo-Json -InputObject $fake -Depth 20) $true
+    $negativeArguments=$arguments.Clone();$negativeArguments.IsolatedModeTestReportPath=$fakeProof
+    $negativeOutput=Join-Path $root ('invalid-isolation-output_'+$proofNumber)
+    Reject-AcceptancePackaging {& $builder -CandidateZipPath $candidate -OutputRoot $negativeOutput @negativeArguments} $pattern
+    Assert-AcceptancePackaging (-not(Test-TPBuildPathExists $negativeOutput)) ('Invalid isolated-mode evidence created output: '+$failure)
+}
+Assert-AcceptancePackaging ((Get-TPBuildSha $IsolatedModeTestReportPath)-ceq$proofBefore) 'The original isolated-mode report was changed.'
+
+# The suite proof must identify the compiled guard that will be distributed.
+# This validation can require inspecting the new extraction; no ZIP may be
+# published from that partial output when the proof refers to another guard.
+$wrongRuntime=Get-Content -LiteralPath $IsolatedModeTestReportPath -Raw -Encoding UTF8|ConvertFrom-Json
+$wrongRuntime.RuntimeAssemblySha256='0'*64
+$wrongRuntimeProof=Join-Path (Join-Path $root 'invalid-runtime-proof') ([IO.Path]::GetFileName($IsolatedModeTestReportPath))
+Write-TPBuildNewText $wrongRuntimeProof (ConvertTo-Json -InputObject $wrongRuntime -Depth 20) $true
+$runtimeArguments=$arguments.Clone();$runtimeArguments.IsolatedModeTestReportPath=$wrongRuntimeProof
+$wrongRuntimeOutput=Join-Path $root 'invalid-runtime-output'
+Reject-AcceptancePackaging {& $builder -CandidateZipPath $candidate -OutputRoot $wrongRuntimeOutput @runtimeArguments} '*tested runtime*'
+Assert-AcceptancePackaging (-not[IO.File]::Exists((Join-Path $wrongRuntimeOutput 'TaskPilot_Windows_Acceptance_0.4.0.2.zip'))) 'A mismatched runtime proof published a kit ZIP.'
+
 $built=& $builder -CandidateZipPath $candidate -OutputRoot (Join-Path $root 'new-package') @arguments
 Assert-AcceptancePackaging ([IO.File]::Exists($built.Zip)-and(Get-TPBuildSha $built.Zip)-ceq$built.Sha256) 'Package ZIP/hash differs from the result.'
-Assert-AcceptancePackaging ($built.ApplicationFiles-eq136-and-not$built.Windows10Verified-and-not$built.Windows11Verified) 'Packaging claimed client acceptance or lost application files.'
+Assert-AcceptancePackaging ($built.ApplicationFiles-ge140-and$built.ApplicationFiles-le256-and-not$built.Windows10Verified-and-not$built.Windows11Verified) 'Packaging claimed client acceptance or lost independent-mode application files.'
 $manifest=Get-Content -LiteralPath (Join-Path $built.PackageRoot 'PACKAGE-MANIFEST.json') -Raw -Encoding UTF8|ConvertFrom-Json
 Assert-AcceptancePackaging ($manifest.CandidateZipSha256-ceq$before-and$manifest.CandidateSourceCommit-ceq$ExpectedSourceCommit) 'Candidate provenance differs.'
+Assert-AcceptancePackaging ($manifest.BinaryVersion-ceq'0.4.0.2'-and$manifest.ApplicationFiles-eq$built.ApplicationFiles) 'The kit must identify the isolated test-mode binary.'
 Assert-AcceptancePackaging ($manifest.Stage-like'*NOT FOR SALE*'-and-not$manifest.Windows10Verified-and-not$manifest.Windows11Verified-and-not$manifest.InteractiveGuiVerified) 'Manifest overstates commercial or client verification.'
 Assert-AcceptancePackaging ($manifest.Files.Count+1-eq$built.FileCount-and@(Get-TPBuildFiles $built.PackageRoot).Count-eq$built.FileCount) 'Manifest does not account for every package file.'
 $seen=New-Object 'Collections.Generic.HashSet[string]' ([StringComparer]::OrdinalIgnoreCase)
@@ -93,11 +132,18 @@ foreach($entry in $manifest.Files){
     $path=Join-Path $built.PackageRoot ($entry.Path.Replace('/',[string][IO.Path]::DirectorySeparatorChar))
     Assert-AcceptancePackaging ([IO.File]::Exists($path)-and([IO.FileInfo]$path).Length-eq$entry.Bytes-and(Get-TPBuildSha $path)-ceq$entry.Sha256) ('Manifest content differs: '+$entry.Path)
 }
-foreach($required in @('README-ja.md','TEST-CASES-ja.md','RESULT-TEMPLATE-ja.md','LOGS-ja.md','DISTRIBUTION-OPTIONS-ja.md','FILE-LIST.tsv','Tools/Test-TaskPilotAcceptancePackage.ps1','Tools/Collect-TaskPilotAcceptanceLogs.ps1','Evidence/windows-native-results.json','Evidence/windows-native-verification.json','Evidence/windows-build-info.json','Application/TaskPilot/TaskPilot.exe','Application/TaskPilot/TaskPilot.exe.config','Application/TaskPilot/Modules/TaskPilot.Storage/provider/System.Data.SQLite.dll','Application/TaskPilot/Modules/TaskPilot.Storage/provider/x64/SQLite.Interop.dll','Application/TaskPilot/Modules/TaskPilot.Storage/provider/x86/SQLite.Interop.dll','Application/TaskPilot/Modules/ImportExcel/EPPlus.dll')){
+foreach($required in @('README-ja.md','TEST-MODE-ja.md','TEST-CASES-ja.md','RESULT-TEMPLATE-ja.md','LOGS-ja.md','DISTRIBUTION-OPTIONS-ja.md','FILE-LIST.tsv','Tools/Test-TaskPilotAcceptancePackage.ps1','Tools/Collect-TaskPilotAcceptanceLogs.ps1','Evidence/windows-native-results.json','Evidence/windows-native-verification.json','Evidence/windows-build-info.json','Evidence/windows-isolated-mode-results.json','Application/TaskPilot/TaskPilot.exe','Application/TaskPilot/TaskPilot.exe.config','Application/TaskPilot/Adapters/TaskPilot.GuiIsolation.ps1','Application/TaskPilot/Runtime/TaskPilot.Runtime.ps1','Application/TaskPilot/Runtime/TaskPilot.TestSandbox.dll','Application/TaskPilot/Codec/TaskPilotMigrationCodec.dll','Application/TaskPilot/Modules/TaskPilot.Storage/provider/System.Data.SQLite.dll','Application/TaskPilot/Modules/TaskPilot.Storage/provider/x64/SQLite.Interop.dll','Application/TaskPilot/Modules/TaskPilot.Storage/provider/x86/SQLite.Interop.dll','Application/TaskPilot/Modules/ImportExcel/EPPlus.dll')){
     Assert-AcceptancePackaging ($seen.Contains($required)) ('Required acceptance item missing: '+$required)
 }
+$buildEvidence=Get-Content -LiteralPath (Join-Path $built.PackageRoot 'Evidence/windows-build-info.json') -Raw -Encoding UTF8|ConvertFrom-Json
+Assert-AcceptancePackaging ($buildEvidence.IndependentTestModeSupported-is[bool]-and$buildEvidence.IndependentTestModeSupported) 'The built application must explicitly support independent test mode.'
+foreach($compiled in @(@('RuntimeGuardSha256','Runtime/TaskPilot.TestSandbox.dll'),@('CodecRuntimeSha256','Codec/TaskPilotMigrationCodec.dll'))){
+    $declared=$buildEvidence.PSObject.Properties[$compiled[0]]
+    $actual=Get-TPBuildSha (Join-Path $built.PackageRoot ('Application/TaskPilot/'+$compiled[1]))
+    Assert-AcceptancePackaging ($null-ne$declared-and$declared.Value-is[string]-and$declared.Value-ceq$actual) ('Compiled runtime DLL must match its native build evidence: '+$compiled[1])
+}
 $list=Get-Content -LiteralPath (Join-Path $built.PackageRoot 'FILE-LIST.tsv') -Encoding UTF8
-Assert-AcceptancePackaging ($list.Count-eq137-and$list[0]-like'Path*SHA256*Purpose') 'Application inventory must list all 136 native files.'
+Assert-AcceptancePackaging ($list.Count-eq$built.ApplicationFiles+1-and$list[0]-like'Path*SHA256*Purpose') 'Application inventory must list all native files.'
 $original=[IO.Compression.ZipFile]::OpenRead($candidate);$compared=0
 try{foreach($entry in $original.Entries){
     $name=$entry.FullName.Replace('\','/');if($name.EndsWith('/')){continue}
@@ -106,11 +152,11 @@ try{foreach($entry in $original.Entries){
     Assert-AcceptancePackaging ((Get-TPBuildSha $copied)-ceq$hash) ('Native application bytes changed: '+$name)
     $compared++
 }}finally{$original.Dispose()}
-Assert-AcceptancePackaging ($compared-eq136) 'Not all original application bytes were compared.'
+Assert-AcceptancePackaging ($compared-eq$built.ApplicationFiles) 'Not all original application bytes were compared.'
 $wrapped=[IO.Compression.ZipFile]::OpenRead($built.Zip)
 try{
     Assert-AcceptancePackaging ($wrapped.Entries.Count-eq$built.FileCount) 'ZIP lost or added files.'
-    foreach($entry in $wrapped.Entries){Assert-AcceptancePackaging ($entry.FullName.StartsWith('TaskPilot_Acceptance_0.4.0.1/',[StringComparison]::Ordinal)-and-not$entry.FullName.Contains('\')) 'ZIP must use portable relative paths beneath one root.'}
+    foreach($entry in $wrapped.Entries){Assert-AcceptancePackaging ($entry.FullName.StartsWith('TaskPilot_Acceptance_0.4.0.2/',[StringComparison]::Ordinal)-and-not$entry.FullName.Contains('\')) 'ZIP must use portable relative paths beneath one root.'}
 }finally{$wrapped.Dispose()}
 Assert-AcceptancePackaging ((Get-TPBuildSha $candidate)-ceq$before) 'Original candidate ZIP was changed.'
 return [pscustomobject]@{Passed=$true;Checks=$script:checks;TestRoot=$root;PackageRoot=$built.PackageRoot;ApplicationFiles=$compared;Windows10Verified=$false;Windows11Verified=$false;InteractiveGuiVerified=$false}
