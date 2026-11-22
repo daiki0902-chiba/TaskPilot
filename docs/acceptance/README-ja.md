@@ -21,12 +21,12 @@
 | --- | --- |
 | Windows Server 2022 x64 / Windows PowerShell 5.1 / 同梱SQLite | 最新CIで通常の回帰・自動試験8群は成功。 |
 | 同Serverでの独立スイート | 修正後は27ケース・146検査が成功。I25/I28を含む。追加の保存・復旧8ケース47検査、リンク80試行とガード40検査も成功。Windows 10/11実機は未検証。 |
-| 同Serverでのビルド | 内部の未署名EXE生成は成功。独立境界の失敗により、対応EXE・候補ZIP・受入キットは公開しない。 |
+| 同Serverでのビルド | 内部の未署名EXE生成は成功。修正後もWindows 10/11実機受入・実ディスク障害の未検証により、対応EXE・候補ZIP・受入キットは公開しない。 |
 | Windows 10 x64 / Windows 11 x64 | この受入テストの対象。操作・起動の合格記録はまだない。 |
 | 実際のWinForms、通知、カレンダー、実Excel閲覧 | 実機の対話操作は未検証。独立スイートの実ブック・グラフXML生成の成否は当該Evidenceで確認し、外部Excelでの表示合格と分ける。 |
 | ダウンロード後のDLLブロック、署名・インストーラー | 未解決の配布条件。安全な配布方式は検討段階。 |
 
-最新の失敗と証跡は上記CIを確認してください。旧0.4.0.1でのキット生成成功を、0.4.0.2の独立モード成功へ転記しません。将来の公開時には `PACKAGE-MANIFEST.json` の `CandidateSourceCommit` と `ServerEvidenceRunUrl`、`Evidence/windows-native-results.json`、`windows-native-verification.json`、`windows-build-info.json`、`windows-isolated-mode-results.json` を照合する計画です。Serverの自動試験とWindows 10/11の対話GUIの結果は分けて保管します。
+以前の失敗と修正後の証跡は専用レポートと上記CIを確認してください。旧0.4.0.1でのキット生成成功を、0.4.0.2の独立モード成功へ転記しません。将来の公開時には `PACKAGE-MANIFEST.json` の `CandidateSourceCommit` と `ServerEvidenceRunUrl`、`Evidence/windows-native-results.json`、`windows-native-verification.json`、`windows-build-info.json`、`windows-isolated-mode-results.json` を照合する計画です。Serverの自動試験とWindows 10/11の対話GUIの結果は分けて保管します。
 
 ## 将来の同梱物と必要なファイル（現候補は未配布）
 
