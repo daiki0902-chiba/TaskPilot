@@ -90,10 +90,13 @@ foreach($name in @('Test-IsolatedMemoryStore.ps1','Test-IsolatedTestMode.ps1')){
     if($LASTEXITCODE-ne0){throw ('Acceptance binary regression failed: '+$name)}
 }
 $memoryFiles=@(Get-ChildItem -LiteralPath $bindingRoot -File -Filter 'IsolatedMemory_*.json')
-$isolatedFiles=@(Get-ChildItem -LiteralPath $bindingRoot -File -Filter 'Isolated_*.json')
-if($memoryFiles.Count-ne1-or$isolatedFiles.Count-ne1){throw 'Both acceptance binary regression reports are required.'}
+$isolatedDirectories=@(Get-ChildItem -LiteralPath $bindingRoot -Directory -Filter 'IsolatedMode_*')
+if($memoryFiles.Count-ne1-or$isolatedDirectories.Count-ne1){throw 'Both acceptance binary regression reports are required.'}
+$isolatedPath=Join-Path $isolatedDirectories[0].FullName 'IsolatedTestModeResult.json'
+Assert-TPBuildNoLinks $isolatedPath
+if(-not[IO.File]::Exists($isolatedPath)){throw 'The independent suite must produce its canonical nested result.'}
 $memory=Get-Content -LiteralPath $memoryFiles[0].FullName -Raw -Encoding UTF8|ConvertFrom-Json
-$isolated=Get-Content -LiteralPath $isolatedFiles[0].FullName -Raw -Encoding UTF8|ConvertFrom-Json
+$isolated=Get-Content -LiteralPath $isolatedPath -Raw -Encoding UTF8|ConvertFrom-Json
 foreach($report in @($memory,$isolated)){if(-not$report.Passed-or$report.FailedCases-ne0-or$report.RuntimeAssemblySha256-cne$info.RuntimeGuardSha256-or$report.ProductionProfileAccessed-or@($report.SkippedDetails).Count-ne0-or-not$report.NormalFixtureUnchanged){throw 'Acceptance regression reports did not bind all passing cases to the exact internal runtime.'}}
 if(@($memory.Cases).Count-ne8-or@($isolated.Cases).Count-ne27){throw 'All eight memory and twenty-seven isolation cases are required.'}
 $result=[pscustomobject][ordered]@{

@@ -100,6 +100,8 @@ jobs:
             TestResults/DesktopAcceptance*.json
             TestResults/DesktopAcceptanceBinding_*/IsolatedMemory_*.json
             TestResults/DesktopAcceptanceBinding_*/Isolated_*.json
+            TestResults/DesktopAcceptanceBinding_*/IsolatedMode_*/IsolatedTestModeResult.json
+            TestResults/DesktopAcceptanceBinding_*/IsolatedFileBoundary_*/IsolatedFileBoundaryResult.json
             TestResults/DesktopAcceptanceBinding_*/IsolatedMode_*/NormalFixtureBefore.txt
             TestResults/DesktopAcceptanceBinding_*/IsolatedMode_*/NormalFixtureAfter.txt
           if-no-files-found: warn
