@@ -46,7 +46,7 @@ function Initialize-TPMemoryPragmas($Connection,[bool]$ReadOnly){
         if([version]$command.ExecuteScalar()-lt[version]'3.38.0'){throw 'SQLite 3.38.0 or newer is required.'}
     }finally{$command.Dispose()}
 }
-function New-TPMemoryConnection([string]$Path,$Provider,[bool]$ReadOnly){
+function New-TPMemoryConnection([string]$Path,$Provider,[bool]$ReadOnly,[byte[]]$InitialImage){
     if($Provider.Name-cne'System.Data.SQLite'){throw 'Independent memory persistence requires the bundled System.Data.SQLite provider.'}
     $script:TPTestSandbox.ValidateTree()
     $logicalPath=$null;$lease=$null;$connection=$null
@@ -57,6 +57,10 @@ function New-TPMemoryConnection([string]$Path,$Provider,[bool]$ReadOnly){
             if(-not$ReadOnly){$lease=$script:TPTestSandbox.AcquireDatabaseWriter($logicalPath)}
             [byte[]]$image=$script:TPTestSandbox.ReadAllBytes($logicalPath)
         }else{[byte[]]$image=@()}
+        if($PSBoundParameters.ContainsKey('InitialImage')){
+            if($Path-cne':memory:'-or$null-eq$InitialImage-or$InitialImage.Length-eq0-or$InitialImage.Length-gt268435456){throw 'A private restore image requires a new transient memory connection.'}
+            $image=$InitialImage
+        }
         $builder=New-Object System.Data.Common.DbConnectionStringBuilder
         $builder['Data Source']=':memory:';$builder['Version']=3;$builder['Pooling']=$false;$builder['Read Only']=$false;$builder['Default Timeout']=5
         $connection=[Activator]::CreateInstance($Provider.Type);$connection.ConnectionString=$builder.ConnectionString;$connection.Open()
@@ -106,6 +110,23 @@ function Save-TPMemoryConnection($Connection){
     # The broker flush is the publication point. Do not perform a further
     # throwable operation here which could restore only the memory snapshot.
     $script:TPTestSandbox.AtomicWrite($record.Path,$image,$null)
+}
+function Restore-TPMemoryConnection($Store,[byte[]]$Image){
+    $old=$Store.Connection
+    if(-not$script:TPMemoryConnections.ContainsKey($old)){throw 'The failed memory store has no ownership record.'}
+    $oldRecord=$script:TPMemoryConnections[$old];$replacement=$null
+    try{
+        # sqlite3_deserialize internally prepares ATTACH. Never invoke it on
+        # an already-authorized connection or temporarily weaken that policy.
+        # A fresh connection imports only these bytes before SQL is exposed.
+        $replacement=New-TPMemoryConnection -Path ':memory:' -Provider $script:TPProvider -ReadOnly $false -InitialImage $Image
+        $newRecord=$script:TPMemoryConnections[$replacement]
+        $newRecord.Path=$oldRecord.Path;$newRecord.WriterLease=$oldRecord.WriterLease
+        $oldRecord.WriterLease=$null
+        $script:TPBoundaryConnections.Add($replacement,[string]$newRecord.Path)
+        Close-TPConnection $old
+        $Store.Connection=$replacement;$replacement=$null
+    }finally{if($null-ne$replacement){Close-TPConnection $replacement}}
 }
 function Assert-TPStoreScope($Store){
     $description=[string](Invoke-TPSql $Store 'SELECT description FROM schema_migrations WHERE version=@version' -Parameters @{version=$script:TPSchemaVersion} -Mode Scalar)
@@ -310,8 +331,7 @@ function Invoke-TPUnitOfWork {
         elseif($null-ne$script:TPTestSandbox){
             try{
                 if($null-ne$Store.Transaction){$Store.Transaction.Dispose();$Store.Transaction=$null}
-                $Store.Connection.Deserialize('main',[byte[]]$memoryBefore,$false)
-                Initialize-TPMemoryPragmas $Store.Connection $false
+                Restore-TPMemoryConnection $Store ([byte[]]$memoryBefore)
             }catch{
                 try{Close-TPConnection $Store.Connection}catch{}
                 $Store.Closed=$true

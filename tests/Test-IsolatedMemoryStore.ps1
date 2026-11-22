@@ -91,6 +91,7 @@ try{
     }
     Case-Memory 'M06' 'A simulated broker failure restores memory and leaves durable data unchanged' {
         $before=Hash-Memory ($script:sandbox.ReadAllBytes($script:database));$current=@(Get-TaskPilotTask -Store $script:store -TaskId $script:taskId)[0]
+        $connectionBefore=$script:store.Connection
         # Explicit test-only fault injection at the persistence call boundary.
         # No validation/authorizer/broker guard is replaced or disabled.
         & $module {$script:TPTestOriginalSave=${function:Save-TPMemoryConnection};Set-Item function:script:Save-TPMemoryConnection -Value {param($Connection) throw 'SIMULATED_BROKER_PUBLISH_FAILURE'}}
@@ -98,6 +99,7 @@ try{
             Reject-Memory {Set-TaskPilotTask -Store $script:store -TaskId $script:taskId -ExpectedVersion $current.row_version -Title 'must roll back after native commit'} 'A failed durable publication was reported successful.' 'SIMULATED_BROKER_PUBLISH_FAILURE'
         }finally{& $module {Set-Item function:script:Save-TPMemoryConnection -Value $script:TPTestOriginalSave;Remove-Variable TPTestOriginalSave -Scope Script}}
         $after=@(Get-TaskPilotTask -Store $script:store -TaskId $script:taskId)[0]
+        Check-Memory (-not[object]::ReferenceEquals($connectionBefore,$script:store.Connection)) 'Recovery reused a connection whose authorizer must remain active.'
         Check-Memory ($after.title-ceq$current.title-and$after.row_version-eq$current.row_version) 'Publication failure left memory ahead of the saved image.'
         Check-Memory ((Hash-Memory ($script:sandbox.ReadAllBytes($script:database)))-ceq$before) 'The simulated failure changed durable bytes.'
         $null=Set-TaskPilotTask -Store $script:store -TaskId $script:taskId -ExpectedVersion $after.row_version -Memo 'a later real publication succeeds'
