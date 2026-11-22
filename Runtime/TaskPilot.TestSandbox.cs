@@ -437,7 +437,9 @@ namespace TaskPilot.Runtime
         {
             FilePin pin;
             if (files.TryGetValue(full, out pin)) { Information(pin.Handle, full, false); return pin; }
-            pin = new FilePin(); pin.Handle = OpenFile(full, ReadAttributes, create ? OpenAlways : OpenExistingFile, ShareReadWrite);
+            // Read-data access is necessary for a persistent sharing lease;
+            // metadata-only handles do not prevent a pathname replacement.
+            pin = new FilePin(); pin.Handle = OpenFile(full, ReadAttributes | 1, create ? OpenAlways : OpenExistingFile, ShareReadWrite);
             files.Add(full, pin); return pin;
         }
         private void RemoveUnusedPin(string full, FilePin pin)

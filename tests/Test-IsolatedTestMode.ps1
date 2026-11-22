@@ -368,6 +368,18 @@ try{
         $null=Reject-Isolated {[IO.Directory]::Move($script:isoSandbox.Export,$script:isoSandbox.Export+'_swapped')} 'An active Export directory could be replaced.'
         Assert-Isolated ([IO.Directory]::Exists($script:isoSandbox.Root)-and[IO.Directory]::Exists($script:isoSandbox.Export)) 'Pinned directories disappeared.'
     }
+    Case-Isolated 'I26' 'A file pin prevents replacement before any SQLite connection opens' {
+        Set-IsolatedContext ([guid]::NewGuid().ToString('N')) -NoStartup
+        $pinnedFile=Join-Path $script:isoSandbox.Input 'pin-control.csv'
+        $movedFile=Join-Path $script:isoSandbox.Input 'pin-control-moved.csv'
+        $script:isoSandbox.WriteNew($pinnedFile,[Text.Encoding]::UTF8.GetBytes('synthetic pin control'))
+        $script:isoSandbox.PinExistingFile($pinnedFile)
+        $null=Reject-Isolated {[IO.File]::Move($pinnedFile,$movedFile)} 'A pinned file could be renamed before native SQLite opened it.'
+        Assert-Isolated ($script:isoSandbox.ReadAllText($pinnedFile)-ceq'synthetic pin control') 'The pinned file content changed.'
+        $script:isoSandbox.ReleaseFile($pinnedFile)
+        [IO.File]::Move($pinnedFile,$movedFile)
+        Assert-Isolated ($script:isoSandbox.ReadAllText($movedFile)-ceq'synthetic pin control') 'The unpinned positive control could not be renamed.'
+    }
     Case-Isolated 'I25' 'Pinned empty directories reject in-place reparse mutation for every access variant' {
         Set-IsolatedContext ([guid]::NewGuid().ToString('N')) -NoStartup
         Initialize-IsolatedReparseProbe
