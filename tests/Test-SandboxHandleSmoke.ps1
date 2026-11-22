@@ -36,4 +36,6 @@ try{
 finally{if($null-ne$sandbox){$sandbox.Dispose()}}
 $report=[pscustomobject]@{Stage='Native handle-only smoke';Passed=($null-eq$failure);Checks=$checks;Error=$failure;TestRoot=$fixture;ProductionProfileAccessed=$false;ApplicationLaunched=$false}
 Write-TPBuildNewText (Join-Path $output ('HandleSmoke_'+[guid]::NewGuid().ToString('N')+'.json')) (ConvertTo-Json -InputObject $report -Depth 8)
+if(-not$report.Passed){Write-Error $report.Error;exit 1}
+Write-Host ('PASS: native handle-only smoke; '+$report.Checks+' assertions.')
 return $report

@@ -387,7 +387,7 @@ namespace TaskPilot.Runtime
         {
             // Both files and containers inherit attribute and owner-policy
             // denials. Only this newly-created test namespace is affected.
-            string sddl = "O:" + ownerSid + "D:P(D;OICI;0x100;;;S-1-1-0)(D;OICI;0xc0000;;;S-1-3-4)(A;OICI;FA;;;" + ownerSid + ")(A;OICI;FA;;;SY)(A;OICI;FA;;;BA)";
+            string sddl = "O:" + ownerSid + "D:P(D;OICI;0x110;;;S-1-1-0)(D;OICI;0xc0000;;;S-1-3-4)(A;OICI;FA;;;" + ownerSid + ")(A;OICI;FA;;;SY)(A;OICI;FA;;;BA)";
             RawSecurityDescriptor descriptor = new RawSecurityDescriptor(sddl);
             byte[] bytes = new byte[descriptor.BinaryLength]; descriptor.GetBinaryForm(bytes, 0); return bytes;
         }
@@ -414,7 +414,7 @@ namespace TaskPilot.Runtime
                     if ((ace.AceFlags & AceFlags.InheritOnly) != 0) continue;
                     if (ace.AceQualifier == AceQualifier.AccessAllowed && (!attributesDenied || !ownerChangeDenied)) throw Violation("Test-entry grants precede the required denials.");
                     if (ace.AceQualifier != AceQualifier.AccessDenied || (directory && (ace.AceFlags & (AceFlags.ContainerInherit | AceFlags.ObjectInherit)) != (AceFlags.ContainerInherit | AceFlags.ObjectInherit))) continue;
-                    if (ace.SecurityIdentifier.Value == "S-1-1-0" && (ace.AccessMask & 0x100) == 0x100) attributesDenied = true;
+                    if (ace.SecurityIdentifier.Value == "S-1-1-0" && (ace.AccessMask & 0x110) == 0x110) attributesDenied = true;
                     if (ace.SecurityIdentifier.Value == "S-1-3-4" && (ace.AccessMask & 0xc0000) == 0xc0000) ownerChangeDenied = true;
                 }
                 if (!attributesDenied || !ownerChangeDenied) throw Violation("Test-entry attribute/owner protection is missing. No policy was changed.");
@@ -765,22 +765,26 @@ namespace TaskPilot.Runtime
                     if (!String.IsNullOrEmpty(previousPath)) WriteNew(AssertPath(previousPath), before);
                     string checkpoint = Path.Combine(Path.GetDirectoryName(full), ".tp-rollback_" + Guid.NewGuid().ToString("N") + ".bin");
                     SafeFileHandle saved = OpenFile(checkpoint, GenericWrite, CreateNew, ShareRead);
+                    bool mayRemoveCheckpoint = false;
                     try
                     {
                         WriteHandle(saved, before);
-                        try { WriteHandle(target, data); }
+                        try { WriteHandle(target, data); mayRemoveCheckpoint = true; }
                         catch
                         {
-                            try { WriteHandle(target, before); }
+                            try { WriteHandle(target, before); mayRemoveCheckpoint = true; }
                             catch { throw Violation("A failed write could not be restored. The original image remains in " + checkpoint); }
                             throw;
                         }
                     }
-                    finally { saved.Dispose(); }
-                    // The data flush above is the commit point. Failure to
-                    // clean up must never turn a durable success into rollback
-                    // of only the in-memory state. Preserve the checkpoint.
-                    try { DeleteFile(checkpoint); } catch { }
+                    finally
+                    {
+                        saved.Dispose();
+                        // A flushed success or restored old image is complete.
+                        // Cleanup must never report an otherwise durable save
+                        // as failed and roll back only the memory image.
+                        if (mayRemoveCheckpoint) { try { DeleteFile(checkpoint); } catch { } }
+                    }
                 }
             }
         }

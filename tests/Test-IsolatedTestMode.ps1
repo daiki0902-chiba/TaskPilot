@@ -20,7 +20,8 @@ $null=[IO.Directory]::CreateDirectory($profile)
 $modulePath=Join-Path $project 'Modules/TaskPilot.Storage/TaskPilot.Storage.psm1'
 $assembly=Get-TPBuildFullPath $RuntimeAssembly
 Assert-TPBuildNoLinks $assembly
-$null=[Reflection.Assembly]::LoadFrom($assembly)
+$loadedRuntime=[Reflection.Assembly]::LoadFrom($assembly)
+if(-not[string]::Equals([IO.Path]::GetFullPath($loadedRuntime.Location),$assembly,[StringComparison]::OrdinalIgnoreCase)){throw 'The native tests must execute the exact packaged runtime assembly in a fresh process.'}
 if($null-eq('TaskPilot.Runtime.Sandbox'-as[type])){throw 'The supplied assembly does not contain the isolated runtime.'}
 Add-Type -AssemblyName System.IO.Compression
 Add-Type -AssemblyName System.IO.Compression.FileSystem
@@ -97,7 +98,7 @@ function Set-IsolatedContext([string]$Id,[switch]$NoStartup){
     $script:SettingsFile=Join-Path $script:Root 'Settings.json';$script:HolidayFile=Join-Path $script:DataDir 'JapaneseHolidays.json'
     $script:AutoReportsReady=$false;$script:ReportsNeedRefresh=$true;$script:ReportError=''
     $env:TEMP=$script:isoSandbox.Temp;$env:TMP=$script:isoSandbox.Temp;$env:SQLITE_TMPDIR=$script:isoSandbox.Temp
-    $env:PSModuleAnalysisCachePath=Join-Path $script:isoSandbox.Temp 'PowerShellModuleAnalysisCache'
+    $env:PSModuleAnalysisCachePath='NUL'
     if(-not('TaskPilot.Migration.Codec'-as[type])){
         $applicationDirectory=Split-Path -Parent (Split-Path -Parent $assembly)
         $codecAssembly=Join-Path $applicationDirectory 'Codec/TaskPilotMigrationCodec.dll'
@@ -181,7 +182,8 @@ namespace TaskPilot.IsolationTests {
             if(!source.StartsWith(root,StringComparison.OrdinalIgnoreCase)||!target.StartsWith(root,StringComparison.OrdinalIgnoreCase))
                 throw new ArgumentException("Attack paths must stay inside the newly created synthetic fixture.");
             if(!Directory.Exists(source)||!Directory.Exists(target)) throw new DirectoryNotFoundException();
-            if(new DirectoryInfo(source).GetFileSystemInfos().Length!=0) throw new IOException("Attack source must be empty.");
+            // Invoke the filesystem even when a guard keeps the protected
+            // directory nonempty. Its native refusal is part of the proof.
             JunctionAttempt result=new JunctionAttempt();
             using(SafeFileHandle handle=CreateFileW(source,access,7,IntPtr.Zero,3,0x02200000,IntPtr.Zero)) {
                 if(handle.IsInvalid) { result.Win32Error=Marshal.GetLastWin32Error(); return result; }
@@ -391,14 +393,18 @@ try{
         [IO.File]::Move($pinnedFile,$movedFile)
         Assert-Isolated ($script:isoSandbox.ReadAllText($movedFile)-ceq'synthetic pin control') 'The unpinned positive control could not be renamed.'
     }
-    Case-Isolated 'I25' 'Pinned empty directories reject in-place reparse mutation for every access variant' {
+    Case-Isolated 'I25' 'Pinned directory guards reject in-place reparse mutation for every access variant' {
         Set-IsolatedContext ([guid]::NewGuid().ToString('N')) -NoStartup
         Initialize-IsolatedReparseProbe
         $target=Join-Path $suiteRoot ('FSCTLTarget_'+[guid]::NewGuid().ToString('N'))
         $null=[IO.Directory]::CreateDirectory($target)
         $pinned=[string]$script:isoSandbox.Export
         try{
-            foreach($access in @(@('GenericWrite',[uint32]1073741824),@('WriteData',[uint32]2),@('WriteAttributes',[uint32]256),@('ReadAttributes',[uint32]128),@('Zero',[uint32]0))){
+            $guard=Join-Path $pinned '.taskpilot-directory-guard'
+            Assert-Isolated ($script:isoSandbox.Exists($guard)) 'Every protected directory needs its pinned nonempty guard.'
+            $null=Reject-Isolated {[IO.File]::Delete($guard)} 'An external caller deleted the nonempty guard.'
+            $null=Reject-Isolated {[IO.File]::Move($guard,$guard+'.moved')} 'An external caller moved the nonempty guard.'
+            foreach($access in @(@('GenericWrite',[uint32]1073741824),@('WriteData',[uint32]2),@('WriteAttributes',[uint32]256),@('WriteEa',[uint32]16),@('AppendData',[uint32]4),@('MaximumAllowed',[uint32]33554432),@('ReadAttributes',[uint32]128),@('Zero',[uint32]0))){
                 # A fresh unpinned control for each access distinguishes native
                 # access checks from the runtime's sharing restriction.
                 $control=Join-Path $suiteRoot ('FSCTLControl_'+[guid]::NewGuid().ToString('N'))
@@ -411,7 +417,7 @@ try{
                 $attempt=[TaskPilot.IsolationTests.ReparseAttack]::AttemptSetJunction($suiteRoot,$pinned,$target,$access[1])
                 $script:isoReparseAttempts.Add([pscustomobject]@{Pinned=$true;Access=$access[0];HandleOpened=$attempt.HandleOpened;ReparseSet=$attempt.ReparseSet;Win32Error=$attempt.Win32Error})
                 Assert-Isolated (-not$attempt.ReparseSet) ('A pinned empty directory became a junction using '+$access[0]+'. Do not publish this runtime.')
-                if($access[0]-in@('GenericWrite','WriteAttributes')){Assert-Isolated (-not$attempt.HandleOpened-and$attempt.Win32Error-in@(5,32)) 'The protected directory did not reject a writable attribute handle.'}
+                if($access[0]-in@('GenericWrite','WriteAttributes','WriteEa')){Assert-Isolated (-not$attempt.HandleOpened-and$attempt.Win32Error-in@(5,32)) 'The protected directory did not reject a writable metadata handle.'}
             }
             $script:isoSandbox.ValidateTree()
             $child=Join-Path $pinned 'ordinary-child.csv'

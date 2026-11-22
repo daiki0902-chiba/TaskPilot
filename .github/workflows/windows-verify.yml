@@ -62,6 +62,7 @@ jobs:
           & .\tools\Invoke-TaskPilotWindowsVerification.ps1 -VerificationRoot $verificationRoot
 
       - name: Prepare client acceptance kit without launching the application
+        if: env.TASKPILOT_PUBLISH_CANDIDATE == 'true'
         run: |
           $verificationRoot = Join-Path $env:RUNNER_TEMP ('TaskPilot-native-' + $env:GITHUB_RUN_ID + '-' + $env:GITHUB_RUN_ATTEMPT)
           & .\tools\Invoke-TaskPilotAcceptancePreparation.ps1 -VerificationRoot $verificationRoot
@@ -76,6 +77,8 @@ jobs:
             TestResults/HandleSmoke_*.json
             TestResults/Isolated_*.json
             TestResults/IsolatedReleaseGate_*.json
+            TestResults/IsolatedMemory_*.json
+            TestResults/IsolatedVerification_*.json
             TestResults/IsolatedMode_*/IsolatedTestModeResult.json
             TestResults/IsolatedMode_*/NormalFixtureBefore.txt
             TestResults/IsolatedMode_*/NormalFixtureAfter.txt
@@ -84,6 +87,7 @@ jobs:
           retention-days: 14
 
       - name: Upload development candidate and verification metadata
+        if: env.TASKPILOT_PUBLISH_CANDIDATE == 'true'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4, official ref verified 2026-11-19
         with:
           name: TaskPilot-DEVELOPMENT-NOT-FOR-SALE-${{ github.run_id }}-${{ github.run_attempt }}
@@ -99,6 +103,7 @@ jobs:
           retention-days: 7
 
       - name: Upload Windows 10 and 11 acceptance preparation kit
+        if: env.TASKPILOT_PUBLISH_CANDIDATE == 'true'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4, official ref verified 2026-11-19
         with:
           name: TaskPilot-Windows10-11-ACCEPTANCE-NOT-FOR-SALE-${{ github.run_id }}-${{ github.run_attempt }}

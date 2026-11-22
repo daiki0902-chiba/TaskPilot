@@ -192,7 +192,7 @@ function Select-TPGuiIsolatedFile {
     $expected=if($Extension-ceq'.db'){[string]$sandbox.Backup}else{[string]$sandbox.Input}
     if($directoryFull-ine$expected){throw 'テスト環境内の専用フォルダーだけを選択できます。'}
     $sandbox.ValidateTree()
-    $files=@(([IO.DirectoryInfo]$directoryFull).GetFiles('*'+$Extension)|Sort-Object Name)
+    $files=@($sandbox.ListDirectory($directoryFull)|Where-Object {-not$_.IsDirectory-and$_.Extension-ieq$Extension}|Sort-Object Name)
     foreach($file in $files){$sandbox.CheckExistingFile($file.FullName)}
     if($files.Count-eq0){
         [System.Windows.Forms.MessageBox]::Show("このテスト環境に選択できるファイルがありません。`r`n$directoryFull",'[TEST MODE] テスト用ファイル')|Out-Null

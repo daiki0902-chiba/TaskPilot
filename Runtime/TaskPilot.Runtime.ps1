@@ -72,7 +72,10 @@ function Initialize-TPRuntime {
         $env:TEMP=$sandbox.Temp
         $env:TMP=$sandbox.Temp
         $env:SQLITE_TMPDIR=$sandbox.Temp
-        $env:PSModuleAnalysisCachePath=Join-Path $sandbox.Temp 'PowerShellModuleAnalysisCache'
+        # PowerShell opens its module cache outside our broker. Disable that
+        # cache via the Windows null device rather than redirecting a mutable
+        # pathname and assuming that it cannot be replaced after validation.
+        $env:PSModuleAnalysisCachePath='NUL'
         $script:TPRuntimeSandbox=$sandbox
         $codecPath=Join-Path $PSScriptRoot '../Codec/TaskPilotMigrationCodec.dll'
         if(-not[IO.File]::Exists($codecPath)){$sandbox.Dispose();throw 'The precompiled codec DLL is missing. No normal data was opened.'}

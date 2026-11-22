@@ -31,7 +31,13 @@ function Get-TPGuiStoreRootPath([string]$StoreRoot){
     $full=Get-TPGuiValidatedStartupPath $StoreRoot
     $pathRoot=[IO.Path]::GetPathRoot($full)
     while($full.Length-gt$pathRoot.Length -and ($full.EndsWith([string][IO.Path]::DirectorySeparatorChar)-or$full.EndsWith([string][IO.Path]::AltDirectorySeparatorChar))){$full=$full.Substring(0,$full.Length-1)}
-    if(-not[IO.Directory]::Exists($full)){throw 'アプリ保存フォルダーがありません。空DBは自動作成しません。'}
+    if(Test-TPGuiIsolatedMode){
+        $sandbox=Get-TPGuiSandbox
+        if(-not$sandbox.Exists($full)){throw 'アプリ保存フォルダーがありません。空DBは自動作成しません。'}
+        # The broker enumerates the held directory handle and verifies its
+        # type; Directory.Exists would reopen a replaceable pathname.
+        $null=$sandbox.ListDirectory($full)
+    }elseif(-not[IO.Directory]::Exists($full)){throw 'アプリ保存フォルダーがありません。空DBは自動作成しません。'}
     return $full
 }
 function Test-TPGuiUninitializedRoot([string]$StoreRoot){
@@ -44,14 +50,14 @@ function Test-TPGuiUninitializedRoot([string]$StoreRoot){
         $ignored=New-Object 'Collections.Generic.HashSet[string]' ([StringComparer]::OrdinalIgnoreCase)
         foreach($path in @($sandbox.MarkerPath,$sandbox.LockPath)){$null=$ignored.Add([string]$path)}
         $nonAuthoritative=@([string]$sandbox.Logs,[string]$sandbox.Temp,[string]$sandbox.Input)
-        $pending=New-Object 'Collections.Generic.Stack[IO.DirectoryInfo]';$pending.Push([IO.DirectoryInfo]$full)
+        $pending=New-Object 'Collections.Generic.Stack[string]';$pending.Push($full)
         while($pending.Count-gt0){
-            foreach($entry in $pending.Pop().GetFileSystemInfos()){
+            foreach($entry in $sandbox.ListDirectory($pending.Pop())){
                 $null=$sandbox.AssertPath($entry.FullName)
                 if($ignored.Contains($entry.FullName)){continue}
-                if(($entry.Attributes-band[IO.FileAttributes]::Directory)-eq0){return $false}
+                if(-not$entry.IsDirectory){return $false}
                 if($nonAuthoritative-contains$entry.FullName){continue}
-                $pending.Push([IO.DirectoryInfo]$entry)
+                $pending.Push([string]$entry.FullName)
             }
         }
         return $true
@@ -75,8 +81,14 @@ function Get-TPGuiActiveDatabasePath {
     if(-not$pointerExists){
         if(-not(Test-TPGuiIsolatedMode)-and[IO.Directory]::Exists($pointer)){throw '起動DBの指定ファイルがフォルダーになっています。空DBは作成しません。'}
         $default=Join-Path $rootFull 'TaskPilot.db'
-        $databases=@(([IO.DirectoryInfo]$rootFull).GetFiles('*.db'))
-        $previous=@(([IO.DirectoryInfo]$rootFull).GetFiles('active-store.json.previous.*'))
+        if(Test-TPGuiIsolatedMode){
+            $entries=@((Get-TPGuiSandbox).ListDirectory($rootFull))
+            $databases=@($entries|Where-Object {-not$_.IsDirectory-and$_.Name-like'*.db'})
+            $previous=@($entries|Where-Object {-not$_.IsDirectory-and$_.Name-like'active-store.json.previous.*'})
+        }else{
+            $databases=@(([IO.DirectoryInfo]$rootFull).GetFiles('*.db'))
+            $previous=@(([IO.DirectoryInfo]$rootFull).GetFiles('active-store.json.previous.*'))
+        }
         # Compatibility with the first SQLite build, which only created this
         # fixed filename. Multiple candidates or prior pointers are ambiguous.
         $defaultExists=if(Test-TPGuiIsolatedMode){(Get-TPGuiSandbox).Exists($default)}else{[IO.File]::Exists($default)}

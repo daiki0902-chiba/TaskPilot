@@ -12,6 +12,8 @@ if([Environment]::OSVersion.Platform-ne[PlatformID]::Win32NT -or
 }
 if(-not$env:RUNNER_TEMP){throw 'RUNNER_TEMP must identify the isolated CI temporary directory.'}
 if($env:GITHUB_SHA-cnotmatch'^[a-f0-9]{40}$'){throw 'A full CI source commit is required for isolated-mode evidence.'}
+$env:TASKPILOT_PUBLISH_CANDIDATE='false'
+if($env:GITHUB_ENV){[IO.File]::AppendAllText($env:GITHUB_ENV,('TASKPILOT_PUBLISH_CANDIDATE=false'+[Environment]::NewLine),[Text.UTF8Encoding]::new($false))}
 . (Join-Path $PSScriptRoot 'TaskPilot.BuildSupport.ps1')
 $root=Get-TPBuildFullPath $VerificationRoot
 $runnerTemp=Get-TPBuildFullPath $env:RUNNER_TEMP
@@ -28,9 +30,10 @@ $candidateRoot=Join-Path $root 'Candidate'
 $reportRoot=Join-Path $repo 'TestResults'
 $null=[IO.Directory]::CreateDirectory($reportRoot)
 $smokeRuntime=& (Join-Path $PSScriptRoot 'Build-TaskPilotRuntime.ps1') -OutputDirectory (Join-Path $root 'HandleSmokeRuntime')
-$smoke=& (Join-Path $repo 'tests/Test-SandboxHandleSmoke.ps1') -RuntimeAssembly $smokeRuntime.AssemblyPath -OutputRoot $reportRoot
-if(-not$smoke.Passed){throw ('Native handle smoke failed: '+$smoke.Error)}
-Write-Host ('PASS: native handle-only smoke; '+$smoke.Checks+' assertions.')
+# A separate process prevents LoadFrom reusing this compiler's assembly when
+# the later suite loads the exact DLL copied into the candidate package.
+& (Join-Path $PSHOME 'powershell.exe') -NoProfile -NonInteractive -File (Join-Path $repo 'tests/Test-SandboxHandleSmoke.ps1') -RuntimeAssembly $smokeRuntime.AssemblyPath -OutputRoot $reportRoot
+if($LASTEXITCODE-ne0){throw 'Native handle smoke failed; see its JSON report.'}
 
 # The provisioner checks the pinned dependency lock and creates no system modules.
 $prepared=& (Join-Path $PSScriptRoot 'Get-TaskPilotBuildDependencies.ps1') -DestinationRoot $dependencyRoot
@@ -81,6 +84,8 @@ if(-not[IO.File]::Exists($runtimeAssembly)){throw 'The precompiled independent-m
 $nativeBuildInfo=Get-Content -LiteralPath (Join-Path (Join-Path $release 'TaskPilot') 'BuildInfo.json') -Raw -Encoding UTF8|ConvertFrom-Json
 if(-not$nativeBuildInfo.IndependentTestModeImplemented-or$nativeBuildInfo.Version-cne'0.4.0.2'-or
    $nativeBuildInfo.RuntimeGuardSha256-cne(Get-TPBuildSha $runtimeAssembly)){throw 'The compiled runtime does not match the candidate build metadata.'}
+$memory=& (Join-Path $repo 'tests/Test-IsolatedMemoryStore.ps1') -RuntimeAssembly $runtimeAssembly -OutputRoot $reportRoot
+$memoryPassed=$null-ne$memory-and$memory.Passed-and$memory.FailedCases-eq0-and@($memory.Cases).Count-eq8-and$memory.NormalFixtureUnchanged-and-not$memory.ProductionProfileAccessed-and@($memory.SkippedDetails).Count-eq0
 $isolated=& (Join-Path $repo 'tests/Test-IsolatedTestMode.ps1') -RuntimeAssembly $runtimeAssembly -DependencyRoot $dependencyRoot -OutputRoot $reportRoot
 $requiredIsolationIds=@(1..22|ForEach-Object {'I{0:00}'-f$_})+@(24..28|ForEach-Object {'I{0:00}'-f$_})
 $completeIsolationCases=$null-ne$isolated-and@($isolated.Cases).Count-eq$requiredIsolationIds.Count
@@ -91,7 +96,7 @@ if($completeIsolationCases){
     }
 }
 if($null-eq$isolated-or$isolated.Passed-isnot[bool]-or-not$isolated.Passed-or
-   -not$nativeBuildInfo.IndependentTestModeSupported-or$nativeBuildInfo.IndependentTestModeReleaseBlocked-or
+   -not$memoryPassed-or
    -not$completeIsolationCases-or$isolated.ProductionProfileAccessed-isnot[bool]-or$isolated.ProductionProfileAccessed-or
    $null-eq$isolated.FileAndAncestorBoundary-or-not$isolated.FileAndAncestorBoundary.Passed-or
    -not$isolated.FileAndAncestorBoundary.CompleteNativeCoverage-or$isolated.FileAndAncestorBoundary.UnsafeVectorConfirmed-or
@@ -114,6 +119,14 @@ $isolated|Add-Member -NotePropertyName SourceCommit -NotePropertyValue $env:GITH
 $isolated|Add-Member -NotePropertyName RunnerImage -NotePropertyValue $env:ImageOS -Force
 $isolatedName='Isolated_'+[guid]::NewGuid().ToString('N')+'.json'
 Write-TPBuildNewText (Join-Path $reportRoot $isolatedName) (ConvertTo-Json -InputObject $isolated -Depth 16)
+if(-not$nativeBuildInfo.IndependentTestModeSupported-or$nativeBuildInfo.IndependentTestModeReleaseBlocked){
+    $validation=[pscustomobject]@{Status='AUTOMATED_TESTS_PASSED_RELEASE_BLOCKED';SourceCommit=$env:GITHUB_SHA;NativeNormalGroupsPassed=8;PublicReleaseGateChecks=$releaseGate.Checks;MemoryCasesPassed=@($memory.Cases).Count;IndependentCasesPassed=@($isolated.Cases).Count;NormalFixtureUnchanged=$isolated.NormalFixtureUnchanged;ActualExcelFilesGenerated=$isolated.ActualExcelFilesGenerated;RuntimeAssemblySha256=$nativeBuildInfo.RuntimeGuardSha256;IsolatedReport=$isolatedName;Windows10And11AcceptanceVerified=$false;ApplicationLaunched=$false;ExecutablePublished=$false;AcceptanceZipPublished=$false;Reason='Public mode remains disabled pending code review and Windows 10/11 desktop acceptance. No executable or acceptance ZIP is uploaded.'}
+    Write-TPBuildNewText (Join-Path $reportRoot ('IsolatedVerification_'+[guid]::NewGuid().ToString('N')+'.json')) (ConvertTo-Json -InputObject $validation -Depth 10)
+    Write-Host $validation.Reason
+    if($env:GITHUB_STEP_SUMMARY){[IO.File]::AppendAllText($env:GITHUB_STEP_SUMMARY,('All automated suites passed. PUBLIC RELEASE REMAINS BLOCKED. '+$validation.Reason+[Environment]::NewLine),[Text.UTF8Encoding]::new($false))}
+    return
+}
+if($env:GITHUB_ENV){[IO.File]::AppendAllText($env:GITHUB_ENV,('TASKPILOT_PUBLISH_CANDIDATE=true'+[Environment]::NewLine),[Text.UTF8Encoding]::new($false))}
 $null=[IO.Directory]::CreateDirectory($candidateRoot)
 $candidateName='TaskPilot_0.4.0.2_DEVELOPMENT_NOT_FOR_SALE.zip'
 Copy-TPBuildNewFile $zip (Join-Path $candidateRoot $candidateName) $build.Sha256
