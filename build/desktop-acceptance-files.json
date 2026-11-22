@@ -7,6 +7,7 @@
     "acceptance/TaskPilot.Acceptance.Gui.ps1",
     "acceptance/TaskPilot.Acceptance.Security.ps1",
     "acceptance/TaskPilot.Acceptance.Diagnostics.ps1",
+    "acceptance/TaskPilot.Acceptance.Qualification.ps1",
     "acceptance/trusted-publishers.json",
     "tools/Test-TaskPilotDesktopAcceptance.ps1",
     "tools/Collect-TaskPilotDesktopAcceptanceLogs.ps1"
