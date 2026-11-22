@@ -164,7 +164,15 @@ if($RuntimeAssembly){
             Assert-NativeDiagnostic ((Get-TPBuildSha $lockPath)-ceq$before) 'Read-only lock acquisition does not write lock bytes.'
         }
         Case-NativeDiagnostic 'D10' {
-            $scope=[TaskPilot.Runtime.Sandbox]::OpenExistingAcceptance($profile,$activeId);$lease=$scope.AcquireExistingAcceptanceDiagnosticLock();$externalWriter=$null
+            # Each case owns its fixture; variables assigned inside the D09
+            # scriptblock do not escape its PowerShell invocation scope.
+            $rawWriterId=[guid]::NewGuid().ToString('N')
+            $prepared=[TaskPilot.Runtime.Sandbox]::CreateAcceptance($profile,$rawWriterId)
+            try{
+                $prepared.WriteNew((Join-Path $prepared.Logs 'acceptance-events.jsonl'),[Text.Encoding]::UTF8.GetBytes('{"FormatVersion":1,"Code":"ACTION"}'))
+                $preparedLock=$prepared.AcquireLock($prepared.LockPath);$preparedLock.Dispose()
+            }finally{$prepared.Dispose()}
+            $scope=[TaskPilot.Runtime.Sandbox]::OpenExistingAcceptance($profile,$rawWriterId);$lease=$scope.AcquireExistingAcceptanceDiagnosticLock();$externalWriter=$null
             try{
                 $events=Join-Path $scope.Logs 'acceptance-events.jsonl'
                 # Request only data-write access. GenericWrite also requests
