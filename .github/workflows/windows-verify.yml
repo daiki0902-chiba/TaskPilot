@@ -74,6 +74,7 @@ jobs:
           path: |
             TestResults/Commercial_*.json
             TestResults/Isolated_*.json
+            TestResults/IsolatedReleaseGate_*.json
             TestResults/IsolatedMode_*/IsolatedTestModeResult.json
             TestResults/IsolatedFileBoundary_*/IsolatedFileBoundaryResult.json
           if-no-files-found: warn

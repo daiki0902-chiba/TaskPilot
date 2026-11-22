@@ -40,6 +40,11 @@ function Initialize-TPRuntime {
     }
     if(-not$TestMode -and -not[string]::IsNullOrEmpty($TestEnvironmentId)){throw 'TestEnvironmentId requires TestMode. No normal data was opened.'}
     if($TestMode -and $TestEnvironmentId-cnotmatch'^[a-f0-9]{32}$'){throw 'TestEnvironmentId must be exactly 32 lowercase hexadecimal characters. No normal data was opened.'}
+    # Release gate, deliberately before even resolving the real profile.
+    # Native synthetic tests I25/I28 demonstrated in-place reparse changes
+    # despite sharing leases. Only developer fixtures may exercise this draft
+    # boundary until every pathname consumer has a proven safe replacement.
+    if($TestMode){throw 'TP-ISOLATION-BLOCKED: 独立テストモードは安全性試験 I25/I28 の不合格により利用を停止しています。保存領域の取得・通常データの参照・テスト領域の作成は行っていません。'}
     $profile=[Environment]::GetFolderPath('LocalApplicationData')
     if([string]::IsNullOrWhiteSpace($profile)){throw 'The Windows LocalApplicationData folder is unavailable.'}
     $sandbox=$null

@@ -1,16 +1,20 @@
 # 独立テストモードの利用・受入手順
 
-対象はSQLite対応PR #1の **0.4.0.2以降の独立テストモード対応候補**です。0.4.0.1には本機能がありません。これは実装と受入の手順書であり、既存の業務データがあるWindowsユーザーで今すぐ起動してよいという案内ではありません。対象ビルドの自動試験・コードレビュー結果を確認し、Windows 10/11実機での起動・操作確認を終えるまで、同一業務ユーザーでの安全な利用を完了したとは判定しません。
+**現在の判定：BLOCKED。独立テストモードは使用できません。既存の業務データがあるWindowsユーザーで起動しないでください。** [Windows Serverの安全性試験（CI 44973854005）](https://github.com/daiki0902-chiba/TaskPilot/actions/runs/44973854005) は27ケース中25成功・2失敗です。I25では保護した空ディレクトリがWriteData権限でジャンクションへ変更され、I28では保持中のファイルハンドルがあってもファイルのreparse point化が可能でした。保存先を通常領域へ向け直す経路を防げると確認できていません。
 
-以下のコマンドは、受入担当者が対象ビルドと試験条件を確認した後に使用する手順です。未検証項目は「未実施」のまま記録します。OSの保護やDLLのブロックを解除する手順は含めません。
+この試験では実業務データを使用せず、合成した通常領域のハッシュ・ディレクトリ構成は不変でした。ただし、通常領域へ侵入できる経路が存在するため、安全性の合格にはしません。通常の回帰試験8群、実Excelブック・グラフ生成、バックアップ・復元などの成功を、この2件の失敗の代わりにしません。
+
+0.4.0.2の独立モードは公開起動を停止し、対応EXE・完全ZIPのArtifacts公開も停止しています。失敗した試験の証跡は上記CIで確認できます。旧0.4.0.1には独立テストモードがなく、新しい引数を付けて代用できません。
+
+以下は**原因修正・再検証後に使用する将来の設計と受入手順**です。現在の起動許可ではありません。対象ビルドの自動試験・コードレビュー・Windows 10/11実機確認が揃うまで、同一業務ユーザーでの安全な利用を完了したとは判定しません。OSの保護やDLLのブロックを解除する手順は含めません。
 
 ## 通常の初回試験との違い
 
 | 起動・検査 | 用途と停止条件 |
 | --- | --- |
 | 起動前検査の `-FirstUse` | 従来の通常版初回試験。通常版・旧版のデータ、ログ、バックアップ、ロックがある場合は `FirstUseIsolation` でBLOCKED。専用の空プロファイルが必要。 |
-| 起動前検査の `-TestMode -TestEnvironmentId ID` | 独立テスト用の保存境界を検査する。通常版の保存先を存在検査・読み込みせず、指定IDのテスト領域だけを扱う。`-FirstUse` と同時指定しない。 |
-| EXEの `-TestMode -TestEnvironmentId ID` | 検証済みの独立テストモードで起動する。通常版の保存先、旧データの検査・自動移行、通常版の2つのロックは使用しない。 |
+| 起動前検査の `-TestMode -TestEnvironmentId ID` | 現在は公開停止のためBLOCKED。将来は通常版の保存先を存在検査・読み込みせず、指定IDのテスト領域だけを検査する設計。`-FirstUse` と同時指定しない。 |
+| EXEの `-TestMode -TestEnvironmentId ID` | 現在は使用不可。将来は通常版の保存先、旧データの検査・自動移行、通常版の2つのロックを使わず起動する設計。 |
 | 引数なしのEXE起動 | 通常起動。独立テストのためには使用しない。 |
 
 単に `-FirstUse` を外す方法ではありません。`PACKAGE_CHECK_ONLY` は起動許可ではありません。独立モードでは、全検査が成功した `READY_FOR_ISOLATED_TEST` だけを次工程の前提として使用します。検査成功も実際のGUI操作の合格を意味しません。
@@ -39,7 +43,9 @@ IDは小文字16進数32桁のGUID形式に限定します。任意の保存先�
 
 起動中はタイトルに `[TEST MODE]`、画面下に「テスト環境」とIDを表示します。通常版へ切り替えるメニューはありません。識別表示がない場合、旧データ引き継ぎ画面が出る場合、想定外の保存先を示す場合は操作せず停止します。
 
-## 起動前検査と実機コマンド
+## 将来の起動前検査と実機コマンド（現在使用不可）
+
+以下の準備・検査・起動は、安全性の2件を修正し、必須ケースを省略せず再検証した対応版が正式に提示された後の工程です。現在は新しいテスト領域の準備も依頼しません。
 
 対象はWindows 10/11 x64、64ビットのWindows PowerShell 5.1 Desktop、.NET Framework 4.6以上です。.NET Framework 4.8を推奨します。テスト用保存先はローカルのNTFSが必要です。ネットワーク共有、割り当てたネットワークドライブ、別名ドライブやリンクによる保存先は使いません。追加のPython、SQLite、PowerShellモジュールのインストールは不要です。
 
@@ -47,32 +53,31 @@ IDは小文字16進数32桁のGUID形式に限定します。任意の保存先�
 2. アプリを実行せず、まず同梱の署名・ファイル・取得元チェックを行います。新しい結果フォルダーを作ります。
 
 ```powershell
-$tpKit = (Get-Location).Path
-$tpEnvironmentId = [guid]::NewGuid().ToString('N')
-$tpResults = Join-Path ([Environment]::GetFolderPath('UserProfile')) ('TaskPilotTestResults_' + [guid]::NewGuid().ToString('N'))
-New-Item -ItemType Directory -Path $tpResults -ErrorAction Stop | Out-Null
-Set-Content -LiteralPath (Join-Path $tpResults 'TestEnvironmentId.txt') -Value $tpEnvironmentId -Encoding UTF8 -ErrorAction Stop
-$tpCheck = & (Join-Path $tpKit 'Tools\Test-TaskPilotAcceptancePackage.ps1') -PackageRoot $tpKit -OutputRoot $tpResults -TestMode -TestEnvironmentId $tpEnvironmentId
-$tpCheck | Format-List Status, Mode, TestEnvironmentId, ExpectedTestRoot, ReportPath
-$tpCheck.Checks | Format-Table -AutoSize
+# 現在使用不可。以下は修正・再検証後の手順の記録です。
+# $tpKit = (Get-Location).Path
+# $tpEnvironmentId = [guid]::NewGuid().ToString('N')
+# $tpResults = Join-Path ([Environment]::GetFolderPath('UserProfile')) ('TaskPilotTestResults_' + [guid]::NewGuid().ToString('N'))
+# New-Item -ItemType Directory -Path $tpResults -ErrorAction Stop | Out-Null
+# Set-Content -LiteralPath (Join-Path $tpResults 'TestEnvironmentId.txt') -Value $tpEnvironmentId -Encoding UTF8 -ErrorAction Stop
+# $tpCheck = & (Join-Path $tpKit 'Tools\Test-TaskPilotAcceptancePackage.ps1') -PackageRoot $tpKit -OutputRoot $tpResults -TestMode -TestEnvironmentId $tpEnvironmentId
+# $tpCheck | Format-List Status, Mode, TestEnvironmentId, ExpectedTestRoot, ReportPath
+# $tpCheck.Checks | Format-Table -AutoSize
 ```
 
 独立検査は通常版の保存先を調べず、確認した境界DLLを使ってテスト用マーカーと空の専用ディレクトリを準備する場合があります。既存の業務データをコピー・移行しません。Windows ServerはWindows 10/11の実機受入対象ではないため、この検査ではBLOCKEDになります。
 
 **BLOCKED、PACKAGE_CHECK_ONLY、検査の例外、DLL/スクリプトの実行拒否があれば起動しません。** ファイルを削除したり、ブロックを解除したり、実行ポリシーを変更して通しません。表示と報告を保存します。
 
-3. `READY_FOR_ISOLATED_TEST` と対象ビルドの実施条件を確認した受入担当者は、次の形式で起動します。`--test-mode` ではなく、PowerShell/ps2exeが対応する名前付き引数を使用します。
+3. 原因修正後の対応版について `READY_FOR_ISOLATED_TEST` と実施条件を確認する工程です。現在の候補での起動は認めません。将来の引数形式は `--test-mode` ではなく、PowerShell/ps2exeが対応する名前付き引数を予定しています。
 
 ```powershell
-& (Join-Path $tpKit 'Application\TaskPilot\TaskPilot.exe') -TestMode -TestEnvironmentId $tpEnvironmentId
+# 現在使用不可。起動コマンドは、安全性の再検証後に対応版とともに提示します。
 ```
 
 4. `[TEST MODE]` とIDの表示を確認し、架空の `UAT-` データだけを入力します。再起動時は保存した同じIDを読み、同じ引数で起動します。
 
 ```powershell
-# 新しいPowerShellを開いた場合は、tpKit/tpResultsを実際のキット・結果フォルダーへ設定する。
-$tpEnvironmentId = (Get-Content -LiteralPath (Join-Path $tpResults 'TestEnvironmentId.txt') -Raw -Encoding UTF8).Trim()
-& (Join-Path $tpKit 'Application\TaskPilot\TaskPilot.exe') -TestMode -TestEnvironmentId $tpEnvironmentId
+# 現在使用不可。再起動コマンドも、安全性の再検証後に対応版とともに提示します。
 ```
 
 実装・バイナリが未確認のまま、通常版のEXEと取り違えて実行しません。EXEだけを移動せず、Runtime、Adapters、Modules、Codec、schema、第三者表示・対応ソースを一式で保持します。
@@ -84,23 +89,25 @@ $tpEnvironmentId = (Get-Content -LiteralPath (Join-Path $tpResults 'TestEnvironm
 - 復元は同じテスト領域の新しいDBへ行い、元のテストDBを残します。通常版のDB・設定・バックアップは参照しません。
 - Excelの3ブックとグラフはこのIDの `Export` に生成します。「開く」ボタンはテスト出力の場所を案内し、関連付けアプリを自動起動しません。試験者が別途Excelで開く操作は、Excel自身の最近使ったファイル・自動回復など、TaskPilotが制御できない外部アプリの動作を伴います。生成の検証と外部閲覧の検証を分けます。
 
-## 既存データを保護する実装上の根拠
+## 実装した保護策と未解決の境界問題
 
-次はコードで設けた境界です。成功を確認した試験範囲は、同梱の `Evidence/windows-isolated-mode-results.json` と対応するCI実行を確認します。実装があることだけで実機合格と判断しません。
+次はコードに設けた保護策ですが、I25/I28の失敗により完全な分離の根拠にはできません。ハンドルによる削除・名前変更の防止やディレクトリの属性変更拒否だけでは、実際に確認したreparse point化を防げませんでした。外部ライブラリがパスでファイルを再オープンする設計も含めて修正が必要です。対応EXE・キットは公開せず、合成環境で原因を修正・再検証します。
 
 | 境界 | 内容 |
 | --- | --- |
 | 初期化の順番 | 引数を最初に検証し、モードを固定してから保存先を設定する。テストモードの失敗時に通常ログや通常起動へfallbackしない。 |
 | データ・移行 | 起動時に旧データの存在検査、取り込み、通常版の2つのロックを実行しない。移行APIもテスト境界設定後は拒否する。 |
 | パス | 許可ルート外を内容の読み取り前に拒否する。任意のルートを引数・設定・環境変数から受け付けない。 |
-| リンクと差し替え | WindowsのNOFOLLOWハンドルとファイル情報でreparse point・hardlink等を検査し、親ディレクトリの削除共有を与えないハンドルを保持する。書き込み・名前変更・削除も境界内のハンドルで扱う。 |
+| リンクと差し替え | NOFOLLOWハンドル、hardlink検査、削除共有を与えない親ハンドルを実装。ただしI25/I28で保持中の対象のreparse point化を防げず、この境界はFAIL。 |
 | DB識別 | schema_migrationsの40001の説明にテスト専用IDを記録する。既存DBを後から自動でテスト用と認定せず、異なるID・通常DBを拒否する。通常の保存層もテスト用マーカーのあるDBを通常DBとして開かない。 |
 | SQLと一時処理 | テスト接続はjournal_mode=TRUNCATE・temp_store=MEMORYを使う。DBとjournalのハンドルを管理する。既存WAL/SHMや非空の回復journalは、削除や自動回復で隠さず停止する。 |
 | 失敗時 | 境界違反でコンテキストを停止し、通知タイマーと画面を終了する。通常版へ切り替えない。ログを安全に書けない場合も通常ログへ逃がさない。 |
 
 これは同一ユーザー権限の悪意ある別プログラムや管理者に対するOSサンドボックスではありません。検証済みアプリ・ライブラリと通常のWindows権限を前提に、TaskPilotのファイル経路を制限する仕組みです。OS自身の実行履歴・キャッシュや外部閲覧アプリの永続化を、テスト領域だけに閉じ込めたと保証するものではありません。通常版のデータを手作業でテスト領域へコピーする運用も行いません。
 
-## 必須14項目と実機記録
+## 必須14項目と実機記録（実施停止中）
+
+以下の14項目は受入計画として保持しています。現在は安全性の不合格により、既存業務ユーザーでの実機受入を開始しません。特にTM-13はI25/I28を含む全パス境界ケースの成功を前提とします。
 
 次のTM番号は独立モードの受入項目です。自動試験番号は実装済みスイートの対応先を示します。**結果はEvidenceの実際のケース結果から記録し、ここに書かれた予定番号だけで合格にしません。** 通常版の比較データ・パス攻撃・障害注入には、合成したプロファイルと検証用コピーだけを使用します。実際の業務データをハッシュ採取や破壊試験の対象にしません。
 
@@ -118,14 +125,14 @@ $tpEnvironmentId = (Get-Content -LiteralPath (Join-Path $tpResults 'TestEnvironm
 | TM-10 / 10 | 同じIDで再起動してデータを保持する | I07/I08。同じIDと新しいIDの画面を実機で区別し、以前の領域を削除しない。 |
 | TM-11 / 11 | 不正・アクセス不能な保存先で停止する | I21。障害は合成プロファイルだけで注入し、エラー画面と通常版へのfallbackがないことを確認。 |
 | TM-12 / 12 | 通常側のハッシュとディレクトリ構成が不変 | I24の合成通常データ全体の前後比較。業務原本を比較用に読み込まない。 |
-| TM-13 / 13 | パス差し替え・junction・symlink・hardlinkを拒否する | I10～I18。実データをリンク先にせず合成通常データだけを使用。ケースSKIPは未検証として残す。 |
+| TM-13 / 13 | パス差し替え・junction・symlink・hardlinkを拒否する | I10～I18/I25～I28。現在I25/I28がFAIL。実データをリンク先にせず合成通常データだけを使用。ケースSKIPも合格にしない。 |
 | TM-14 / 14 | 通知・自動生成・カレンダー・月次が通常側を参照しない | I05/I09/I24。タイマー待ち、実際の通知・月次画面・定期生成の操作は実機で確認。 |
 
 各IDの結果は [RESULT-TEMPLATE-ja.md](RESULT-TEMPLATE-ja.md)の独立モード欄へ記入します。既存の33項目は [TEST-CASES-ja.md](TEST-CASES-ja.md)を併用し、保存先とファイル選択・Excel閲覧の違いを本書に合わせます。
 
 ## エラー・制限・実施判定
 
-エラー時は時刻、ID、対象ビルド、操作、エラー全文を記録し、[LOGS-ja.md](LOGS-ja.md)の `-TestMode -TestEnvironmentId` 付き診断だけを使います。通常の診断コマンドへ切り替えて通常ログを採取しません。DB・WAL/SHM/journal・マーカー・ポインターを手作業で修復・削除せず保存します。
+現在、独立モードの公開診断も停止しています。失敗したCIの証跡とエラー全文を確認し、既存業務ユーザーで診断を実行しません。将来の対応版でエラーが起きた場合も、通常ログの採取へ切り替えない設計を維持します。DB・WAL/SHM/journal・マーカー・ポインターを手作業で修復・削除しません。
 
 非空journalやWAL/SHMの停止は、テストデータについても自動回復しないという制限です。担当者が診断し、同じIDの検証済みバックアップを使う復旧工程を別途決めます。エラーを消すためにファイルを取り除いて再起動しません。
 

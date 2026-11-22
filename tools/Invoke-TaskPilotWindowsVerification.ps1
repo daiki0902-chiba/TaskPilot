@@ -33,6 +33,10 @@ if(-not$prepared.Verified){throw 'Pinned dependency preparation did not return a
 # Use the bundled Windows SQLite provider. No TestProviderAssembly/Mono adapter,
 # application entry point, WinForms window, or generated EXE is launched here.
 $reportRoot=Join-Path $repo 'TestResults'
+$null=[IO.Directory]::CreateDirectory($reportRoot)
+$releaseGate=& (Join-Path $repo 'tests/Test-IsolatedReleaseGate.ps1') -OutputRoot $reportRoot
+if(-not$releaseGate.Passed-or$releaseGate.ApplicationLaunched-or$releaseGate.ProductionProfileAccessed-or$releaseGate.TestAreaPrepared){throw 'The disabled public test-mode entry points did not fail closed.'}
+Write-Host ('PASS: public independent-mode release gate; '+$releaseGate.Checks+' assertions; no production profile or application launch.')
 $oldReports=New-Object 'Collections.Generic.HashSet[string]' ([StringComparer]::OrdinalIgnoreCase)
 if([IO.Directory]::Exists($reportRoot)){
     foreach($file in @(Get-ChildItem -LiteralPath $reportRoot -Filter 'Commercial_*.json' -File)){$null=$oldReports.Add($file.FullName)}
@@ -69,10 +73,23 @@ $runtimeAssembly=Join-Path (Join-Path $release 'TaskPilot') 'Runtime/TaskPilot.T
 Assert-TPBuildNoLinks $runtimeAssembly
 if(-not[IO.File]::Exists($runtimeAssembly)){throw 'The precompiled independent-mode runtime DLL is missing.'}
 $nativeBuildInfo=Get-Content -LiteralPath (Join-Path (Join-Path $release 'TaskPilot') 'BuildInfo.json') -Raw -Encoding UTF8|ConvertFrom-Json
-if(-not$nativeBuildInfo.IndependentTestModeSupported-or$nativeBuildInfo.Version-cne'0.4.0.2'-or
+if(-not$nativeBuildInfo.IndependentTestModeImplemented-or$nativeBuildInfo.Version-cne'0.4.0.2'-or
    $nativeBuildInfo.RuntimeGuardSha256-cne(Get-TPBuildSha $runtimeAssembly)){throw 'The compiled runtime does not match the candidate build metadata.'}
 $isolated=& (Join-Path $repo 'tests/Test-IsolatedTestMode.ps1') -RuntimeAssembly $runtimeAssembly -DependencyRoot $dependencyRoot -OutputRoot $reportRoot
+$requiredIsolationIds=@(1..22|ForEach-Object {'I{0:00}'-f$_})+@(24..28|ForEach-Object {'I{0:00}'-f$_})
+$completeIsolationCases=$null-ne$isolated-and@($isolated.Cases).Count-eq$requiredIsolationIds.Count
+if($completeIsolationCases){
+    foreach($id in $requiredIsolationIds){
+        $case=@($isolated.Cases|Where-Object {$_.Id-ceq$id})
+        if($case.Count-ne1-or$case[0].Passed-isnot[bool]-or-not$case[0].Passed){$completeIsolationCases=$false;break}
+    }
+}
 if($null-eq$isolated-or$isolated.Passed-isnot[bool]-or-not$isolated.Passed-or
+   -not$nativeBuildInfo.IndependentTestModeSupported-or$nativeBuildInfo.IndependentTestModeReleaseBlocked-or
+   -not$completeIsolationCases-or$isolated.ProductionProfileAccessed-isnot[bool]-or$isolated.ProductionProfileAccessed-or
+   $null-eq$isolated.FileAndAncestorBoundary-or-not$isolated.FileAndAncestorBoundary.Passed-or
+   -not$isolated.FileAndAncestorBoundary.CompleteNativeCoverage-or$isolated.FileAndAncestorBoundary.UnsafeVectorConfirmed-or
+   -not$isolated.FileAndAncestorBoundary.NormalFixtureUnchanged-or
    $isolated.NormalFixtureUnchanged-isnot[bool]-or-not$isolated.NormalFixtureUnchanged-or
    $isolated.ActualExcelFilesGenerated-isnot[bool]-or-not$isolated.ActualExcelFilesGenerated-or
    $isolated.WindowsClientGUIVerified-isnot[bool]-or$isolated.WindowsClientGUIVerified-or

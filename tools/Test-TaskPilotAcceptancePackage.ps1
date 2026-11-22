@@ -134,6 +134,7 @@ try{
     }elseif(-not[string]::IsNullOrEmpty($TestEnvironmentId)){throw 'TestEnvironmentId is allowed only with explicit TestMode.'}
     Add-TPACCheck 'ModeArguments' $true ('Mode='+$requestedMode)
 }catch{$modeValid=$false;Add-TPACCheck 'ModeArguments' $false $_.Exception.Message}
+if($script:TPACIndependentIntent){Add-TPACCheck 'TestModeReleaseAuthorization' $false 'TP-ISOLATION-BLOCKED: native synthetic I25/I28 permit in-place reparse mutation. Independent mode is disabled; package contents and profile test areas will not be opened.'}
 $userSid=$null;$frameworkRelease=$null;$os=$null;$osError=$null
 if($tpacIsWindows){
     try{$userSid=[Security.Principal.WindowsIdentity]::GetCurrent().User.Value}catch{$userSid='UNAVAILABLE'}
@@ -152,6 +153,11 @@ Add-TPACCheck 'DotNetFramework' ($tpacIsWindows-and$null-ne$frameworkRelease-and
 
 $root=$null;$manifest=$null;$manifestSha=$null;$validatedFiles=@();$packageValid=$false;$candidateCommit=$null;$candidateSha=$null
 try{
+    # Resolve the requested package name lexically for report placement, then
+    # stop independent requests before any manifest/hash/DLL content read.
+    $root=Get-TPACFullPath $PackageRoot
+    Assert-TPACNoNormalStatePath $root
+    if($script:TPACIndependentIntent){throw 'TP-ISOLATION-BLOCKED: independent-mode release is disabled before package content inspection.'}
     if(-not$modeValid){throw 'Mode arguments are invalid; package and profile contents were not inspected.'}
     $root=Get-TPACFullPath $PackageRoot
     Assert-TPACNoNormalStatePath $root
@@ -215,11 +221,21 @@ try{
     if((Get-TPACProperty $built 'RuntimeGuardSha256')-cne(Get-FileHash -LiteralPath (Join-Path $root 'Application/TaskPilot/Runtime/TaskPilot.TestSandbox.dll') -Algorithm SHA256).Hash.ToLowerInvariant()-or(Get-TPACProperty $built 'CodecRuntimeSha256')-cne(Get-FileHash -LiteralPath (Join-Path $root 'Application/TaskPilot/Codec/TaskPilotMigrationCodec.dll') -Algorithm SHA256).Hash.ToLowerInvariant()){throw 'The packaged runtime/codec DLL does not match the native build identity.'}
     $isolatedEvidence=Get-TPACJson (Join-Path $root 'Evidence/windows-isolated-mode-results.json')
     foreach($field in @('Passed','NormalFixtureUnchanged','ActualExcelFilesGenerated')){Assert-TPACBoolean $isolatedEvidence $field $true}
-    foreach($field in @('WindowsClientGUIVerified','ApplicationRunCalled')){Assert-TPACBoolean $isolatedEvidence $field $false}
+    foreach($field in @('WindowsClientGUIVerified','ApplicationRunCalled','ProductionProfileAccessed')){Assert-TPACBoolean $isolatedEvidence $field $false}
     if((Get-TPACProperty $isolatedEvidence 'SourceCommit')-cne$candidateCommit){throw 'Independent mode test evidence belongs to a different source commit.'}
     if(@(Get-TPACProperty $isolatedEvidence 'SkippedDetails').Count-ne0){throw 'Required independent mode boundary cases must not be skipped.'}
-    if(@(Get-TPACProperty $isolatedEvidence 'Cases').Count-lt14){throw 'Independent mode evidence must cover the required isolation cases.'}
-    if(@((Get-TPACProperty $isolatedEvidence 'Cases')|Where-Object {$_.Passed-isnot[bool]-or-not$_.Passed}).Count-ne0){throw 'Independent mode safety evidence contains a failed case.'}
+    $requiredIsolatedIds=@('I01','I02','I03','I04','I05','I06','I07','I08','I09','I10','I11','I12','I13','I14','I15','I16','I17','I18','I19','I20','I21','I22','I24','I25','I26','I27','I28')
+    $seenIsolatedIds=New-Object 'Collections.Generic.HashSet[string]' ([StringComparer]::Ordinal)
+    foreach($case in @(Get-TPACProperty $isolatedEvidence 'Cases')){
+        $caseId=Get-TPACProperty $case 'Id'
+        if($caseId-isnot[string]-or$requiredIsolatedIds-cnotcontains$caseId-or-not$seenIsolatedIds.Add($caseId)){throw 'Independent mode evidence must contain the required unique native cases, all passed.'}
+        Assert-TPACBoolean $case 'Passed' $true
+    }
+    $isolatedFailures=Get-TPACProperty $isolatedEvidence 'FailedCases'
+    if($seenIsolatedIds.Count-ne$requiredIsolatedIds.Count-or($isolatedFailures-isnot[int]-and$isolatedFailures-isnot[long])-or$isolatedFailures-ne0){throw 'Independent mode evidence must contain the required unique native cases, all passed.'}
+    $fileBoundary=Get-TPACProperty $isolatedEvidence 'FileAndAncestorBoundary'
+    foreach($field in @('Passed','CompleteNativeCoverage','NormalFixtureUnchanged')){Assert-TPACBoolean $fileBoundary $field $true}
+    Assert-TPACBoolean $fileBoundary 'UnsafeVectorConfirmed' $false
     if((Get-TPACProperty $isolatedEvidence 'RuntimeAssemblySha256')-cne(Get-TPACProperty $built 'RuntimeGuardSha256')){throw 'The tested runtime does not match the packaged guard.'}
     $manifestSha=(Get-FileHash -LiteralPath $manifestPath -Algorithm SHA256 -ErrorAction Stop).Hash.ToLowerInvariant()
     $validatedFiles=$allFiles.ToArray();$packageValid=$true
@@ -267,6 +283,7 @@ if($FirstUse-and-not$TestMode-and$modeValid){
 if($TestMode){
     $testScope=$null
     try{
+        throw 'TP-ISOLATION-BLOCKED: I25/I28 failed. No test area or boundary DLL was opened.'
         if(-not$modeValid){throw 'Independent mode arguments are invalid; no test area was opened.'}
         if(-not$hostSupported){throw 'Independent test readiness requires Windows 10/11 x64 with Desktop PowerShell 5.1; no profile area was opened on this host.'}
         if(-not$packageValid-or-not$originOK){throw 'Verified package bytes and readable, unblocked origin metadata are required before loading the boundary DLL.'}
