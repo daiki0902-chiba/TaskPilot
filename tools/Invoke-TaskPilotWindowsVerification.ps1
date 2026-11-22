@@ -25,6 +25,12 @@ $repo=Split-Path -Parent $PSScriptRoot
 $dependencyRoot=Join-Path $root 'Dependencies'
 $buildRoot=Join-Path $root 'Build'
 $candidateRoot=Join-Path $root 'Candidate'
+$reportRoot=Join-Path $repo 'TestResults'
+$null=[IO.Directory]::CreateDirectory($reportRoot)
+$smokeRuntime=& (Join-Path $PSScriptRoot 'Build-TaskPilotRuntime.ps1') -OutputDirectory (Join-Path $root 'HandleSmokeRuntime')
+$smoke=& (Join-Path $repo 'tests/Test-SandboxHandleSmoke.ps1') -RuntimeAssembly $smokeRuntime.AssemblyPath -OutputRoot $reportRoot
+if(-not$smoke.Passed){throw ('Native handle smoke failed: '+$smoke.Error)}
+Write-Host ('PASS: native handle-only smoke; '+$smoke.Checks+' assertions.')
 
 # The provisioner checks the pinned dependency lock and creates no system modules.
 $prepared=& (Join-Path $PSScriptRoot 'Get-TaskPilotBuildDependencies.ps1') -DestinationRoot $dependencyRoot

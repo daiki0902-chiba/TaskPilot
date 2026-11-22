@@ -73,6 +73,7 @@ jobs:
           name: TaskPilot-Windows-Server-native-test-reports-${{ github.run_id }}-${{ github.run_attempt }}
           path: |
             TestResults/Commercial_*.json
+            TestResults/HandleSmoke_*.json
             TestResults/Isolated_*.json
             TestResults/IsolatedReleaseGate_*.json
             TestResults/IsolatedMode_*/IsolatedTestModeResult.json

@@ -28,8 +28,10 @@ namespace TaskPilot.Runtime
         private readonly object sync = new object();
         private readonly Dictionary<string, SafeFileHandle> directories = new Dictionary<string, SafeFileHandle>(StringComparer.OrdinalIgnoreCase);
         private readonly Dictionary<string, FilePin> files = new Dictionary<string, FilePin>(StringComparer.OrdinalIgnoreCase);
-        private readonly Dictionary<string, DatabasePin> databases = new Dictionary<string, DatabasePin>(StringComparer.OrdinalIgnoreCase);
         private readonly Dictionary<string, LockLease> locks = new Dictionary<string, LockLease>(StringComparer.OrdinalIgnoreCase);
+        private readonly Dictionary<string, WriterLease> writers = new Dictionary<string, WriterLease>(StringComparer.OrdinalIgnoreCase);
+        private const string DirectoryGuardName = ".taskpilot-directory-guard";
+        private static readonly byte[] DirectoryGuardBytes = Encoding.UTF8.GetBytes("TaskPilot pinned directory guard v2\n");
         private bool disposed, faulted, readOnly;
         private string faultReason;
         private string ownerSid;
@@ -39,11 +41,34 @@ namespace TaskPilot.Runtime
         {
             internal SafeFileHandle Handle;
             internal int ManualCount, DatabaseCount;
+            internal bool IsGuard;
         }
-        private sealed class DatabasePin
+        private sealed class WriterLease : IDisposable
         {
-            internal int Count;
-            internal string Journal;
+            internal Sandbox Owner;
+            internal string Path;
+            public void Dispose()
+            {
+                Sandbox current = Owner;
+                if (current == null) return;
+                lock (current.sync)
+                {
+                    if (Owner == null) return;
+                    current.writers.Remove(Path);
+                    FilePin pin;
+                    if (current.files.TryGetValue(Path, out pin)) { pin.DatabaseCount--; current.RemoveUnusedPin(Path, pin); }
+                    Owner = null;
+                }
+            }
+        }
+        public sealed class DirectoryEntry
+        {
+            public string Name { get; internal set; }
+            public string FullName { get; internal set; }
+            public string Extension { get { return System.IO.Path.GetExtension(Name); } }
+            public FileAttributes Attributes { get; internal set; }
+            public bool IsDirectory { get { return (Attributes & FileAttributes.Directory) != 0; } }
+            public long Length { get; internal set; }
         }
         private sealed class LockLease : IDisposable
         {
@@ -92,6 +117,8 @@ namespace TaskPilot.Runtime
         private static extern SafeFileHandle CreateFileW(string name, uint access, uint share, IntPtr security, uint disposition, uint flags, IntPtr template);
         [DllImport("kernel32.dll", SetLastError = true)]
         private static extern bool GetFileInformationByHandle(SafeFileHandle handle, out FileInformation info);
+        [DllImport("kernel32.dll", SetLastError = true)]
+        private static extern bool GetFileInformationByHandleEx(SafeFileHandle handle, int informationClass, IntPtr information, uint size);
         [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
         private static extern uint GetFinalPathNameByHandleW(SafeFileHandle handle, StringBuilder name, uint length, uint flags);
         [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
@@ -161,7 +188,7 @@ namespace TaskPilot.Runtime
                     if (!initialize) throw new DirectoryNotFoundException("The existing test environment was not found.");
                     context.PinDirectoryChain(context.Root, true);
                 }
-                string marker = "TaskPilot independent test environment v1\n" + environmentId + "\n";
+                string marker = "TaskPilot independent test environment v2\n" + environmentId + "\n";
                 if (context.Exists(context.MarkerPath))
                 {
                     if (!String.Equals(context.ReadAllText(context.MarkerPath), marker, StringComparison.Ordinal))
@@ -171,7 +198,7 @@ namespace TaskPilot.Runtime
                 {
                     if (!initialize) throw context.Violation("The existing test environment has no identity marker.");
                     // An existing nonempty directory is never silently adopted.
-                    if (existed && new DirectoryInfo(context.Root).GetFileSystemInfos().Length != 0)
+                    if (existed && context.ListDirectory(context.Root).Length != 0)
                         throw context.Violation("An existing nonempty test directory has no identity marker. It will not be adopted or cleared.");
                     context.WriteNew(context.MarkerPath, new UTF8Encoding(false, true).GetBytes(marker));
                 }
@@ -257,34 +284,94 @@ namespace TaskPilot.Runtime
                 throw Violation("The resolved handle path differs from the pinned test path: " + expected);
             return info;
         }
+
+        private static bool Missing(Exception failure)
+        {
+            Win32Exception native = failure.InnerException as Win32Exception;
+            return native != null && (native.NativeErrorCode == 2 || native.NativeErrorCode == 3);
+        }
+        private SafeFileHandle OpenRelative(string path, uint access, uint disposition, uint share, bool? directory, byte[] policy)
+        {
+            string parent = Path.GetDirectoryName(path), leaf = Path.GetFileName(path);
+            SafeFileHandle parentHandle;
+            if (!directories.TryGetValue(parent, out parentHandle)) throw new IOException("A relative-open parent is not pinned: " + parent);
+            Information(parentHandle, parent, true);
+            IntPtr nameMemory = Marshal.StringToHGlobalUni(leaf), unicodeMemory = Marshal.AllocHGlobal(Marshal.SizeOf(typeof(UnicodeString))), securityMemory = IntPtr.Zero;
+            SafeFileHandle handle = null;
+            try
+            {
+                UnicodeString name = new UnicodeString(); name.Length = checked((ushort)(leaf.Length * 2)); name.MaximumLength = checked((ushort)(name.Length + 2)); name.Buffer = nameMemory;
+                Marshal.StructureToPtr(name, unicodeMemory, false);
+                if (policy != null) { securityMemory = Marshal.AllocHGlobal(policy.Length); Marshal.Copy(policy, 0, securityMemory, policy.Length); }
+                ObjectAttributes attributes = new ObjectAttributes(); attributes.Length = Marshal.SizeOf(typeof(ObjectAttributes)); attributes.RootDirectory = parentHandle.DangerousGetHandle(); attributes.ObjectName = unicodeMemory;
+                attributes.Attributes = 0x40 | 0x1000; attributes.SecurityDescriptor = securityMemory;
+                uint options = 0x20 | OpenReparsePoint;
+                if (directory.HasValue) options |= directory.Value ? 1u : 0x40u;
+                uint nativeDisposition = disposition == CreateNew ? 2u : (disposition == OpenAlways ? 3u : 1u);
+                IoStatusBlock result;
+                int status = NtCreateFile(out handle, access | ReadAttributes | 0x100000, ref attributes, out result, IntPtr.Zero, directory == true ? DirectoryAttribute : 0x80u, share, nativeDisposition, options, IntPtr.Zero, 0);
+                if (status < 0)
+                {
+                    int code = unchecked((int)RtlNtStatusToDosError(status));
+                    if (handle != null) { handle.Dispose(); handle = null; }
+                    if (code == 1920 || unchecked((uint)status) == 0xC000050Bu) throw Violation("Relative open encountered a reparse point: " + path);
+                    throw new IOException("Cannot open a test entry relative to its pinned parent: " + path + " (" + code.ToString() + ")", new Win32Exception(code));
+                }
+                SafeFileHandle answer = handle; handle = null; return answer;
+            }
+            finally { if (handle != null) handle.Dispose(); if (securityMemory != IntPtr.Zero) Marshal.FreeHGlobal(securityMemory); Marshal.FreeHGlobal(unicodeMemory); Marshal.FreeHGlobal(nameMemory); }
+        }
+        private SafeFileHandle Borrow(SafeFileHandle owner)
+        {
+            // A non-owning wrapper leaves the broker lease alive when a
+            // FileStream is disposed. Calls hold sync for the whole I/O.
+            return new SafeFileHandle(owner.DangerousGetHandle(), false);
+        }
         private SafeFileHandle OpenFile(string path, uint access, uint disposition, uint share)
         {
-            SafeFileHandle handle = CreateFileW(path, access | ReadAttributes, share, IntPtr.Zero, disposition, OpenReparsePoint, IntPtr.Zero);
-            if (handle.IsInvalid) { handle.Dispose(); throw NativeError("Cannot open test file " + path); }
-            try { Information(handle, path, false); return handle; }
+            FilePin pinned;
+            if (files.TryGetValue(path, out pinned))
+            {
+                if (disposition == CreateNew) throw new IOException("The new file already exists.");
+                if (pinned.IsGuard && (access & (GenericWrite | DeleteAccess | 2u | 4u)) != 0) throw new IOException("A directory guard is immutable while its environment is open.");
+                Information(pinned.Handle, path, false); VerifyProtection(path, pinned.Handle, false);
+                return Borrow(pinned.Handle);
+            }
+            bool writing = (access & (GenericWrite | DeleteAccess | 2u | 4u)) != 0;
+            uint specific = 0x20000 | ReadAttributes;
+            if ((access & GenericRead) != 0 || writing || (access & 1) != 0) specific |= 1;
+            if (writing) specific |= 2 | 4 | DeleteAccess;
+            SafeFileHandle handle = OpenRelative(path, specific, disposition, writing ? ShareRead : 7u, false, null);
+            try { Information(handle, path, false); VerifyProtection(path, handle, false); return handle; }
             catch { handle.Dispose(); throw; }
         }
         private bool TryPinDirectory(string path)
         {
             SafeFileHandle pinned;
-            if (directories.TryGetValue(path, out pinned)) { Information(pinned, path, true); VerifyDirectoryPolicy(path, pinned); return true; }
-            // A list-directory lease participates in delete sharing. Directory
-            // attribute changes require a separate ACL rule: metadata access
-            // is not mediated by FILE_SHARE_WRITE.
-            // FILE_LIST_DIRECTORY participates in Windows sharing checks;
-            // FILE_READ_ATTRIBUTES alone does not establish a sharing lease.
+            if (directories.TryGetValue(path, out pinned)) { Information(pinned, path, true); VerifyProtection(path, pinned, true); return true; }
             uint access = ReadAttributes | 1 | 0x20;
             if (RequiresDirectoryPolicy(path)) access |= 0x20000 | 2 | 4;
             else if (String.Equals(path, ProfileRoot, StringComparison.OrdinalIgnoreCase)) access |= 4;
-            SafeFileHandle handle = CreateFileW(path, access, ShareReadWrite, IntPtr.Zero, OpenExistingFile, BackupSemantics | OpenReparsePoint, IntPtr.Zero);
-            if (handle.IsInvalid)
+            SafeFileHandle handle;
+            try
             {
-                int code = Marshal.GetLastWin32Error(); handle.Dispose();
-                if (code == 2 || code == 3) return false;
-                throw new IOException("Cannot pin test directory: " + path, new Win32Exception(code));
+                if (String.Equals(path, Path.GetPathRoot(path), StringComparison.OrdinalIgnoreCase))
+                {
+                    // The volume root is the sole absolute open. Every user
+                    // path component thereafter is opened by parent handle.
+                    handle = CreateFileW(path, access, ShareReadWrite, IntPtr.Zero, OpenExistingFile, BackupSemantics | OpenReparsePoint, IntPtr.Zero);
+                    if (handle.IsInvalid) { handle.Dispose(); throw NativeError("Cannot pin the volume root"); }
+                }
+                else handle = OpenRelative(path, access, OpenExistingFile, ShareReadWrite, true, null);
             }
-            try { Information(handle, path, true); VerifyDirectoryPolicy(path, handle); directories.Add(path, handle); return true; }
-            catch { handle.Dispose(); throw; }
+            catch (IOException failure) { if (Missing(failure)) return false; throw; }
+            try
+            {
+                Information(handle, path, true); VerifyProtection(path, handle, true); directories.Add(path, handle);
+                AttachDirectoryGuard(path, false);
+                return true;
+            }
+            catch { directories.Remove(path); handle.Dispose(); throw; }
         }
         private bool RequiresDirectoryPolicy(string path)
         {
@@ -292,84 +379,83 @@ namespace TaskPilot.Runtime
             string home = Path.Combine(ProfileRoot, "TaskPilotTest");
             return String.Equals(path, home, StringComparison.OrdinalIgnoreCase) || path.StartsWith(home + "\\", StringComparison.OrdinalIgnoreCase);
         }
+        private bool RequiresGuard(string path)
+        {
+            return Root != null && (String.Equals(path, Root, StringComparison.OrdinalIgnoreCase) || path.StartsWith(Root + "\\", StringComparison.OrdinalIgnoreCase));
+        }
         private byte[] NewDirectoryPolicy()
         {
-            // Only newly created test directories receive this policy. Files
-            // inherit normal owner access; the denials inherit to containers.
-            string sddl = "O:" + ownerSid + "D:P(D;CI;0x100;;;S-1-1-0)(D;CI;0xc0000;;;S-1-3-4)(A;OICI;FA;;;" + ownerSid + ")(A;OICI;FA;;;SY)(A;OICI;FA;;;BA)";
+            // Both files and containers inherit attribute and owner-policy
+            // denials. Only this newly-created test namespace is affected.
+            string sddl = "O:" + ownerSid + "D:P(D;OICI;0x100;;;S-1-1-0)(D;OICI;0xc0000;;;S-1-3-4)(A;OICI;FA;;;" + ownerSid + ")(A;OICI;FA;;;SY)(A;OICI;FA;;;BA)";
             RawSecurityDescriptor descriptor = new RawSecurityDescriptor(sddl);
             byte[] bytes = new byte[descriptor.BinaryLength]; descriptor.GetBinaryForm(bytes, 0); return bytes;
         }
-        private void VerifyDirectoryPolicy(string path, SafeFileHandle handle)
+        private void VerifyProtection(string path, SafeFileHandle handle, bool directory)
         {
             if (!RequiresDirectoryPolicy(path)) return;
             IntPtr owner, group, dacl, sacl, descriptor;
             uint error = GetSecurityInfo(handle.DangerousGetHandle(), 1, 5, out owner, out group, out dacl, out sacl, out descriptor);
-            if (error != 0) throw new IOException("Cannot inspect test-directory protection.", new Win32Exception(unchecked((int)error)));
+            if (error != 0) throw new IOException("Cannot inspect test-entry protection.", new Win32Exception(unchecked((int)error)));
             try
             {
                 uint size = GetSecurityDescriptorLength(descriptor);
-                if (size == 0 || size > 1048576) throw Violation("Invalid test-directory security descriptor.");
+                if (size == 0 || size > 1048576) throw Violation("Invalid test-entry security descriptor.");
                 byte[] bytes = new byte[size]; Marshal.Copy(descriptor, bytes, 0, bytes.Length);
                 RawSecurityDescriptor policy = new RawSecurityDescriptor(bytes, 0);
                 bool anchor = String.Equals(path, Path.Combine(ProfileRoot, "TaskPilotTest"), StringComparison.OrdinalIgnoreCase);
-                // The anchor is protected against inherited weakening. Child
-                // directories inherit both deny rules atomically; their owner
-                // cannot disable that inheritance because WRITE_DAC is denied.
                 if (policy.Owner == null || (policy.Owner.Value != ownerSid && policy.Owner.Value != defaultOwnerSid) || policy.DiscretionaryAcl == null || (anchor && (policy.ControlFlags & ControlFlags.DiscretionaryAclProtected) == 0))
-                    throw Violation("An existing test directory does not have the required protected policy. It will not be modified or adopted.");
+                    throw Violation("An existing entry does not have the required protected policy. It will not be modified or adopted.");
                 bool attributesDenied = false, ownerChangeDenied = false;
                 foreach (GenericAce raw in policy.DiscretionaryAcl)
                 {
                     CommonAce ace = raw as CommonAce;
-                    // Merely finding deny ACEs is insufficient: an earlier
-                    // explicit allow can satisfy an access check before a
-                    // later inherited deny is reached. Reject such policies
-                    // rather than rewriting an existing directory's ACL.
-                    if (ace == null || ace.IsCallback || (ace.AceQualifier != AceQualifier.AccessDenied && ace.AceQualifier != AceQualifier.AccessAllowed))
-                        throw Violation("Unsupported test-directory access policy. No policy was changed.");
-                    if (ace.AceQualifier == AceQualifier.AccessAllowed && (ace.AceFlags & AceFlags.InheritOnly) == 0)
-                    {
-                        // Reject every early grant, including generic masks
-                        // which Windows maps to concrete rights at access time.
-                        if (!attributesDenied || !ownerChangeDenied)
-                            throw Violation("Test-directory grants precede the required denials. No policy was changed.");
-                    }
-                    if (ace == null || ace.AceQualifier != AceQualifier.AccessDenied || (ace.AceFlags & AceFlags.InheritOnly) != 0 || (ace.AceFlags & AceFlags.ContainerInherit) == 0) continue;
+                    if (ace == null || ace.IsCallback || (ace.AceQualifier != AceQualifier.AccessDenied && ace.AceQualifier != AceQualifier.AccessAllowed)) throw Violation("Unsupported test-entry access policy.");
+                    if ((ace.AceFlags & AceFlags.InheritOnly) != 0) continue;
+                    if (ace.AceQualifier == AceQualifier.AccessAllowed && (!attributesDenied || !ownerChangeDenied)) throw Violation("Test-entry grants precede the required denials.");
+                    if (ace.AceQualifier != AceQualifier.AccessDenied || (directory && (ace.AceFlags & (AceFlags.ContainerInherit | AceFlags.ObjectInherit)) != (AceFlags.ContainerInherit | AceFlags.ObjectInherit))) continue;
                     if (ace.SecurityIdentifier.Value == "S-1-1-0" && (ace.AccessMask & 0x100) == 0x100) attributesDenied = true;
                     if (ace.SecurityIdentifier.Value == "S-1-3-4" && (ace.AccessMask & 0xc0000) == 0xc0000) ownerChangeDenied = true;
                 }
-                if (!attributesDenied || !ownerChangeDenied) throw Violation("Test-directory attribute/owner protection is missing. No policy was changed.");
+                if (!attributesDenied || !ownerChangeDenied) throw Violation("Test-entry attribute/owner protection is missing. No policy was changed.");
             }
             finally { if (descriptor != IntPtr.Zero) LocalFree(descriptor); }
         }
-        private void CreateProtectedDirectory(string path)
+        private void AttachDirectoryGuard(string path, bool create)
         {
-            string parent = Path.GetDirectoryName(path), leaf = Path.GetFileName(path);
-            SafeFileHandle parentHandle;
-            if (!directories.TryGetValue(parent, out parentHandle)) throw new IOException("The test directory parent is not pinned.");
-            byte[] security = NewDirectoryPolicy();
-            IntPtr securityMemory = Marshal.AllocHGlobal(security.Length), nameMemory = Marshal.StringToHGlobalUni(leaf), unicodeMemory = Marshal.AllocHGlobal(Marshal.SizeOf(typeof(UnicodeString)));
-            SafeFileHandle created = null;
+            if (!RequiresGuard(path)) return;
+            string guardPath = Path.Combine(path, DirectoryGuardName);
+            FilePin known;
+            if (files.TryGetValue(guardPath, out known)) { Information(known.Handle, guardPath, false); return; }
+            SafeFileHandle handle = null;
             try
             {
-                Marshal.Copy(security, 0, securityMemory, security.Length);
-                UnicodeString name = new UnicodeString(); name.Length = checked((ushort)(leaf.Length * 2)); name.MaximumLength = checked((ushort)(name.Length + 2)); name.Buffer = nameMemory;
-                Marshal.StructureToPtr(name, unicodeMemory, false);
-                ObjectAttributes attributes = new ObjectAttributes(); attributes.Length = Marshal.SizeOf(typeof(ObjectAttributes)); attributes.RootDirectory = parentHandle.DangerousGetHandle(); attributes.ObjectName = unicodeMemory;
-                attributes.Attributes = 0x40 | 0x1000;
-                attributes.SecurityDescriptor = RequiresDirectoryPolicy(parent) ? IntPtr.Zero : securityMemory;
-                IoStatusBlock result;
-                int status = NtCreateFile(out created, 0x100000 | 0x20000 | ReadAttributes | 1 | 2 | 4 | 0x20, ref attributes, out result, IntPtr.Zero, DirectoryAttribute, ShareReadWrite, 2, 1 | 0x20 | OpenReparsePoint, IntPtr.Zero, 0);
-                if (status < 0)
+                if (create) handle = OpenFile(guardPath, GenericWrite, CreateNew, ShareRead);
+                else handle = OpenFile(guardPath, readOnly ? GenericRead : GenericWrite, OpenExistingFile, ShareRead);
+                if (readOnly && !create)
                 {
-                    int error = unchecked((int)RtlNtStatusToDosError(status));
-                    if (error == 183) { if (!TryPinDirectory(path)) throw new DirectoryNotFoundException(path); return; }
-                    throw new IOException("Cannot create protected test directory: " + path + ": " + new Win32Exception(error).Message + " (" + error.ToString() + ", NT=" + status.ToString("X8") + ")", new Win32Exception(error));
+                    // Read-only diagnostics must also keep this marker from
+                    // being deleted or written for their entire lifetime.
+                    handle.Dispose();
+                    handle = OpenRelative(guardPath, 1 | 0x20000, OpenExistingFile, ShareRead, false, null);
+                    Information(handle, guardPath, false); VerifyProtection(guardPath, handle, false);
                 }
-                Information(created, path, true); VerifyDirectoryPolicy(path, created); directories.Add(path, created); created = null;
+                if (create) WriteHandle(handle, DirectoryGuardBytes);
+                else if (!EqualBytes(ReadHandle(handle, 4096), DirectoryGuardBytes)) throw Violation("The nonempty-directory guard is invalid.");
+                files.Add(guardPath, new FilePin { Handle = handle, ManualCount = 1, IsGuard = true }); handle = null;
             }
-            finally { if (created != null) created.Dispose(); Marshal.FreeHGlobal(unicodeMemory); Marshal.FreeHGlobal(nameMemory); Marshal.FreeHGlobal(securityMemory); }
+            finally { if (handle != null) handle.Dispose(); }
+        }
+        private void CreateProtectedDirectory(string path)
+        {
+            string parent = Path.GetDirectoryName(path);
+            SafeFileHandle created = OpenRelative(path, 0x20000 | ReadAttributes | 1 | 2 | 4 | 0x20, CreateNew, ShareReadWrite, true, RequiresDirectoryPolicy(parent) ? null : NewDirectoryPolicy());
+            try
+            {
+                Information(created, path, true); VerifyProtection(path, created, true); directories.Add(path, created);
+                AttachDirectoryGuard(path, true); created = null;
+            }
+            finally { if (created != null) { directories.Remove(path); created.Dispose(); } }
         }
         private void PinDirectoryChain(string full, bool create)
         {
@@ -386,9 +472,7 @@ namespace TaskPilot.Runtime
         }
         private void PinParent(string full)
         {
-            string parent = Path.GetDirectoryName(full);
-            if (String.Equals(full, Root, StringComparison.OrdinalIgnoreCase)) return;
-            PinDirectoryChain(parent, false);
+            if (!String.Equals(full, Root, StringComparison.OrdinalIgnoreCase)) PinDirectoryChain(Path.GetDirectoryName(full), false);
         }
         public string AssertPath(string path)
         {
@@ -402,85 +486,140 @@ namespace TaskPilot.Runtime
         {
             lock (sync)
             {
-                string full = Confine(path);
-                if (directories.ContainsKey(full) || files.ContainsKey(full) || locks.ContainsKey(full)) return true;
+                string full = Confine(path); SafeFileHandle directory; FilePin pin; LockLease lease;
+                if (directories.TryGetValue(full, out directory)) { Information(directory, full, true); return true; }
+                if (files.TryGetValue(full, out pin)) { Information(pin.Handle, full, false); return true; }
+                if (locks.TryGetValue(full, out lease)) { Information(lease.Handle, full, false); return true; }
                 try { PinParent(full); }
                 catch (DirectoryNotFoundException) { return false; }
-                SafeFileHandle handle = CreateFileW(full, ReadAttributes, ShareReadWrite, IntPtr.Zero, OpenExistingFile, BackupSemantics | OpenReparsePoint, IntPtr.Zero);
-                if (handle.IsInvalid)
+                try
                 {
-                    int code = Marshal.GetLastWin32Error(); handle.Dispose();
-                    if (code == 2 || code == 3) return false;
-                    throw new IOException("Cannot inspect test path: " + full, new Win32Exception(code));
+                    using (SafeFileHandle handle = OpenRelative(full, ReadAttributes | 0x20000, OpenExistingFile, 7, null, null))
+                    {
+                        FileInformation info;
+                        if (!GetFileInformationByHandle(handle, out info)) throw NativeError("Cannot inspect an existing entry");
+                        Information(handle, full, (info.Attributes & DirectoryAttribute) != 0);
+                    }
+                    return true;
                 }
-                using (handle)
-                {
-                    FileInformation raw;
-                    if (!GetFileInformationByHandle(handle, out raw)) throw NativeError("Cannot inspect test entry");
-                    bool isDirectory = (raw.Attributes & DirectoryAttribute) != 0;
-                    Information(handle, full, isDirectory);
-                }
-                return true;
+                catch (IOException failure) { if (Missing(failure)) return false; throw; }
             }
+        }
+        private DirectoryEntry[] EnumerateHandle(string directory, bool includeGuard)
+        {
+            SafeFileHandle handle = directories[directory]; Information(handle, directory, true);
+            List<DirectoryEntry> entries = new List<DirectoryEntry>();
+            IntPtr buffer = Marshal.AllocHGlobal(65536);
+            try
+            {
+                bool restart = true;
+                while (true)
+                {
+                    bool success = GetFileInformationByHandleEx(handle, restart ? 11 : 10, buffer, 65536); restart = false;
+                    if (!success)
+                    {
+                        int error = Marshal.GetLastWin32Error();
+                        if (error == 18) break;
+                        throw new IOException("Cannot enumerate a pinned directory.", new Win32Exception(error));
+                    }
+                    int offset = 0;
+                    while (true)
+                    {
+                        if (offset < 0 || offset > 65536 - 104) throw Violation("Invalid native directory entry.");
+                        IntPtr entry = IntPtr.Add(buffer, offset);
+                        int next = Marshal.ReadInt32(entry), nameLength = Marshal.ReadInt32(entry, 60);
+                        if (nameLength < 0 || (nameLength & 1) != 0 || nameLength > 65536 - offset - 104) throw Violation("Invalid native directory filename.");
+                        string name = Marshal.PtrToStringUni(IntPtr.Add(entry, 104), nameLength / 2);
+                        if (name != "." && name != ".." && (includeGuard || name != DirectoryGuardName))
+                        {
+                            string full = Path.Combine(directory, name);
+                            if (name.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0) throw Violation("Invalid native directory filename.");
+                            entries.Add(new DirectoryEntry { Name = name, FullName = full, Attributes = (FileAttributes)Marshal.ReadInt32(entry, 56), Length = Marshal.ReadInt64(entry, 40) });
+                            if (entries.Count > 100000) throw Violation("A directory exceeds the entry limit.");
+                        }
+                        if (next == 0) break;
+                        if (next < 104 || next > 65536 - offset) throw Violation("Invalid native directory offset.");
+                        offset += next;
+                    }
+                }
+                return entries.ToArray();
+            }
+            finally { Marshal.FreeHGlobal(buffer); }
+        }
+        public DirectoryEntry[] ListDirectory(string path)
+        {
+            lock (sync) { string full = Confine(path); PinDirectoryChain(full, false); return EnumerateHandle(full, false); }
         }
         public void ValidateTree()
         {
             lock (sync)
             {
-                CheckLive();
-                Stack<string> pending = new Stack<string>(); pending.Push(Root);
-                int count = 0;
+                CheckLive(); Stack<string> pending = new Stack<string>(); pending.Push(Root); int count = 0;
                 while (pending.Count != 0)
                 {
                     string directory = pending.Pop(); PinDirectoryChain(directory, false);
-                    foreach (FileSystemInfo entry in new DirectoryInfo(directory).GetFileSystemInfos())
+                    foreach (DirectoryEntry entry in EnumerateHandle(directory, true))
                     {
                         if (++count > 100000) throw Violation("The test environment exceeds its validation entry limit.");
                         string full = Confine(entry.FullName);
-                        if (locks.ContainsKey(full)) { Information(locks[full].Handle, full, false); continue; }
-                        if (files.ContainsKey(full)) { Information(files[full].Handle, full, false); continue; }
-                        // Attributes are read only inside pinned directories; never follow entries.
                         if ((entry.Attributes & FileAttributes.ReparsePoint) != 0) throw Violation("Test environment contains a link: " + full);
-                        if ((entry.Attributes & FileAttributes.Directory) != 0) { PinDirectoryChain(full, false); pending.Push(full); }
-                        else { using (SafeFileHandle file = OpenFile(full, ReadAttributes, OpenExistingFile, ShareReadWrite)) { } }
+                        if (entry.Name.StartsWith(".tp-rollback_", StringComparison.Ordinal)) throw new IOException("An interrupted broker write must be preserved for recovery; automatic recovery is disabled: " + full);
+                        if (entry.IsDirectory) { PinDirectoryChain(full, false); pending.Push(full); }
+                        else CheckExistingFile(full);
                     }
                 }
             }
         }
         public long GetFileLength(string path)
         {
-            lock (sync)
-            {
-                string full = AssertPath(path);
-                FilePin pin; LockLease lease;
-                if (files.TryGetValue(full, out pin)) return Length(Information(pin.Handle, full, false));
-                if (locks.TryGetValue(full, out lease)) return Length(Information(lease.Handle, full, false));
-                using (SafeFileHandle file = OpenFile(full, ReadAttributes, OpenExistingFile, ShareReadWrite)) return Length(Information(file, full, false));
-            }
+            lock (sync) { string full = AssertPath(path); using (SafeFileHandle handle = OpenFile(full, 1, OpenExistingFile, 7)) return Length(Information(handle, full, false)); }
         }
         public void CheckExistingFile(string path)
         {
             lock (sync)
             {
-                string full = AssertPath(path);
-                FilePin pin; LockLease lease;
-                if (files.TryGetValue(full, out pin)) { Information(pin.Handle, full, false); return; }
+                string full = AssertPath(path); LockLease lease;
                 if (locks.TryGetValue(full, out lease)) { Information(lease.Handle, full, false); return; }
-                using (SafeFileHandle file = OpenFile(full, ReadAttributes, OpenExistingFile, ShareReadWrite)) { }
+                using (SafeFileHandle handle = OpenFile(full, 1, OpenExistingFile, 7)) { }
             }
         }
         private static long Length(FileInformation info) { return ((long)info.FileSizeHigh << 32) | info.FileSizeLow; }
+        private static byte[] ReadHandle(SafeFileHandle handle, int limit)
+        {
+            using (SafeFileHandle borrowed = new SafeFileHandle(handle.DangerousGetHandle(), false))
+            using (FileStream stream = new FileStream(borrowed, FileAccess.Read, 65536, false))
+            {
+                stream.Seek(0, SeekOrigin.Begin);
+                if (stream.Length > limit) throw new IOException("A test file exceeds its read limit.");
+                byte[] data = new byte[(int)stream.Length]; int offset = 0;
+                while (offset < data.Length) { int read = stream.Read(data, offset, data.Length - offset); if (read == 0) throw new IOException("Test file changed during read."); offset += read; }
+                return data;
+            }
+        }
+        private static void WriteHandle(SafeFileHandle handle, byte[] data)
+        {
+            using (SafeFileHandle borrowed = new SafeFileHandle(handle.DangerousGetHandle(), false))
+            using (FileStream stream = new FileStream(borrowed, FileAccess.Write, 65536, false))
+            {
+                stream.Seek(0, SeekOrigin.Begin); stream.Write(data, 0, data.Length); stream.SetLength(data.Length); stream.Flush(true);
+            }
+        }
+        private static bool EqualBytes(byte[] first, byte[] second)
+        {
+            if (first.Length != second.Length) return false;
+            int difference = 0; for (int i = 0; i < first.Length; i++) difference |= first[i] ^ second[i]; return difference == 0;
+        }
         public byte[] ReadPrefix(string path, int count)
         {
             if (count < 0 || count > 268435456) throw new ArgumentOutOfRangeException("count");
             lock (sync)
             {
                 string full = AssertPath(path);
-                using (SafeFileHandle handle = OpenFile(full, GenericRead, OpenExistingFile, ShareReadWrite))
-                using (FileStream stream = new FileStream(handle, FileAccess.Read, 65536, false))
+                using (SafeFileHandle handle = OpenFile(full, GenericRead, OpenExistingFile, 7))
+                using (SafeFileHandle borrowed = Borrow(handle))
+                using (FileStream stream = new FileStream(borrowed, FileAccess.Read, 65536, false))
                 {
-                    int wanted = (int)Math.Min((long)count, stream.Length);
-                    byte[] data = new byte[wanted]; int offset = 0;
+                    stream.Seek(0, SeekOrigin.Begin); int wanted = (int)Math.Min((long)count, stream.Length); byte[] data = new byte[wanted]; int offset = 0;
                     while (offset < data.Length) { int read = stream.Read(data, offset, data.Length - offset); if (read == 0) throw new IOException("Test file changed during read."); offset += read; }
                     return data;
                 }
@@ -488,48 +627,28 @@ namespace TaskPilot.Runtime
         }
         public byte[] ReadAllBytes(string path)
         {
-            lock (sync)
-            {
-                string full = AssertPath(path);
-                using (SafeFileHandle handle = OpenFile(full, GenericRead, OpenExistingFile, ShareReadWrite))
-                using (FileStream stream = new FileStream(handle, FileAccess.Read, 65536, false))
-                {
-                    if (stream.Length > 268435456) throw new IOException("Test file exceeds the 256 MiB read limit.");
-                    byte[] data = new byte[(int)stream.Length]; int offset = 0;
-                    while (offset < data.Length) { int read = stream.Read(data, offset, data.Length - offset); if (read == 0) throw new IOException("Test file changed during read."); offset += read; }
-                    return data;
-                }
-            }
+            lock (sync) { string full = AssertPath(path); using (SafeFileHandle handle = OpenFile(full, GenericRead, OpenExistingFile, 7)) return ReadHandle(handle, 268435456); }
         }
         public string ReadAllText(string path)
         {
-            byte[] data = ReadAllBytes(path);
-            int offset = data.Length >= 3 && data[0] == 239 && data[1] == 187 && data[2] == 191 ? 3 : 0;
+            byte[] data = ReadAllBytes(path); int offset = data.Length >= 3 && data[0] == 239 && data[1] == 187 && data[2] == 191 ? 3 : 0;
             return new UTF8Encoding(false, true).GetString(data, offset, data.Length - offset);
         }
         public void WriteNew(string path, byte[] data)
         {
-            if (data == null) throw new ArgumentNullException("data");
-            lock (sync)
-            {
-                CheckWritable();
-                string full = AssertPath(path);
-                using (SafeFileHandle handle = OpenFile(full, GenericWrite, CreateNew, ShareReadWrite))
-                using (FileStream stream = new FileStream(handle, FileAccess.Write, 65536, false)) { stream.Write(data, 0, data.Length); stream.Flush(true); }
-            }
+            if (data == null || data.Length > 268435456) throw new ArgumentException("Invalid or oversized file image.");
+            lock (sync) { CheckWritable(); string full = AssertPath(path); using (SafeFileHandle handle = OpenFile(full, GenericWrite, CreateNew, ShareRead)) WriteHandle(handle, data); }
         }
         public void AppendText(string path, string text)
         {
             lock (sync)
             {
-                CheckWritable();
-                string full = AssertPath(path);
-                using (SafeFileHandle handle = OpenFile(full, GenericWrite, OpenAlways, ShareReadWrite))
-                using (FileStream stream = new FileStream(handle, FileAccess.Write, 65536, false))
+                CheckWritable(); string full = AssertPath(path);
+                using (SafeFileHandle handle = OpenFile(full, GenericWrite, OpenAlways, ShareRead))
+                using (SafeFileHandle borrowed = Borrow(handle))
+                using (FileStream stream = new FileStream(borrowed, FileAccess.Write, 65536, false))
                 {
-                    stream.Seek(0, SeekOrigin.End);
-                    byte[] data = new UTF8Encoding(false, true).GetBytes(text);
-                    stream.Write(data, 0, data.Length); stream.Flush(true);
+                    stream.Seek(0, SeekOrigin.End); byte[] data = new UTF8Encoding(false, true).GetBytes(text); stream.Write(data, 0, data.Length); stream.Flush(true);
                 }
             }
         }
@@ -537,14 +656,12 @@ namespace TaskPilot.Runtime
         {
             FilePin pin;
             if (files.TryGetValue(full, out pin)) { Information(pin.Handle, full, false); return pin; }
-            // Read-data access is necessary for a persistent sharing lease;
-            // metadata-only handles do not prevent a pathname replacement.
-            pin = new FilePin(); pin.Handle = OpenFile(full, ReadAttributes | 1, create ? OpenAlways : OpenExistingFile, ShareReadWrite);
+            pin = new FilePin(); pin.Handle = OpenFile(full, readOnly ? GenericRead : GenericWrite, create ? OpenAlways : OpenExistingFile, ShareRead);
             files.Add(full, pin); return pin;
         }
         private void RemoveUnusedPin(string full, FilePin pin)
         {
-            if (pin.ManualCount == 0 && pin.DatabaseCount == 0) { pin.Handle.Dispose(); files.Remove(full); }
+            if (!pin.IsGuard && pin.ManualCount == 0 && pin.DatabaseCount == 0) { pin.Handle.Dispose(); files.Remove(full); }
         }
         public void PinExistingFile(string path)
         {
@@ -558,149 +675,121 @@ namespace TaskPilot.Runtime
         {
             lock (sync)
             {
-                if (disposed) return;
-                // Cleanup after a fault may release existing handles, but never opens a path.
-                string full = Path.GetFullPath(path).TrimEnd('\\');
-                FilePin pin;
-                if (files.TryGetValue(full, out pin)) { pin.ManualCount = 0; RemoveUnusedPin(full, pin); }
+                if (disposed) return; string full = Path.GetFullPath(path).TrimEnd('\\'); FilePin pin;
+                if (files.TryGetValue(full, out pin) && !pin.IsGuard) { pin.ManualCount = 0; RemoveUnusedPin(full, pin); }
             }
         }
         public IDisposable AcquireLock(string path)
         {
             lock (sync)
             {
-                CheckWritable();
-                string full = AssertPath(path);
-                if (locks.ContainsKey(full)) throw new IOException("This test lock is already held.");
-                SafeFileHandle handle = OpenFile(full, GenericRead | GenericWrite, OpenAlways, 0);
+                CheckWritable(); string full = AssertPath(path); if (locks.ContainsKey(full)) throw new IOException("This test lock is already held.");
+                SafeFileHandle handle = OpenFile(full, GenericWrite, OpenAlways, 0);
+                // OpenRelative must carry the requested exclusive share for locks.
+                handle.Dispose(); handle = OpenRelative(full, 1 | 2 | 4 | DeleteAccess | 0x20000, OpenExistingFile, 0, false, null);
+                Information(handle, full, false); VerifyProtection(full, handle, false);
                 LockLease lease = new LockLease(this, full, handle); locks.Add(full, lease); return lease;
+            }
+        }
+        public IDisposable AcquireDatabaseWriter(string path)
+        {
+            lock (sync)
+            {
+                CheckWritable(); string full = AssertPath(path);
+                if (writers.ContainsKey(full)) throw new IOException("A writable in-memory store already owns this test database. Open a read-only snapshot or close the writer first.");
+                AssertNoRecoverySidecars(full); FilePin pin = GetOrCreatePin(full, false); pin.DatabaseCount++;
+                WriterLease lease = new WriterLease { Owner = this, Path = full }; writers.Add(full, lease); return lease;
+            }
+        }
+        private void AssertNoRecoverySidecars(string full)
+        {
+            foreach (string suffix in new string[] { "-wal", "-shm", "-journal" })
+            {
+                if (Exists(full + suffix)) throw new IOException("A SQLite recovery sidecar must be preserved; test mode never asks native SQLite to recover it.");
             }
         }
         public void PrepareDatabase(string path, bool create)
         {
-            lock (sync)
-            {
-                CheckWritable();
-                string full = AssertPath(path); DatabasePin active;
-                if (databases.TryGetValue(full, out active)) { active.Count++; return; }
-                if (Exists(full + "-wal") || Exists(full + "-shm")) throw new IOException("WAL/SHM recovery files are not adopted in independent test mode. Preserve the test environment and use a verified test backup.");
-                string journal = full + "-journal";
-                FilePin database = null, journalPin = null;
-                try
-                {
-                    database = GetOrCreatePin(full, create); database.DatabaseCount++;
-                    journalPin = GetOrCreatePin(journal, true); journalPin.DatabaseCount++;
-                    if (Length(Information(journalPin.Handle, journal, false)) != 0)
-                        throw new IOException("A nonempty test recovery journal must be preserved. Automatic recovery is disabled in independent test mode.");
-                    active = new DatabasePin(); active.Count = 1; active.Journal = journal; databases.Add(full, active);
-                }
-                catch
-                {
-                    if (journalPin != null) { journalPin.DatabaseCount--; RemoveUnusedPin(journal, journalPin); }
-                    if (database != null) { database.DatabaseCount--; RemoveUnusedPin(full, database); }
-                    throw;
-                }
-            }
+            lock (sync) { CheckWritable(); string full = AssertPath(path); AssertNoRecoverySidecars(full); }
         }
         public void PinDatabase(string path, bool create) { PrepareDatabase(path, create); }
-        public void CompleteDatabase(string path)
-        {
-            lock (sync)
-            {
-                if (disposed) return;
-                string full = Path.GetFullPath(path).TrimEnd('\\'); DatabasePin active;
-                if (!databases.TryGetValue(full, out active)) return;
-                if (--active.Count > 0) return;
-                databases.Remove(full);
-                FilePin database, journal;
-                if (files.TryGetValue(full, out database)) { database.DatabaseCount--; RemoveUnusedPin(full, database); }
-                bool removeJournal = false;
-                if (files.TryGetValue(active.Journal, out journal))
-                {
-                    if (!faulted) removeJournal = Length(Information(journal.Handle, active.Journal, false)) == 0;
-                    journal.DatabaseCount--; RemoveUnusedPin(active.Journal, journal);
-                }
-                if (removeJournal && !files.ContainsKey(active.Journal) && !faulted) DeleteFile(active.Journal);
-            }
-        }
+        public void CompleteDatabase(string path) { }
         private void PrepareMutation(string full)
         {
-            DatabasePin active;
-            if (databases.TryGetValue(full, out active)) throw new IOException("A test database cannot be renamed/deleted while a connection lease is active.");
             FilePin pin;
-            if (files.TryGetValue(full, out pin))
-            {
-                if (pin.DatabaseCount != 0) throw new IOException("A test file is in use by SQLite.");
-                pin.Handle.Dispose(); files.Remove(full);
-            }
+            if (files.TryGetValue(full, out pin) && (pin.IsGuard || pin.ManualCount != 0 || pin.DatabaseCount != 0)) throw new IOException("An active file/guard lease cannot be renamed or deleted.");
             if (locks.ContainsKey(full)) throw new IOException("A held test lock cannot be renamed or deleted.");
         }
-        private void RenameHandle(string source, string destination, bool replace)
+        private void RenameHandle(string source, string destination)
         {
             string from = AssertPath(source), to = AssertPath(destination);
             if (String.Equals(from, to, StringComparison.OrdinalIgnoreCase)) throw new IOException("Source and destination must differ.");
             PrepareMutation(from); PrepareMutation(to);
-            using (SafeFileHandle handle = OpenFile(from, DeleteAccess, OpenExistingFile, ShareReadWrite))
+            using (SafeFileHandle handle = OpenFile(from, GenericWrite, OpenExistingFile, ShareRead))
             {
-                string parent = Path.GetDirectoryName(to), leaf = Path.GetFileName(to);
-                SafeFileHandle targetDirectory = directories[parent];
-                byte[] name = Encoding.Unicode.GetBytes(leaf);
-                IntPtr buffer = Marshal.AllocHGlobal(20 + name.Length);
+                SafeFileHandle targetDirectory = directories[Path.GetDirectoryName(to)]; Information(targetDirectory, Path.GetDirectoryName(to), true);
+                byte[] name = Encoding.Unicode.GetBytes(Path.GetFileName(to)); IntPtr buffer = Marshal.AllocHGlobal(20 + name.Length);
                 try
                 {
                     for (int i = 0; i < 20 + name.Length; i++) Marshal.WriteByte(buffer, i, 0);
-                    Marshal.WriteInt32(buffer, 0, replace ? 1 : 0);
-                    Marshal.WriteIntPtr(buffer, 8, targetDirectory.DangerousGetHandle());
-                    Marshal.WriteInt32(buffer, 16, name.Length); Marshal.Copy(name, 0, IntPtr.Add(buffer, 20), name.Length);
-                    // Use the native relative-directory contract directly;
-                    // the Win32 wrapper rejects this form on Server 2022.
-                    IoStatusBlock result;
-                    int status = NtSetInformationFile(handle, out result, buffer, (uint)(20 + name.Length), 10);
-                    if (status < 0) { int code = unchecked((int)RtlNtStatusToDosError(status)); throw new IOException("Cannot atomically rename a test file: " + new Win32Exception(code).Message + " (" + code.ToString() + ")", new Win32Exception(code)); }
+                    Marshal.WriteIntPtr(buffer, 8, targetDirectory.DangerousGetHandle()); Marshal.WriteInt32(buffer, 16, name.Length); Marshal.Copy(name, 0, IntPtr.Add(buffer, 20), name.Length);
+                    IoStatusBlock result; int status = NtSetInformationFile(handle, out result, buffer, (uint)(20 + name.Length), 10);
+                    if (status < 0) { int code = unchecked((int)RtlNtStatusToDosError(status)); throw new IOException("Cannot publish a new owned file without overwrite.", new Win32Exception(code)); }
                 }
                 finally { Marshal.FreeHGlobal(buffer); }
             }
         }
         public void MoveNew(string source, string destination)
         {
-            lock (sync) { CheckWritable(); RenameHandle(source, destination, false); }
+            lock (sync) { CheckWritable(); RenameHandle(source, destination); }
         }
         public void Replace(string source, string destination, string backup)
         {
             lock (sync)
             {
-                CheckWritable();
-                string from = AssertPath(source), to = AssertPath(destination);
-                if (!Exists(to)) { MoveNew(from, to); return; }
-                if (!String.IsNullOrEmpty(backup))
-                {
-                    string previous = AssertPath(backup);
-                    if (String.Equals(previous, from, StringComparison.OrdinalIgnoreCase) || String.Equals(previous, to, StringComparison.OrdinalIgnoreCase)) throw new IOException("Backup path must be a distinct new test file.");
-                    WriteNew(previous, ReadAllBytes(to));
-                }
-                RenameHandle(from, to, true);
+                CheckWritable(); string from = AssertPath(source), to = AssertPath(destination);
+                if (from.Equals(to, StringComparison.OrdinalIgnoreCase)) throw new IOException("Source and destination must differ.");
+                AtomicWrite(to, ReadAllBytes(from), backup); DeleteFile(from);
             }
         }
         public void AtomicWrite(string path, byte[] data, string previousPath)
         {
+            if (data == null || data.Length > 268435456) throw new ArgumentException("Invalid or oversized file image.");
             lock (sync)
             {
-                CheckWritable();
-                string full = AssertPath(path);
-                string stage = Path.Combine(Path.GetDirectoryName(full), ".atomic_" + Guid.NewGuid().ToString("N") + ".tmp");
-                WriteNew(stage, data);
-                // Keep any failed stage for diagnosis, rather than deleting unknown state.
-                if (Exists(full)) Replace(stage, full, previousPath); else MoveNew(stage, full);
+                CheckWritable(); string full = AssertPath(path);
+                if (!Exists(full)) { WriteNew(full, data); return; }
+                using (SafeFileHandle target = OpenFile(full, GenericWrite, OpenExistingFile, ShareRead))
+                {
+                    byte[] before = ReadHandle(target, 268435456);
+                    if (!String.IsNullOrEmpty(previousPath)) WriteNew(AssertPath(previousPath), before);
+                    string checkpoint = Path.Combine(Path.GetDirectoryName(full), ".tp-rollback_" + Guid.NewGuid().ToString("N") + ".bin");
+                    SafeFileHandle saved = OpenFile(checkpoint, GenericWrite, CreateNew, ShareRead);
+                    try
+                    {
+                        WriteHandle(saved, before);
+                        try { WriteHandle(target, data); }
+                        catch
+                        {
+                            try { WriteHandle(target, before); }
+                            catch { throw Violation("A failed write could not be restored. The original image remains in " + checkpoint); }
+                            throw;
+                        }
+                    }
+                    finally { saved.Dispose(); }
+                    // The data flush above is the commit point. Failure to
+                    // clean up must never turn a durable success into rollback
+                    // of only the in-memory state. Preserve the checkpoint.
+                    try { DeleteFile(checkpoint); } catch { }
+                }
             }
         }
         public void DeleteFile(string path)
         {
             lock (sync)
             {
-                CheckWritable();
-                string full = AssertPath(path); PrepareMutation(full);
-                if (!Exists(full)) return;
-                using (SafeFileHandle handle = OpenFile(full, DeleteAccess, OpenExistingFile, ShareReadWrite))
+                CheckWritable(); string full = AssertPath(path); PrepareMutation(full); if (!Exists(full)) return;
+                using (SafeFileHandle handle = OpenFile(full, GenericWrite, OpenExistingFile, ShareRead))
                 {
                     IntPtr buffer = Marshal.AllocHGlobal(4);
                     try { Marshal.WriteInt32(buffer, 1); if (!SetFileInformationByHandle(handle, 4, buffer, 4)) throw NativeError("Cannot delete a test-owned file"); }
@@ -716,7 +805,7 @@ namespace TaskPilot.Runtime
                 disposed = true;
                 foreach (LockLease lease in new List<LockLease>(locks.Values)) lease.Dispose();
                 foreach (FilePin pin in files.Values) pin.Handle.Dispose();
-                files.Clear(); databases.Clear();
+                files.Clear(); writers.Clear();
                 List<SafeFileHandle> handles = new List<SafeFileHandle>(directories.Values);
                 handles.Reverse(); foreach (SafeFileHandle handle in handles) handle.Dispose();
                 directories.Clear();
