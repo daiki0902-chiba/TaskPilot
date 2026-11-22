@@ -16,6 +16,21 @@ $body=$body.Replace($legacy,'$LegacyRoot = $null # Acceptance never selects, che
 $adapter='. (Join-Path $InstallRoot ''Adapters/TaskPilot.GuiStartup.ps1'')'
 if(-not$body.Contains($adapter)){throw 'The reviewed adapter insertion marker changed.'}
 $body=$body.Replace($adapter,$adapter+"`r`n"+'. (Join-Path $InstallRoot ''acceptance/TaskPilot.Acceptance.Gui.ps1'')'+"`r`n"+'. (Join-Path $InstallRoot ''acceptance/TaskPilot.Acceptance.Diagnostics.ps1'')')
+$originalStartupCatch=@'
+} catch {
+    if(Get-Command Show-Failure -ErrorAction SilentlyContinue){Show-Failure $_}
+    else{Write-ErrorLog $_;[System.Windows.Forms.MessageBox]::Show($_.Exception.Message,'TaskPilot 起動エラー',[System.Windows.Forms.MessageBoxButtons]::OK,[System.Windows.Forms.MessageBoxIcon]::Error)|Out-Null}
+} finally {
+'@ -replace"`r?`n","`r`n"
+$acceptanceStartupCatch=@'
+} catch {
+    # Unique early-installed helper: never call a partially loaded GUI adapter's
+    # error handler or forward ErrorRecord, task content, paths or exceptions.
+    Show-TPAcceptanceStartupFailure
+} finally {
+'@ -replace"`r?`n","`r`n"
+if(-not$body.Contains($originalStartupCatch)){throw 'The reviewed startup failure handler changed; inspect before regenerating acceptance entry.'}
+$body=$body.Replace($originalStartupCatch,$acceptanceStartupCatch)
 $cleanup='finally { if(Get-Command Close-TPRuntime -ErrorAction SilentlyContinue){Close-TPRuntime} }'
 if(-not$body.Contains($cleanup)){throw 'The reviewed runtime disposal marker changed.'}
 $body=$body.Replace($cleanup,'finally { Close-TPDesktopAcceptanceRuntime }')
@@ -41,6 +56,10 @@ try{
     $null=$bootstrapAuthority.PackageLease.AssertPinned('acceptance/TaskPilot.Acceptance.Runtime.ps1')
     . ($bootstrapAuthority.PackageLease.FullPath('acceptance/TaskPilot.Acceptance.Runtime.ps1'))
     $script:TPRuntimeContext=Initialize-TPDesktopAcceptanceRuntime -InstallRoot $InstallRoot
+    # Install content-free handlers before the first GUI adapter can execute.
+    # They are reinstalled after all adapters as well, before GUI initialization.
+    $null=$script:TPRuntimeContext.Authorization.PackageLease.AssertPinned('acceptance/TaskPilot.Acceptance.Diagnostics.ps1')
+    . ($script:TPRuntimeContext.Authorization.PackageLease.FullPath('acceptance/TaskPilot.Acceptance.Diagnostics.ps1'))
 }finally{$bootstrapAuthority.Dispose()}
 '@
 $text=($prefix+"`r`n"+$body)-replace"`r?`n","`r`n"

@@ -41,6 +41,14 @@ function Get-TPAcceptanceDiagnosticSummary {
 # are intentionally ignored; no detail from callers can reach persistent logs.
 function Write-ActionLog([string]$action,[string]$detail){Write-TPAcceptanceEvent -Code ACTION}
 function Write-ErrorLog($record){Write-TPAcceptanceEvent -Code OPERATION_FAILED}
+function Show-TPAcceptanceStartupFailure {
+    # Unique startup handler: do not route through Show-Failure/Write-ErrorLog,
+    # which an earlier GUI adapter might have replaced before a load failure.
+    # No ErrorRecord or arbitrary message is accepted or persisted here.
+    param()
+    try{Write-TPAcceptanceEvent -Code OPERATION_FAILED}catch{}
+    [System.Windows.Forms.MessageBox]::Show('受入専用環境の処理を停止しました。起動前検査と診断結果を確認してください。','TaskPilot [ACCEPTANCE ONLY]','OK','Error')|Out-Null
+}
 function Show-Failure($record){
     $fatal=$true
     try{Write-TPAcceptanceEvent -Code OPERATION_FAILED;$fatal=[bool]$script:TPRuntimeContext.Sandbox.IsFaulted}catch{}

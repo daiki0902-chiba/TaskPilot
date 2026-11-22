@@ -8,7 +8,7 @@ schema/001_initial.sql -text
 Modules/TaskPilot.Storage/provider/** -text
 
 # Generated acceptance entry has a canonical BOM/CRLF byte representation.
-acceptance/TaskPilot.Acceptance.ps1 -text
+acceptance/TaskPilot.Acceptance.ps1 -text whitespace=cr-at-eol
 
 # Preserve downloaded Windows CI evidence as captured.
 docs/verification/windows-*.json -text

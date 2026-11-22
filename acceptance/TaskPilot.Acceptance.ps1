@@ -19,6 +19,10 @@ try{
     $null=$bootstrapAuthority.PackageLease.AssertPinned('acceptance/TaskPilot.Acceptance.Runtime.ps1')
     . ($bootstrapAuthority.PackageLease.FullPath('acceptance/TaskPilot.Acceptance.Runtime.ps1'))
     $script:TPRuntimeContext=Initialize-TPDesktopAcceptanceRuntime -InstallRoot $InstallRoot
+    # Install content-free handlers before the first GUI adapter can execute.
+    # They are reinstalled after all adapters as well, before GUI initialization.
+    $null=$script:TPRuntimeContext.Authorization.PackageLease.AssertPinned('acceptance/TaskPilot.Acceptance.Diagnostics.ps1')
+    . ($script:TPRuntimeContext.Authorization.PackageLease.FullPath('acceptance/TaskPilot.Acceptance.Diagnostics.ps1'))
 }finally{$bootstrapAuthority.Dispose()}
 $LocalAppData = $script:TPRuntimeContext.ProfileRoot
 $LegacyRoot = $null # Acceptance never selects, checks, or migrates legacy data.
@@ -2561,8 +2565,9 @@ $form.Add_FormClosed({ $script:NotificationTimer.Stop(); $script:NotificationTim
     })
     [void][System.Windows.Forms.Application]::Run($form)
 } catch {
-    if(Get-Command Show-Failure -ErrorAction SilentlyContinue){Show-Failure $_}
-    else{Write-ErrorLog $_;[System.Windows.Forms.MessageBox]::Show($_.Exception.Message,'TaskPilot 起動エラー',[System.Windows.Forms.MessageBoxButtons]::OK,[System.Windows.Forms.MessageBoxIcon]::Error)|Out-Null}
+    # Unique early-installed helper: never call a partially loaded GUI adapter's
+    # error handler or forward ErrorRecord, task content, paths or exceptions.
+    Show-TPAcceptanceStartupFailure
 } finally {
     try { if(Get-Command Close-TPGuiApplication -ErrorAction SilentlyContinue){Close-TPGuiApplication} }
     finally { Close-TPDesktopAcceptanceRuntime }

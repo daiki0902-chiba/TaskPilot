@@ -18,9 +18,11 @@ function Reject-AcceptanceSandbox([scriptblock]$Action,[string]$Pattern){
     $failure=$null;try{$null=&$Action}catch{$failure=$_}
     Assert-AcceptanceSandbox ($null-ne$failure-and$failure.Exception.Message-match$Pattern) ('A required boundary refusal was missing: '+$Pattern)
 }
-function Case-AcceptanceSandbox([string]$Id,[string]$Name,[scriptblock]$Action){
-    try{&$Action;$cases.Add([pscustomobject]@{Id=$Id;Name=$Name;Passed=$true});Write-Host ('PASS: '+$Id+' '+$Name)}
-    catch{$cases.Add([pscustomobject]@{Id=$Id;Name=$Name;Passed=$false;Error=$_.Exception.ToString();Stack=$_.ScriptStackTrace});Write-Host ('FAIL: '+$Id+' '+$_.Exception.Message)}
+function Case-AcceptanceSandbox([string]$CaseId,[string]$Name,[scriptblock]$Action){
+    # PowerShell uses dynamic scope: a parameter named Id would shadow the
+    # fixture's signed-environment-shaped $id inside the caller scriptblock.
+    try{&$Action;$cases.Add([pscustomobject]@{Id=$CaseId;Name=$Name;Passed=$true});Write-Host ('PASS: '+$CaseId+' '+$Name)}
+    catch{$cases.Add([pscustomobject]@{Id=$CaseId;Name=$Name;Passed=$false;Error=$_.Exception.ToString();Stack=$_.ScriptStackTrace});Write-Host ('FAIL: '+$CaseId+' '+$_.Exception.Message)}
 }
 function Snapshot-AcceptanceSandbox([string]$Path){
     $records=New-Object 'Collections.Generic.List[string]'

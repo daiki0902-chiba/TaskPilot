@@ -89,6 +89,7 @@ jobs:
             TestResults/IsolatedMode_*/NormalFixtureAfter.txt
             TestResults/IsolatedFileBoundary_*/IsolatedFileBoundaryResult.json
             TestResults/AcceptanceAuthority_*.json
+            TestResults/AcceptanceEntry_*.json
             TestResults/AcceptanceSandbox_*.json
             TestResults/DesktopAcceptance*.json
           if-no-files-found: warn

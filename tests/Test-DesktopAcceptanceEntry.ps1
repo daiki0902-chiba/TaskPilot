@@ -37,7 +37,22 @@ Assert-Entry (@($entryAst.ParamBlock.Parameters).Count-eq0) 'The acceptance GUI 
 $entryText=[IO.File]::ReadAllText($entry)
 Assert-Entry ($entryText.Contains('$LegacyRoot = $null # Acceptance never selects, checks, or migrates legacy data.')) 'The acceptance entry must have no legacy root.'
 Assert-Entry ($entryText.Contains("acceptance/TaskPilot.Acceptance.Gui.ps1")) 'The dedicated GUI must install code-only diagnostic/visual overrides.'
-Assert-Entry ($entryText.IndexOf("acceptance/TaskPilot.Acceptance.Diagnostics.ps1",[StringComparison]::Ordinal)-gt$entryText.IndexOf("Adapters/TaskPilot.GuiStartup.ps1",[StringComparison]::Ordinal)-and$entryText.IndexOf("acceptance/TaskPilot.Acceptance.Diagnostics.ps1",[StringComparison]::Ordinal)-lt$entryText.IndexOf('    Initialize-TPGuiApplication',[StringComparison]::Ordinal)) 'Content-free diagnostics must replace original log handlers before GUI initialization.'
+$diagnosticFirst=$entryText.IndexOf("FullPath('acceptance/TaskPilot.Acceptance.Diagnostics.ps1')",[StringComparison]::Ordinal)
+$diagnosticLast=$entryText.LastIndexOf('. (Join-Path $InstallRoot ''acceptance/TaskPilot.Acceptance.Diagnostics.ps1'')',[StringComparison]::Ordinal)
+Assert-Entry ($diagnosticFirst-ge0-and$diagnosticFirst-lt$entryText.IndexOf("Adapters/TaskPilot.GuiIsolation.ps1",[StringComparison]::Ordinal)) 'Content-free handlers must load before the first GUI adapter can fail.'
+Assert-Entry ($diagnosticLast-gt$entryText.IndexOf("Adapters/TaskPilot.GuiStartup.ps1",[StringComparison]::Ordinal)-and$diagnosticLast-lt$entryText.IndexOf('    Initialize-TPGuiApplication',[StringComparison]::Ordinal)) 'Content-free diagnostics must replace original log handlers again before GUI initialization.'
+Assert-Entry ($entryText.Contains("AssertPinned('acceptance/TaskPilot.Acceptance.Diagnostics.ps1')")) 'Early diagnostics must be pinned by the verified package lease.'
+$outerTry=@($entryAst.EndBlock.Statements|Where-Object {$_-is[Management.Automation.Language.TryStatementAst]})[-1]
+Assert-Entry ($outerTry.CatchClauses.Count-eq1) 'The GUI must retain one explicit, reviewable startup failure handler.'
+$catchText=$outerTry.CatchClauses[0].Body.Extent.Text
+Assert-Entry ($catchText.Contains('Show-TPAcceptanceStartupFailure')-and-not$catchText.Contains('Show-Failure')-and-not$catchText.Contains('Write-ErrorLog')-and-not$catchText.Contains('$_.')-and-not$catchText.Contains('Exception.Message')) 'Startup failure must never fall back to a partially loaded raw error logger.'
+$script:startupFailureCalls=0
+function Show-Failure {throw 'A partially loaded legacy Show-Failure must never handle acceptance startup errors.'}
+function Write-ErrorLog {throw 'A partially loaded legacy Write-ErrorLog must never handle acceptance startup errors.'}
+function Show-TPAcceptanceStartupFailure {Assert-Entry ($args.Count-eq0) 'The dedicated startup handler must receive no error content.';$script:startupFailureCalls++}
+$catchBody=[scriptblock]::Create($catchText.Substring(1,$catchText.Length-2))
+try{throw 'SYNTHETIC PRIVATE TASK TEXT AND USER PATH'}catch{&$catchBody}
+Assert-Entry ($script:startupFailureCalls-eq1) 'The exact generated startup catch must reach only the dedicated no-content handler.'
 Assert-Entry ($entryText.Contains('finally { Close-TPDesktopAcceptanceRuntime }')) 'Application exit must dispose both the sandbox and package authority.'
 Assert-Entry ($entryText.IndexOf('DEDICATED-LAUNCHER-REQUIRED',[StringComparison]::Ordinal)-lt$entryText.IndexOf('$InstallRoot=',[StringComparison]::Ordinal)) 'Standalone execution must stop before selecting a package path.'
 Assert-Entry ($entryText.IndexOf('Open-TPAcceptanceAuthorization',[StringComparison]::Ordinal)-lt$entryText.IndexOf("FullPath('Runtime/TaskPilot.Runtime.ps1')",[StringComparison]::Ordinal)) 'General helpers must only load after package authority is established.'
