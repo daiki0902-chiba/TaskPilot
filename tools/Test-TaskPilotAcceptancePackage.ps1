@@ -131,7 +131,7 @@ try{
         if($TestEnvironmentId-cnotmatch'^[a-f0-9]{32}$'){throw 'TestMode requires a lowercase 32-digit GUID TestEnvironmentId.'}
         if([string]::IsNullOrWhiteSpace($localAppData)){throw 'The actual Windows LocalApplicationData folder is unavailable.'}
         $expectedTestRoot=Join-Path (Join-Path $localAppData 'TaskPilotTest') $TestEnvironmentId
-    }elseif(-not[string]::IsNullOrEmpty($TestEnvironmentId)){throw 'TestEnvironmentId is allowed only with explicit TestMode.'}
+    }elseif($PSBoundParameters.ContainsKey('TestEnvironmentId')){throw 'TestEnvironmentId is allowed only with explicit TestMode, including an explicitly empty value.'}
     Add-TPACCheck 'ModeArguments' $true ('Mode='+$requestedMode)
 }catch{$modeValid=$false;Add-TPACCheck 'ModeArguments' $false $_.Exception.Message}
 if($script:TPACIndependentIntent){Add-TPACCheck 'TestModeReleaseAuthorization' $false 'TP-ISOLATION-BLOCKED: native synthetic I25/I28 permit in-place reparse mutation. Independent mode is disabled; package contents and profile test areas will not be opened.'}
@@ -266,7 +266,7 @@ if($packageValid-and$tpacIsWindows){
 }else{Add-TPACCheck 'DownloadOrigin' $false 'Not verified: requires an intact package and Windows stream inspection.'}
 
 $isolation='NOT_CHECKED'
-if($FirstUse-and-not$TestMode-and$modeValid){
+if($FirstUse-and-not$TestMode-and$modeValid-and-not$script:TPACIndependentIntent){
     try{
         if(-not$tpacIsWindows-or[string]::IsNullOrWhiteSpace($localAppData)){throw 'First-use isolation requires the actual Windows LocalApplicationData folder.'}
         Assert-TPACNoLinks $localAppData

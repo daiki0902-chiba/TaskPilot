@@ -15,9 +15,12 @@ if ([string]::IsNullOrWhiteSpace($PSScriptRoot)) {
 # test request never falls back to normal startup or normal error logging.
 if ($PSBoundParameters.ContainsKey('TestMode') -and -not $TestMode) { throw 'TestMode:false は受け付けません。通常起動は引数なしで実行してください。' }
 if ($TestMode -and $TestEnvironmentId -cnotmatch '^[a-f0-9]{32}$') { throw 'TestMode には32桁の小文字16進数のTestEnvironmentIdが必要です。通常データは開いていません。' }
-if (-not $TestMode -and -not [string]::IsNullOrEmpty($TestEnvironmentId)) { throw 'TestEnvironmentId はTestModeと一緒に指定してください。通常データは開いていません。' }
+if (-not $TestMode -and $PSBoundParameters.ContainsKey('TestEnvironmentId')) { throw '空値を含むTestEnvironmentIdはTestModeと一緒に指定してください。通常データは開いていません。' }
 . (Join-Path $InstallRoot 'Runtime/TaskPilot.Runtime.ps1')
-$script:TPRuntimeContext = Initialize-TPRuntime -TestMode:$TestMode -TestEnvironmentId $TestEnvironmentId
+$runtimeArguments=@{}
+if($PSBoundParameters.ContainsKey('TestMode')){$runtimeArguments.TestMode=$TestMode}
+if($PSBoundParameters.ContainsKey('TestEnvironmentId')){$runtimeArguments.TestEnvironmentId=$TestEnvironmentId}
+$script:TPRuntimeContext = Initialize-TPRuntime @runtimeArguments
 $LocalAppData = $script:TPRuntimeContext.ProfileRoot
 $LegacyRoot = if ($script:TPRuntimeContext.IsTestMode) { $null } else { Join-Path $LocalAppData 'TaskPilot' }
 $Root = $script:TPRuntimeContext.Root

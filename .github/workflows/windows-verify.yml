@@ -76,6 +76,8 @@ jobs:
             TestResults/Isolated_*.json
             TestResults/IsolatedReleaseGate_*.json
             TestResults/IsolatedMode_*/IsolatedTestModeResult.json
+            TestResults/IsolatedMode_*/NormalFixtureBefore.txt
+            TestResults/IsolatedMode_*/NormalFixtureAfter.txt
             TestResults/IsolatedFileBoundary_*/IsolatedFileBoundaryResult.json
           if-no-files-found: warn
           retention-days: 14

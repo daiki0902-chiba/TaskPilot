@@ -24,6 +24,10 @@ function Expect-ReleaseBlock([scriptblock]$Action){
 }
 . (Join-Path $repo 'Runtime/TaskPilot.Runtime.ps1')
 Expect-ReleaseBlock {Initialize-TPRuntime -TestMode -TestEnvironmentId '1234567890abcdef1234567890abcdef'}
+foreach($invalid in @({Initialize-TPRuntime -TestEnvironmentId ''},{Initialize-TPRuntime -Arguments @('-TestEnvironmentId','')})){
+    $errorRecord=$null;try{$null=&$invalid}catch{$errorRecord=$_}
+    Assert-ReleaseGate ($null-ne$errorRecord-and$errorRecord.Exception.Message-like'*requires TestMode*') 'An empty explicitly supplied ID must not fall back to normal initialization.'
+}
 $context=Get-Variable -Name TPRuntimeContext -Scope Script -ErrorAction SilentlyContinue
 Assert-ReleaseGate ($null-eq$context-or$null-eq$context.Value) 'Blocked initialization must not select a runtime context or normal fallback.'
 # An exclusive sentinel makes accidental manifest content reads observable.
@@ -36,6 +40,8 @@ try{
     $integrity=@($check.Checks|Where-Object {$_.Name-ceq'PackageIntegrity'})
     Assert-ReleaseGate ($integrity.Count-eq1-and-not$integrity[0].Passed-and$integrity[0].Detail-like'*TP-ISOLATION-BLOCKED*') 'Package inspection must stop before reading even a locked manifest.'
     Assert-ReleaseGate (@($check.Checks|Where-Object {$_.Name-ceq'FirstUseIsolation'}).Count-eq0) 'A blocked independent request must not inspect normal-profile state.'
+    $emptyIdCheck=& (Join-Path $repo 'tools/Test-TaskPilotAcceptancePackage.ps1') -PackageRoot $package -FirstUse -TestEnvironmentId ''
+    Assert-ReleaseGate ($emptyIdCheck.Status-ceq'BLOCKED'-and-not$emptyIdCheck.TestAreaPrepared-and@($emptyIdCheck.Checks|Where-Object {$_.Name-ceq'FirstUseIsolation'}).Count-eq0) 'An empty explicitly supplied ID must not enter the normal FirstUse inspection.'
     Assert-ReleaseGate ([IO.File]::Exists($check.ReportPath)) 'The explicit blocked result must remain reviewable.'
     Expect-ReleaseBlock {& (Join-Path $repo 'tools/Collect-TaskPilotAcceptanceLogs.ps1') -ApplicationDirectory $package -OutputRoot $results -TestMode -TestEnvironmentId '1234567890abcdef1234567890abcdef' -CaseId 'RELEASE-GATE'}
 }finally{$lease.Dispose()}

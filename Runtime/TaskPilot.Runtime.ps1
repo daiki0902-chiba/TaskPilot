@@ -24,6 +24,8 @@ function Initialize-TPRuntime {
     param([switch]$TestMode,[string]$TestEnvironmentId,[string[]]$Arguments)
     $existing=Get-Variable -Name TPRuntimeContext -Scope Script -ErrorAction SilentlyContinue
     if($null-ne$existing -and $null-ne$existing.Value){throw 'TaskPilot runtime mode is immutable and has already been selected.'}
+    $idWasSpecified=$PSBoundParameters.ContainsKey('TestEnvironmentId')
+    if($PSBoundParameters.ContainsKey('TestMode')-and-not$TestMode){throw 'Explicit TestMode:false is invalid. No normal data was opened.'}
     if($PSBoundParameters.ContainsKey('Arguments')){
         if($PSBoundParameters.ContainsKey('TestMode')-or$PSBoundParameters.ContainsKey('TestEnvironmentId')){throw 'Choose named runtime arguments or an argument array, not both.'}
         $seenMode=$false;$seenId=$false
@@ -34,11 +36,11 @@ function Initialize-TPRuntime {
                 $seenMode=$true;$TestMode=[System.Management.Automation.SwitchParameter]::new($true)
             }elseif($argument-ceq'-TestEnvironmentId'){
                 if($seenId-or$index+1-ge$Arguments.Count){throw 'TestEnvironmentId must have exactly one value.'}
-                $seenId=$true;$index++;$TestEnvironmentId=$Arguments[$index]
+                $seenId=$true;$idWasSpecified=$true;$index++;$TestEnvironmentId=$Arguments[$index]
             }else{throw ('Unknown TaskPilot runtime argument: '+$argument)}
         }
     }
-    if(-not$TestMode -and -not[string]::IsNullOrEmpty($TestEnvironmentId)){throw 'TestEnvironmentId requires TestMode. No normal data was opened.'}
+    if(-not$TestMode -and $idWasSpecified){throw 'TestEnvironmentId requires TestMode, including an explicitly empty value. No normal data was opened.'}
     if($TestMode -and $TestEnvironmentId-cnotmatch'^[a-f0-9]{32}$'){throw 'TestEnvironmentId must be exactly 32 lowercase hexadecimal characters. No normal data was opened.'}
     # Release gate, deliberately before even resolving the real profile.
     # Native synthetic tests I25/I28 demonstrated in-place reparse changes
