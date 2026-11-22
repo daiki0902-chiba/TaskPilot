@@ -15,7 +15,7 @@ $runtimePath=Get-TPBuildFullPath $RuntimeAssembly
 $runtimeLoaded=[Reflection.Assembly]::LoadFrom($runtimePath)
 if(-not[string]::Equals([IO.Path]::GetFullPath($runtimeLoaded.Location),$runtimePath,[StringComparison]::OrdinalIgnoreCase)){throw 'The memory suite must execute the exact packaged runtime assembly.'}
 $module=Import-Module (Join-Path $project 'Modules/TaskPilot.Storage/TaskPilot.Storage.psm1') -Force -PassThru
-$sandbox=$null;$store=$null;$database=$null;$taskId=0;$id=[guid]::NewGuid().ToString('N')
+$sandbox=$null;$store=$null;$database=$null;$taskId=0;$script:memoryEnvironmentId=[guid]::NewGuid().ToString('N')
 $script:memoryCases=New-Object 'Collections.Generic.List[object]';$script:memoryChecks=0
 function Check-Memory([bool]$Condition,[string]$Message){$script:memoryChecks++;if(-not$Condition){throw $Message}}
 function Reject-Memory([scriptblock]$Action,[string]$Message,[string]$Pattern=''){
@@ -34,7 +34,7 @@ function Hash-Memory([byte[]]$Bytes){$sha=[Security.Cryptography.SHA256]::Create
 $normalHash=Hash-Memory ([IO.File]::ReadAllBytes($normalSentinel))
 try{
     Case-Memory 'M01' 'SQLite receives only an in-memory main database' {
-        $script:sandbox=[TaskPilot.Runtime.Sandbox]::Create($profile,$id)
+        $script:sandbox=[TaskPilot.Runtime.Sandbox]::Create($profile,$script:memoryEnvironmentId)
         & $module {param($s) Set-TaskPilotTestSandbox $s} $script:sandbox
         $script:database=Join-Path $script:sandbox.Root 'memory-test.db'
         $null=New-TaskPilotDatabase -DatabasePath $script:database
@@ -122,7 +122,7 @@ try{
         $checkpoint=Join-Path $script:sandbox.Root '.tp-rollback_synthetic-interruption.bin'
         $script:sandbox.WriteNew($checkpoint,$before)
         Close-TaskPilotStore $script:store;$script:store=$null;$script:sandbox.Dispose();$script:sandbox=$null
-        Reject-Memory {[TaskPilot.Runtime.Sandbox]::Create($profile,$id)} 'Startup ignored or automatically recovered an interrupted write.' 'interrupted broker write'
+        Reject-Memory {[TaskPilot.Runtime.Sandbox]::Create($profile,$script:memoryEnvironmentId)} 'Startup ignored or automatically recovered an interrupted write.' 'interrupted broker write'
         Check-Memory ((Hash-Memory ([IO.File]::ReadAllBytes($script:database)))-ceq$beforeHash) 'Rejected startup changed the database.'
         Check-Memory ((Hash-Memory ([IO.File]::ReadAllBytes($checkpoint)))-ceq$beforeHash) 'Rejected startup changed the preserved rollback image.'
     }
