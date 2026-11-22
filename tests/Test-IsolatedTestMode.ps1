@@ -519,7 +519,7 @@ try{
         # All objects are newly-created fixtures. The early FullControl grant
         # must actually permit attributes despite the later matching denials.
         $unsafeAcl=New-Object Security.AccessControl.DirectorySecurity
-        $unsafeAcl.SetSecurityDescriptorSddlForm(('O:'+ $ownerSid +'D:P(A;OICI;FA;;;'+$ownerSid+')(D;CI;0x100;;;S-1-1-0)(D;CI;0xc0000;;;S-1-3-4)(A;OICI;FA;;;SY)(A;OICI;FA;;;BA)'))
+        $unsafeAcl.SetSecurityDescriptorSddlForm(('O:'+ $ownerSid +'D:P(A;OICI;FA;;;'+$ownerSid+')(D;OICI;0x110;;;S-1-1-0)(D;OICI;0xc0000;;;S-1-3-4)(A;OICI;FA;;;SY)(A;OICI;FA;;;BA)'))
         $null=[IO.Directory]::CreateDirectory($anchor,$unsafeAcl)
         [IO.File]::SetAttributes($anchor,([IO.FileAttributes]::Directory-bor[IO.FileAttributes]::Hidden))
         Assert-Isolated (([IO.File]::GetAttributes($anchor)-band[IO.FileAttributes]::Hidden)-ne0) 'The permissive-policy positive control did not permit attribute changes.'

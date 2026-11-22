@@ -134,7 +134,7 @@ try{
     }elseif($PSBoundParameters.ContainsKey('TestEnvironmentId')){throw 'TestEnvironmentId is allowed only with explicit TestMode, including an explicitly empty value.'}
     Add-TPACCheck 'ModeArguments' $true ('Mode='+$requestedMode)
 }catch{$modeValid=$false;Add-TPACCheck 'ModeArguments' $false $_.Exception.Message}
-if($script:TPACIndependentIntent){Add-TPACCheck 'TestModeReleaseAuthorization' $false 'TP-ISOLATION-BLOCKED: native synthetic I25/I28 permit in-place reparse mutation. Independent mode is disabled; package contents and profile test areas will not be opened.'}
+if($script:TPACIndependentIntent){Add-TPACCheck 'TestModeReleaseAuthorization' $false 'TP-ISOLATION-BLOCKED: public independent mode remains disabled pending review and Windows 10/11 desktop acceptance of the revised boundary. Package contents and profile test areas will not be opened.'}
 $userSid=$null;$frameworkRelease=$null;$os=$null;$osError=$null
 if($tpacIsWindows){
     try{$userSid=[Security.Principal.WindowsIdentity]::GetCurrent().User.Value}catch{$userSid='UNAVAILABLE'}
@@ -283,7 +283,7 @@ if($FirstUse-and-not$TestMode-and$modeValid-and-not$script:TPACIndependentIntent
 if($TestMode){
     $testScope=$null
     try{
-        throw 'TP-ISOLATION-BLOCKED: I25/I28 failed. No test area or boundary DLL was opened.'
+        throw 'TP-ISOLATION-BLOCKED: public independent mode is not authorized for desktop acceptance. No test area or boundary DLL was opened.'
         if(-not$modeValid){throw 'Independent mode arguments are invalid; no test area was opened.'}
         if(-not$hostSupported){throw 'Independent test readiness requires Windows 10/11 x64 with Desktop PowerShell 5.1; no profile area was opened on this host.'}
         if(-not$packageValid-or-not$originOK){throw 'Verified package bytes and readable, unblocked origin metadata are required before loading the boundary DLL.'}

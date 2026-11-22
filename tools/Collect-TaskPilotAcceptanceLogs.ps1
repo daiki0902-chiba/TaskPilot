@@ -14,7 +14,7 @@ param(
 )
 $ErrorActionPreference='Stop'
 Set-StrictMode -Version 2.0
-if($PSBoundParameters.ContainsKey('TestMode')-or$PSBoundParameters.ContainsKey('TestEnvironmentId')){throw 'TP-ISOLATION-BLOCKED: 独立モードのログ採取は安全性試験 I25/I28 の不合格により停止しています。保存先・アプリ内容・ログは開いていません。'}
+if($PSBoundParameters.ContainsKey('TestMode')-or$PSBoundParameters.ContainsKey('TestEnvironmentId')){throw 'TP-ISOLATION-BLOCKED: 独立モードのログ採取は安全性修正のレビューとWindows 10/11実機受入が未完了のため停止しています。保存先・アプリ内容・ログは開いていません。'}
 
 # Diagnostic reader only. Never dot-source or launch the application, change
 # AppData, remove blocks, install modules, stop processes, or upload evidence.

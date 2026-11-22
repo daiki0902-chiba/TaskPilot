@@ -177,6 +177,35 @@ namespace TaskPilot.FileBoundaryTests {
             $sandbox.Dispose();$sandbox=$null
         }
     }
+    foreach($access in $accesses){
+        # Directory symbolic links use a different reparse tag from junctions.
+        # Exercise it explicitly; preexisting-link rejection is not enough.
+        $empty=Join-Path $fixture ('UnpinnedEmptySymbolic_'+[guid]::NewGuid().ToString('N'))
+        $null=[IO.Directory]::CreateDirectory($empty)
+        $positive=[TaskPilot.FileBoundaryTests.NativeProbe]::Set($fixture,$empty,$normal,$access[1],$true)
+        $rows.Add([pscustomobject]@{Vector='EmptyDirectorySymbolic';Protected=$false;Access=$access[0];HandleOpened=$positive.HandleOpened;ReparseSet=$positive.ReparseSet;Win32Error=$positive.Win32Error})
+        if($positive.ReparseSet){[TaskPilot.FileBoundaryTests.NativeProbe]::Clear($fixture,$empty,$true)}
+        $control=Join-Path $fixture ('UnpinnedNonemptySymbolic_'+[guid]::NewGuid().ToString('N'))
+        $null=[IO.Directory]::CreateDirectory($control)
+        [IO.File]::WriteAllText((Join-Path $control 'child.txt'),'synthetic nonempty symbolic control')
+        $attempt=[TaskPilot.FileBoundaryTests.NativeProbe]::Set($fixture,$control,$normal,$access[1],$true)
+        $rows.Add([pscustomobject]@{Vector='NonemptyAncestorSymbolic';Protected=$false;Access=$access[0];HandleOpened=$attempt.HandleOpened;ReparseSet=$attempt.ReparseSet;Win32Error=$attempt.Win32Error})
+        Assert-FileBoundary (-not$attempt.ReparseSet) ('A nonempty directory accepted a symbolic tag using '+$access[0]+'.')
+        if($access[0]-in$requiredWritable){Assert-FileBoundary ($attempt.HandleOpened-and$attempt.Win32Error-eq145) 'A nonempty symbolic control must report ERROR_DIR_NOT_EMPTY.'}
+        $ancestor=Join-Path $fixture ('SymbolicAncestorProfile_'+[guid]::NewGuid().ToString('N'))
+        $null=[IO.Directory]::CreateDirectory($ancestor)
+        $sandbox=[TaskPilot.Runtime.Sandbox]::Create($ancestor,[guid]::NewGuid().ToString('N'))
+        try{
+            $attempt=[TaskPilot.FileBoundaryTests.NativeProbe]::Set($fixture,$ancestor,$normal,$access[1],$true)
+            $rows.Add([pscustomobject]@{Vector='NonemptyAncestorSymbolic';Protected=$true;Access=$access[0];HandleOpened=$attempt.HandleOpened;ReparseSet=$attempt.ReparseSet;Win32Error=$attempt.Win32Error})
+            Assert-FileBoundary (-not$attempt.ReparseSet) 'A pinned ancestor became a directory symbolic link.'
+            if($access[0]-in$requiredWritable){Assert-FileBoundary ($attempt.HandleOpened-and$attempt.Win32Error-eq145) 'A pinned symbolic ancestor must remain nonempty.'}
+            $attempt=[TaskPilot.FileBoundaryTests.NativeProbe]::Set($fixture,[string]$sandbox.Export,$normal,$access[1],$true)
+            $rows.Add([pscustomobject]@{Vector='GuardedDirectorySymbolic';Protected=$true;Access=$access[0];HandleOpened=$attempt.HandleOpened;ReparseSet=$attempt.ReparseSet;Win32Error=$attempt.Win32Error})
+            Assert-FileBoundary (-not$attempt.ReparseSet) ('A guarded directory became a symbolic link using '+$access[0]+'.')
+            if($access[0]-ceq'WriteData'){Assert-FileBoundary ($attempt.HandleOpened-and$attempt.Win32Error-eq145) 'The guarded directory symbolic request must encounter ERROR_DIR_NOT_EMPTY.'}
+        }finally{$sandbox.Dispose();$sandbox=$null}
+    }
 }catch{$errors.Add($_.Exception.ToString())}
 finally{
     if($null-ne$sandbox){$sandbox.Dispose()}
@@ -188,13 +217,13 @@ if(-not$normalUnchanged){$errors.Add('The synthetic normal sentinel changed.')}
 # kernel nonempty rule is tested against both an EMPTY positive control and
 # the actual permanently nonempty guarded directory; it is not skipped.
 $expectedAccessCount=$accesses.Count
-foreach($spec in @(@('FileSymbolicReparse',$false),@('FileSymbolicReparse',$true),@('EmptyDirectoryJunction',$false),@('NonemptyAncestorJunction',$false),@('NonemptyAncestorJunction',$true),@('GuardedDirectoryJunction',$true))){
+foreach($spec in @(@('FileSymbolicReparse',$false),@('FileSymbolicReparse',$true),@('EmptyDirectoryJunction',$false),@('NonemptyAncestorJunction',$false),@('NonemptyAncestorJunction',$true),@('GuardedDirectoryJunction',$true),@('EmptyDirectorySymbolic',$false),@('NonemptyAncestorSymbolic',$false),@('NonemptyAncestorSymbolic',$true),@('GuardedDirectorySymbolic',$true))){
     $found=@($rows|Where-Object {$_.Vector-ceq$spec[0]-and$_.Protected-eq$spec[1]})
     if($found.Count-ne$expectedAccessCount){$unverified.Add('Missing native coverage for '+$spec[0]+' protected='+$spec[1])}
     foreach($access in $accesses){if(@($found|Where-Object {$_.Access-ceq$access[0]}).Count-ne1){$unverified.Add('Missing or duplicate access probe '+$spec[0]+'/'+$access[0])}}
 }
 if($guardChecks-ne($expectedAccessCount*5)){$unverified.Add('The immutable guard mutation checks did not all run.')}
-foreach($vector in @('FileSymbolicReparse','EmptyDirectoryJunction')){
+foreach($vector in @('FileSymbolicReparse','EmptyDirectoryJunction','EmptyDirectorySymbolic')){
     foreach($name in $requiredWritable){
         $positive=@($rows|Where-Object {$_.Vector-ceq$vector-and-not$_.Protected-and$_.Access-ceq$name-and$_.ReparseSet})
         if($positive.Count-ne1){$unverified.Add($vector+' lacks a successful native positive control for '+$name+'. No privileges were enabled.')}

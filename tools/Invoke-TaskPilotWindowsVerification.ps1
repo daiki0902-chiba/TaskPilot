@@ -85,7 +85,13 @@ $nativeBuildInfo=Get-Content -LiteralPath (Join-Path (Join-Path $release 'TaskPi
 if(-not$nativeBuildInfo.IndependentTestModeImplemented-or$nativeBuildInfo.Version-cne'0.4.0.2'-or
    $nativeBuildInfo.RuntimeGuardSha256-cne(Get-TPBuildSha $runtimeAssembly)){throw 'The compiled runtime does not match the candidate build metadata.'}
 $memory=& (Join-Path $repo 'tests/Test-IsolatedMemoryStore.ps1') -RuntimeAssembly $runtimeAssembly -OutputRoot $reportRoot
-$memoryPassed=$null-ne$memory-and$memory.Passed-and$memory.FailedCases-eq0-and@($memory.Cases).Count-eq8-and$memory.NormalFixtureUnchanged-and-not$memory.ProductionProfileAccessed-and@($memory.SkippedDetails).Count-eq0
+$memoryPassed=$null-ne$memory-and$memory.Passed-is[bool]-and$memory.Passed-and$memory.FailedCases-eq0-and@($memory.Cases).Count-eq8-and$memory.NormalFixtureUnchanged-is[bool]-and$memory.NormalFixtureUnchanged-and$memory.ProductionProfileAccessed-is[bool]-and-not$memory.ProductionProfileAccessed-and@($memory.SkippedDetails).Count-eq0-and$memory.RuntimeAssemblySha256-ceq$nativeBuildInfo.RuntimeGuardSha256
+if($memoryPassed){
+    foreach($index in 1..8){
+        $case=@($memory.Cases|Where-Object {$_.Id-ceq('M{0:00}'-f$index)})
+        if($case.Count-ne1-or$case[0].Passed-isnot[bool]-or-not$case[0].Passed){$memoryPassed=$false;break}
+    }
+}
 $isolated=& (Join-Path $repo 'tests/Test-IsolatedTestMode.ps1') -RuntimeAssembly $runtimeAssembly -DependencyRoot $dependencyRoot -OutputRoot $reportRoot
 $requiredIsolationIds=@(1..22|ForEach-Object {'I{0:00}'-f$_})+@(24..28|ForEach-Object {'I{0:00}'-f$_})
 $completeIsolationCases=$null-ne$isolated-and@($isolated.Cases).Count-eq$requiredIsolationIds.Count

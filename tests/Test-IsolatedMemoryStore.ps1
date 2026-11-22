@@ -12,8 +12,9 @@ $profile=Join-Path $fixture 'SyntheticLocalAppData';$null=[IO.Directory]::Create
 $normal=Join-Path $profile 'TaskPilot4';$null=[IO.Directory]::CreateDirectory($normal)
 $normalSentinel=Join-Path $normal 'normal-do-not-open-as-database.bin';[IO.File]::WriteAllText($normalSentinel,'SYNTHETIC NORMAL SENTINEL')
 $runtimePath=Get-TPBuildFullPath $RuntimeAssembly
+$runtimeSha=Get-TPBuildSha $runtimePath
 $runtimeLoaded=[Reflection.Assembly]::LoadFrom($runtimePath)
-if(-not[string]::Equals([IO.Path]::GetFullPath($runtimeLoaded.Location),$runtimePath,[StringComparison]::OrdinalIgnoreCase)){throw 'The memory suite must execute the exact packaged runtime assembly.'}
+if(-not[string]::Equals([IO.Path]::GetFullPath($runtimeLoaded.Location),$runtimePath,[StringComparison]::OrdinalIgnoreCase)-or(Get-TPBuildSha $runtimeLoaded.Location)-cne$runtimeSha){throw 'The memory suite must execute the exact packaged runtime assembly.'}
 $module=Import-Module (Join-Path $project 'Modules/TaskPilot.Storage/TaskPilot.Storage.psm1') -Force -PassThru
 $sandbox=$null;$store=$null;$database=$null;$taskId=0;$script:memoryEnvironmentId=[guid]::NewGuid().ToString('N')
 $script:memoryCases=New-Object 'Collections.Generic.List[object]';$script:memoryChecks=0
@@ -136,5 +137,6 @@ try{
 $normalUnchanged=(Hash-Memory ([IO.File]::ReadAllBytes($normalSentinel)))-ceq$normalHash
 $failures=@($script:memoryCases|Where-Object {-not$_.Passed})
 $report=[pscustomobject][ordered]@{Stage='Native memory-only SQLite persistence';Passed=($failures.Count-eq0-and$normalUnchanged);Checks=$script:memoryChecks;Cases=$script:memoryCases.ToArray();FailedCases=$failures.Count;NormalFixtureUnchanged=$normalUnchanged;ProductionProfileAccessed=$false;ApplicationLaunched=$false;Windows10And11Verified=$false;SkippedDetails=@();TestRoot=$fixture;FaultInjection='M06 replaces only the module persistence call with a throwing test function before broker publication; all security checks remain active.'}
+$report|Add-Member -NotePropertyName RuntimeAssemblySha256 -NotePropertyValue $runtimeSha
 Write-TPBuildNewText (Join-Path $output ('IsolatedMemory_'+[guid]::NewGuid().ToString('N')+'.json')) (ConvertTo-Json -InputObject $report -Depth 12)
 return $report
