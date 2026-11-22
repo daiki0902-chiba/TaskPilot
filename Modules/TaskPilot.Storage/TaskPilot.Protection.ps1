@@ -81,19 +81,23 @@ function New-TPProtectionIndependentBackup($Store,[string]$DestinationPath){
     Assert-TPProtectionStoreIntegrity $Store
     $stage=Join-Path ([IO.Path]::GetDirectoryName($destination)) ('.taskpilot-backup_'+[guid]::NewGuid().ToString('N')+'.db')
     $providerArguments=@{};if($Store.TestOnly){$providerArguments.TestProviderAssembly=$script:TPProvider.AssemblyPath}
-    $owned=$false;$prepared=$false
+    $owned=$false;$targetConnection=$null
     try{
         $script:TPTestSandbox.WriteNew($stage,[byte[]]@());$owned=$true
-        $script:TPTestSandbox.PrepareDatabase($stage,$false);$prepared=$true
-        $null=Invoke-TPSql $Store 'VACUUM main INTO @destination' -Parameters @{destination=$stage} -Mode NonQuery
-        $script:TPTestSandbox.CompleteDatabase($stage);$prepared=$false
+        # VACUUM INTO opens its own destination in DELETE journal mode. Its
+        # journal cannot be deleted while the independent boundary holds a
+        # no-delete lease. Open the owned destination explicitly instead so
+        # both SQLite connections use the required pinned TRUNCATE journal.
+        $targetConnection=New-TPConnection -Path $stage -Provider $script:TPProvider
+        $Store.Connection.BackupDatabase($targetConnection,'main','main',-1,$null,0)
+        Close-TPConnection $targetConnection;$targetConnection=$null
         Test-TPProtectionStage $stage $providerArguments
         $hash=Get-TPProtectionFileHash $stage;$size=$script:TPTestSandbox.GetFileLength($stage)
         $null=Assert-TPProtectionNewDestination $destination
         $script:TPTestSandbox.MoveNew($stage,$destination);$owned=$false
         return [pscustomobject]@{BackupPath=$destination;DestinationPath=$destination;DatabasePath=$Store.Path;Sha256=$hash;ByteCount=[long]$size;ApplicationId=$script:TPApplicationId;SchemaVersion=$script:TPSchemaVersion;CreatedAtUtc=(Get-TPUtcNow);Verified=$true;TestOnly=[bool]$Store.TestOnly;IndependentTestEnvironmentId=$script:TPTestSandbox.EnvironmentId}
     }finally{
-        if($prepared){$script:TPTestSandbox.CompleteDatabase($stage)}
+        if($null-ne$targetConnection){Close-TPConnection $targetConnection}
         if($owned){Remove-TPProtectionOwnedStage $stage}
     }
 }
