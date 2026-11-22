@@ -14,6 +14,25 @@ function Expect-AcceptanceBuildFailure([scriptblock]$Operation,[string]$Pattern)
     $failure=$null;try{$null=& $Operation}catch{$failure=$_.Exception.Message}
     Assert-AcceptanceBuild ($null-ne$failure-and$failure-match$Pattern) ('Required stop was absent or wrong: '+$failure)
 }
+function Assert-AcceptanceArchiveBoundary([string]$InternalRoot,[string]$PackageRoot,[string]$SourceArchiveSha256){
+    # LGPL corresponding source is a required upstream archive, not an app ZIP.
+    # Permit exactly that reviewed byte image inside the package; every other
+    # archive, including any sibling/outside-package ZIP, remains forbidden.
+    $source=Get-TPBuildFullPath (Join-Path $PackageRoot 'ThirdPartySources/EPPlus-4.5.3.2-source-4dacf276.zip')
+    foreach($archive in @(Get-TPBuildFiles $InternalRoot|Where-Object {$_.Extension-ieq'.zip'})){
+        if(-not$archive.FullName.Equals($source,[StringComparison]::OrdinalIgnoreCase)-or(Get-TPBuildSha $archive.FullName)-cne$SourceArchiveSha256){throw 'Unexpected TaskPilot or unpinned source archive in internal output.'}
+    }
+}
+function Assert-AcceptanceExactInventory([string]$PackageRoot,[object[]]$ManifestFiles){
+    $expected=New-Object 'Collections.Generic.HashSet[string]' ([StringComparer]::Ordinal)
+    foreach($file in $ManifestFiles){Assert-TPBuildRelative $file.Path;if(-not$expected.Add($file.Path)){throw 'Package inventory mismatch: duplicate manifest entry.'}}
+    if(-not$expected.Add('AcceptancePayload.json')){throw 'Package inventory mismatch: the manifest must exclude itself.'}
+    foreach($file in @(Get-TPBuildFiles $PackageRoot)){
+        $relative=$file.FullName.Substring($PackageRoot.Length+1).Replace('\','/')
+        if(-not$expected.Remove($relative)){throw 'Package inventory mismatch: undeclared output file.'}
+    }
+    if($expected.Count-ne0){throw 'Package inventory mismatch: declared output file is missing.'}
+}
 $tool=Join-Path $repo 'tools/Build-TaskPilotDesktopAcceptance.ps1'
 $neverCreated=Join-Path $root 'no-output'
 $plan=& $tool -DependencyRoot $DependencyRoot -OutputRoot $neverCreated -ValidateOnly
@@ -46,6 +65,27 @@ $before=Get-TPBuildSha $sentinel
 $default=& $tool -DependencyRoot $DependencyRoot -OutputRoot $existing
 Assert-AcceptanceBuild ($default.Status-ceq'BLOCKED'-and-not$default.OutputCreated-and(Get-TPBuildSha $sentinel)-ceq$before-and@(Get-TPBuildFiles $existing).Count-eq1) 'Default mode changed existing build outputs or compiled without an explicit internal request.'
 if([Environment]::OSVersion.Platform-ne[PlatformID]::Win32NT){Expect-AcceptanceBuildFailure {& $tool -DependencyRoot $DependencyRoot -OutputRoot $neverCreated -InternalCompile} 'requires x64 Windows PowerShell Desktop 5.1'}
+# Synthetic fixtures prove the archive exception is confined to the one pinned
+# source file and cannot admit a TaskPilot ZIP or undeclared package content.
+$archiveFixture=Join-Path $root 'archive-policy-fixture';$fixturePackage=Join-Path $archiveFixture 'TaskPilot.Acceptance'
+$fixtureSource=Join-Path $fixturePackage 'ThirdPartySources/EPPlus-4.5.3.2-source-4dacf276.zip'
+Write-TPBuildNewText $fixtureSource 'synthetic corresponding source archive image'
+Write-TPBuildNewText (Join-Path $fixturePackage 'AcceptancePayload.json') '{}'
+$fixtureHash=Get-TPBuildSha $fixtureSource
+$fixtureManifest=@([pscustomobject]@{Path='ThirdPartySources/EPPlus-4.5.3.2-source-4dacf276.zip';Sha256=$fixtureHash})
+Assert-AcceptanceArchiveBoundary $archiveFixture $fixturePackage $fixtureHash;$checks++
+Assert-AcceptanceExactInventory $fixturePackage $fixtureManifest;$checks++
+$outsideZip=Join-Path $archiveFixture 'TaskPilot.Acceptance.zip';Write-TPBuildNewText $outsideZip 'forbidden app distribution archive'
+Expect-AcceptanceBuildFailure {Assert-AcceptanceArchiveBoundary $archiveFixture $fixturePackage $fixtureHash} 'Unexpected TaskPilot or unpinned source archive'
+[IO.File]::Delete($outsideZip)
+$insideZip=Join-Path $fixturePackage 'ThirdPartySources/extra.zip';Write-TPBuildNewText $insideZip 'unreviewed archive'
+Expect-AcceptanceBuildFailure {Assert-AcceptanceArchiveBoundary $archiveFixture $fixturePackage $fixtureHash} 'Unexpected TaskPilot or unpinned source archive'
+Expect-AcceptanceBuildFailure {Assert-AcceptanceExactInventory $fixturePackage $fixtureManifest} 'Package inventory mismatch: undeclared'
+[IO.File]::Delete($insideZip)
+[IO.File]::AppendAllText($fixtureSource,'changed original image')
+Expect-AcceptanceBuildFailure {Assert-AcceptanceArchiveBoundary $archiveFixture $fixturePackage $fixtureHash} 'Unexpected TaskPilot or unpinned source archive'
+[IO.File]::Delete($fixtureSource)
+Expect-AcceptanceBuildFailure {Assert-AcceptanceExactInventory $fixturePackage $fixtureManifest} 'Package inventory mismatch: declared'
 if($InternalPackageRoot){
     $package=Get-TPBuildFullPath $InternalPackageRoot;Assert-TPBuildNoLinks $package
     $info=Get-Content -LiteralPath (Join-Path $package 'AcceptanceBuildInfo.json') -Raw -Encoding UTF8|ConvertFrom-Json
@@ -56,6 +96,7 @@ if($InternalPackageRoot){
     Assert-AcceptanceBuild ((Get-TPBuildSha $exe)-ceq$info.ExecutableSha256) 'Native launcher hash differs from build metadata.'
     $manifest=Get-Content -LiteralPath (Join-Path $package 'AcceptancePayload.json') -Raw -Encoding UTF8|ConvertFrom-Json
     Assert-AcceptanceBuild ($manifest.Purpose-ceq'DesktopAcceptanceSyntheticOnly'-and$manifest.Version-ceq'0.4.0.2') 'Compiled manifest purpose/version changed.'
+    Assert-AcceptanceExactInventory $package @($manifest.Files);$checks++
     foreach($file in @($manifest.Files)){Assert-AcceptanceBuild ((Get-TPBuildSha (Join-Path $package $file.Path))-ceq$file.Sha256) ('Compiled package hash mismatch: '+$file.Path)}
     $vendorLock=Get-Content -LiteralPath (Join-Path $package 'acceptance/vendor-code-lock.json') -Raw -Encoding UTF8|ConvertFrom-Json
     Assert-AcceptanceBuild ($vendorLock.FormatVersion-eq1-and$vendorLock.Purpose-ceq'DesktopAcceptanceSyntheticOnly'-and@($vendorLock.Files).Count-eq@($plan.OriginalVendorCode).Count) 'Compiled original vendor lock has an incompatible contract.'
@@ -64,6 +105,8 @@ if($InternalPackageRoot){
         Assert-AcceptanceBuild ($original.Count-eq1-and$original[0].Sha256-ceq$file.Sha256-and(Get-TPBuildSha (Join-Path $package $file.Path))-ceq$file.Sha256) 'Compiled vendor bytes differ from the reviewed baseline.'
     }
     Assert-AcceptanceBuild (-not[IO.File]::Exists((Join-Path $package 'AcceptanceAuthorization.json'))-and-not[IO.File]::Exists((Join-Path $package 'AcceptanceAuthorization.p7s'))) 'Internal compiler must never fabricate an acceptance authority.'
-    Assert-AcceptanceBuild (@(Get-TPBuildFiles ([IO.Path]::GetDirectoryName($package))|Where-Object {$_.Extension-ceq'.zip'}).Count-eq0) 'Internal compiler created a ZIP despite the distribution stop.'
+    $sourceArchive=@($plan.PayloadManifest|Where-Object {$_.Path-ceq'ThirdPartySources/EPPlus-4.5.3.2-source-4dacf276.zip'})
+    Assert-AcceptanceBuild ($sourceArchive.Count-eq1) 'The required pinned EPPlus corresponding source archive is missing from the build plan.'
+    Assert-AcceptanceArchiveBoundary ([IO.Path]::GetDirectoryName($package)) $package $sourceArchive[0].Sha256;$checks++
 }
 [pscustomobject]@{Passed=$true;Checks=$checks;Purpose='DesktopAcceptanceSyntheticOnly';Status='BLOCKED';GeneralDistributionBlocked=$true;IndependentTestModeDistributionBlocked=$true;Distributable=$false;ProductionProfileAccessed=$false;WindowsDesktopExecutionVerified=$false;InternalCompileChecked=[bool]$InternalPackageRoot}
