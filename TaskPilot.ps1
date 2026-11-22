@@ -1,5 +1,8 @@
 ﻿# TaskPilot STEP 3.5B - customer portable distribution (PowerShell 5.1+)
 # Copyright and third-party module licenses must be reviewed before commercial release.
+[CmdletBinding(PositionalBinding=$false)]
+param([switch]$TestMode,[string]$TestEnvironmentId)
+
 $ErrorActionPreference = 'Stop'
 # TaskPilot STEP 3.1: keep application files separate from user data.
 # This app is intended for one Windows user per data store.
@@ -8,19 +11,25 @@ if ([string]::IsNullOrWhiteSpace($PSScriptRoot)) {
 } else {
     $InstallRoot = $PSScriptRoot
 }
-$LocalAppData = [Environment]::GetFolderPath('LocalApplicationData')
-if ([string]::IsNullOrWhiteSpace($LocalAppData)) { throw 'LOCALAPPDATA を取得できません。' }
-$LegacyRoot = Join-Path $LocalAppData 'TaskPilot'
-$Root = Join-Path $LocalAppData 'TaskPilot4'
+# Select the mode before assigning any normal user-state/log path. An invalid
+# test request never falls back to normal startup or normal error logging.
+if ($PSBoundParameters.ContainsKey('TestMode') -and -not $TestMode) { throw 'TestMode:false は受け付けません。通常起動は引数なしで実行してください。' }
+if ($TestMode -and $TestEnvironmentId -cnotmatch '^[a-f0-9]{32}$') { throw 'TestMode には32桁の小文字16進数のTestEnvironmentIdが必要です。通常データは開いていません。' }
+if (-not $TestMode -and -not [string]::IsNullOrEmpty($TestEnvironmentId)) { throw 'TestEnvironmentId はTestModeと一緒に指定してください。通常データは開いていません。' }
+. (Join-Path $InstallRoot 'Runtime/TaskPilot.Runtime.ps1')
+$script:TPRuntimeContext = Initialize-TPRuntime -TestMode:$TestMode -TestEnvironmentId $TestEnvironmentId
+$LocalAppData = $script:TPRuntimeContext.ProfileRoot
+$LegacyRoot = if ($script:TPRuntimeContext.IsTestMode) { $null } else { Join-Path $LocalAppData 'TaskPilot' }
+$Root = $script:TPRuntimeContext.Root
 
 
-$DataDir = Join-Path $Root 'Data'
-$ExportDir = Join-Path $Root 'Export'
+$DataDir = $script:TPRuntimeContext.DataDir
+$ExportDir = $script:TPRuntimeContext.ExportDir
 $TaskFile = Join-Path $DataDir 'TaskList.csv'
 $ArchiveFile = Join-Path $DataDir 'CompletedTask.csv'
 $IdFile = Join-Path $DataDir 'NextId.txt'
-$BackupDir = Join-Path $Root 'Backup'
-$LogDir = Join-Path $LocalAppData 'TaskPilot4Logs'
+$BackupDir = $script:TPRuntimeContext.BackupDir
+$LogDir = $script:TPRuntimeContext.LogDir
 $Columns = @('ID','Date','Task','Priority','DueDate','Status','Memo')
 $SettingsFile = Join-Path $Root 'Settings.json'
 $script:AppSettings = @{ NotifyOnStartup = $true; NotifyDays = 3; DailyNotifyEnabled = $false; DailyNotifyTime = "09:00" }
@@ -92,13 +101,7 @@ function Show-SettingsDialog {
 
 
 
-function Write-ActionLog([string]$action, [string]$detail) {
-    try {
-        if (-not (Test-Path -LiteralPath $LogDir)) { New-Item -ItemType Directory -Path $LogDir -Force | Out-Null }
-        $safeDetail = $detail -replace '[\r\n]+', ' '
-        Add-Content -LiteralPath (Join-Path $LogDir 'actions.log') -Value ("{0} | {1} | {2}" -f (Get-Date -Format 'yyyy-MM-dd HH:mm:ss'), $action, $safeDetail) -Encoding UTF8
-    } catch { } # Logging must not cause a successful data change to be reported as failed.
-}
+
 function Get-ValidDueDate($task) {
     $due = [datetime]::MinValue
     if ([datetime]::TryParseExact([string]$task.DueDate, 'yyyy/MM/dd', [cultureinfo]::InvariantCulture, [Globalization.DateTimeStyles]::None, [ref]$due)) { return $due.Date }
@@ -107,23 +110,8 @@ function Get-ValidDueDate($task) {
 function Get-PriorityRank([string]$priority) {
     switch ($priority) { '高' { return 0 } '中' { return 1 } '低' { return 2 } default { return 3 } }
 }
-function Write-ErrorLog($record) {
-    try {
-        if (-not (Test-Path -LiteralPath $LogDir)) { New-Item -ItemType Directory -Path $LogDir -Force | Out-Null }
-        $log = Join-Path $LogDir 'errors.log'
-        $line = '{0} | {1} | line {2} | {3}' -f (Get-Date -Format 'yyyy-MM-dd HH:mm:ss'), $record.Exception.Message, $record.InvocationInfo.ScriptLineNumber, $record.InvocationInfo.Line.Trim()
-        Add-Content -LiteralPath $log -Value ($line + [Environment]::NewLine + [string]$record.ScriptStackTrace) -Encoding UTF8
-    } catch { Write-Host 'エラーログの保存に失敗しました。' -ForegroundColor Yellow }
-}
-function Replace-FileSafely([string]$source, [string]$destination) {
-    # Windows PowerShell 5.1 / .NET Framework: provide an explicit backup path.
-    $backup = Join-Path (Split-Path -Parent $destination) ('.replace_backup_' + [guid]::NewGuid().ToString('N'))
-    try {
-        [System.IO.File]::Replace($source, $destination, $backup)
-    } finally {
-        if (Test-Path -LiteralPath $backup) { Remove-Item -LiteralPath $backup -Force -ErrorAction SilentlyContinue }
-    }
-}
+
+
 
 
 
@@ -131,6 +119,7 @@ Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
 [System.Windows.Forms.Application]::EnableVisualStyles()
 try {
+. (Join-Path $InstallRoot 'Adapters/TaskPilot.GuiIsolation.ps1')
 . (Join-Path $InstallRoot 'Adapters/TaskPilot.GuiCommon.ps1')
 . (Join-Path $InstallRoot 'Adapters/TaskPilot.GuiTasks.ps1')
 . (Join-Path $InstallRoot 'Adapters/TaskPilot.GuiDomains.ps1')
@@ -295,21 +284,27 @@ function Show-HolidayManagementDialog {
     & $reload
     $manual.Add_Click({
         try {
-            $choose = New-Object System.Windows.Forms.OpenFileDialog
-            $choose.Filter = 'CSVファイル (*.csv)|*.csv'
-            if ($choose.ShowDialog($dlg) -ne [System.Windows.Forms.DialogResult]::OK) { return }
-            $count = Import-JapaneseHolidayCsv $choose.FileName
+            if (Test-TPGuiIsolatedMode) {
+                $selectedCsv = Select-TPGuiIsolatedFile -Directory (Get-TPGuiSandbox).Input -Extension '.csv'
+                if ([string]::IsNullOrEmpty($selectedCsv)) { return }
+            } else {
+                $choose = New-Object System.Windows.Forms.OpenFileDialog
+                $choose.Filter = 'CSVファイル (*.csv)|*.csv'
+                try { if ($choose.ShowDialog($dlg) -ne [System.Windows.Forms.DialogResult]::OK) { return }; $selectedCsv = $choose.FileName }
+                finally { $choose.Dispose() }
+            }
+            $count = Import-JapaneseHolidayCsv $selectedCsv
             [System.Windows.Forms.MessageBox]::Show($dlg,"祝日データを $count 件取り込みました。`r`n画面を開き直すと収録期間を確認できます。",'TaskPilot') | Out-Null
         } catch { Show-Failure $_ }
     })
     $auto.Add_Click({
-        $tmp = Join-Path ([System.IO.Path]::GetTempPath()) ('TaskPilotHoliday_' + [guid]::NewGuid().ToString('N') + '.csv')
+        $tmp = Get-TPGuiHolidayTemporaryPath
         try {
             $wc = New-Object System.Net.WebClient
-            try { $wc.DownloadFile($OfficialHolidayUrl,$tmp) } finally { $wc.Dispose() }
+            try { $holidayBytes = $wc.DownloadData($OfficialHolidayUrl); Save-TPGuiDownloadedHolidayCsv -Path $tmp -Bytes $holidayBytes } finally { $wc.Dispose() }
             $count = Import-JapaneseHolidayCsv $tmp
             [System.Windows.Forms.MessageBox]::Show($dlg,"公式CSVから $count 件取り込みました。`r`n画面を開き直すと収録期間を確認できます。",'TaskPilot') | Out-Null
-        } catch { Show-Failure $_ } finally { Remove-Item -LiteralPath $tmp -Force -ErrorAction SilentlyContinue }
+        } catch { Show-Failure $_ } finally { Remove-TPGuiHolidayTemporaryFile -Path $tmp }
     })
     $add.Add_Click({
         try {
@@ -524,10 +519,7 @@ function Show-RecurringRulesDialog {
     if ($generated -gt 0) { [System.Windows.Forms.MessageBox]::Show($form,"定期タスクを $generated 件追加しました。",'定期タスク') | Out-Null }
 }
 
-function Show-Failure($record) {
-    Write-ErrorLog $record
-    [System.Windows.Forms.MessageBox]::Show($record.Exception.Message,'エラー','OK','Error') | Out-Null
-}
+
 function Ask-Confirm([string]$message) {
     return ([System.Windows.Forms.MessageBox]::Show($message,'確認','YesNo','Question') -eq [System.Windows.Forms.DialogResult]::Yes)
 }
@@ -1415,19 +1407,7 @@ function Write-ExcelReport([bool]$dashboard, [string]$path) {
 # Reports are derived artifacts; CSV files remain the authoritative data store.
 $script:ReportsNeedRefresh = $true
 $script:ReportError = ''
-function Publish-ExcelReport([string]$name, [scriptblock]$writer) {
-    $target = Join-Path $ExportDir $name
-    $temporary = Join-Path $ExportDir ('.report_' + [guid]::NewGuid().ToString('N') + '.xlsx')
-    try {
-        & $writer $temporary
-        if (-not (Test-Path -LiteralPath $temporary -PathType Leaf)) { throw "Excel出力ファイルが作成されませんでした: $name" }
-        if ((Get-Item -LiteralPath $temporary).Length -eq 0) { throw "Excel出力ファイルが空です: $name" }
-        if (Test-Path -LiteralPath $target) { Replace-FileSafely $temporary $target }
-        else { [System.IO.File]::Move($temporary, $target) }
-    } finally {
-        if (Test-Path -LiteralPath $temporary) { Remove-Item -LiteralPath $temporary -Force -ErrorAction SilentlyContinue }
-    }
-}
+
 function Write-CompletedReport([string]$path) {
     $current = @(Read-Tasks $TaskFile | Where-Object { $_.Status -eq '完了' })
     $historic = @(Read-Tasks $ArchiveFile | Where-Object { $_.Status -eq '完了' })
@@ -1443,16 +1423,7 @@ function Write-CompletedReport([string]$path) {
     Get-TaskExcelRows $completed | ConvertTo-SafeExcelRows | Export-Excel -Path $path -WorksheetName 'CompletedTask' -AutoSize -BoldTopRow -ErrorAction Stop
 }
 
-function Open-AutoReport([string]$name) {
-    $target = Join-Path $ExportDir $name
-    if ($script:ReportsNeedRefresh -or -not (Test-Path -LiteralPath $target)) { Update-AutoReports }
-    if ($script:ReportsNeedRefresh) {
-        [System.Windows.Forms.MessageBox]::Show("Excelの自動更新に失敗しました。`r`n$script:ReportError`r`n`r`n古いファイルを誤って開かないよう、今回は開きません。`r`nExcelを閉じて再度お試しください。",'Excel出力エラー') | Out-Null
-        return
-    }
-    if (-not (Test-Path -LiteralPath $target -PathType Leaf)) { throw "ファイルがありません: $target" }
-    Start-Process -FilePath $target -ErrorAction Stop
-}
+
 
 
 
@@ -2565,10 +2536,11 @@ function Show-TaskPilotAlertPopup([bool]$manual = $false) {
     }
 }
 $script:NotificationTimer.Add_Tick({
-    try { Invoke-DailyNotificationCheck } catch { Write-ErrorLog $_; $script:NotificationTimer.Stop() }
+    try { Invoke-DailyNotificationCheck } catch { try { if(Test-TPGuiIsolatedMode){Show-Failure $_}else{Write-ErrorLog $_} } finally { $script:NotificationTimer.Stop() } }
 })
 $form.Add_FormClosed({ $script:NotificationTimer.Stop(); $script:NotificationTimer.Dispose() })
 
+    Set-TPGuiTestModeVisuals -Form $form
     Repair-NextTaskId
     Load-AppSettings
     Load-NotificationData
@@ -2581,10 +2553,13 @@ $form.Add_FormClosed({ $script:NotificationTimer.Stop(); $script:NotificationTim
     $form.Add_Shown({
         if ([bool]$script:AppSettings.NotifyOnStartup) { try { Show-TaskPilotAlertPopup } catch { Show-Failure $_ } }
         $script:NotificationTimer.Start()
-        try { Invoke-DailyNotificationCheck } catch { Write-ErrorLog $_ }
+        try { Invoke-DailyNotificationCheck } catch { if(Test-TPGuiIsolatedMode){Show-Failure $_}else{Write-ErrorLog $_} }
     })
     [void][System.Windows.Forms.Application]::Run($form)
 } catch {
     if(Get-Command Show-Failure -ErrorAction SilentlyContinue){Show-Failure $_}
     else{Write-ErrorLog $_;[System.Windows.Forms.MessageBox]::Show($_.Exception.Message,'TaskPilot 起動エラー',[System.Windows.Forms.MessageBoxButtons]::OK,[System.Windows.Forms.MessageBoxIcon]::Error)|Out-Null}
-} finally { if(Get-Command Close-TPGuiApplication -ErrorAction SilentlyContinue){Close-TPGuiApplication} }
+} finally {
+    try { if(Get-Command Close-TPGuiApplication -ErrorAction SilentlyContinue){Close-TPGuiApplication} }
+    finally { if(Get-Command Close-TPRuntime -ErrorAction SilentlyContinue){Close-TPRuntime} }
+}

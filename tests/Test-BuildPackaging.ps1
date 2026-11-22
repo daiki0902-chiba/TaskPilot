@@ -71,7 +71,7 @@ Assert-BuildFailure {& $build -Version 1.2.3.4 -DependencyRoot $DependencyRoot -
 
 # Isolated product fixture: negative tests never edit the real source or dependencies.
 $fixture=Join-Path $root 'source-fixture'
-foreach($file in @('TaskPilot.ps1','tools/Build-TaskPilot.ps1','tools/Get-TaskPilotBuildDependencies.ps1','tools/TaskPilot.BuildSupport.ps1','build/dependencies.lock.json','build/runtime-files.json','docs/user/README.md','docs/build/THIRD-PARTY-NOTICES.md')){Copy-BuildFixtureFile $file}
+foreach($file in @('TaskPilot.ps1','tools/Build-TaskPilot.ps1','tools/Build-TaskPilotRuntime.ps1','Runtime/TaskPilot.TestSandbox.cs','tools/Get-TaskPilotBuildDependencies.ps1','tools/TaskPilot.BuildSupport.ps1','build/dependencies.lock.json','build/runtime-files.json','docs/user/README.md','docs/build/THIRD-PARTY-NOTICES.md')){Copy-BuildFixtureFile $file}
 $runtime=Get-Content -LiteralPath (Join-Path $repo 'build/runtime-files.json') -Raw -Encoding UTF8|ConvertFrom-Json
 foreach($file in $runtime.Files){Copy-BuildFixtureFile $file}
 $fixtureBuild=Join-Path $fixture 'tools/Build-TaskPilot.ps1'

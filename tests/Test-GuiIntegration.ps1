@@ -137,7 +137,7 @@ try{
     Invoke-IntegrationCase 'Generated source preserves GUI functions, buttons, menus, captions and event bindings' {
         Assert-Integration ((Get-FileHash -LiteralPath $referencePath).Hash.ToLowerInvariant()-ceq'ab0c5e2dbc31128563298d70adf51c59d3e081643899575aaba1d0183d47188d') 'Recorded STEP3 reference revision changed.'
         $referenceDefinitions=@(Get-IntegrationFunctions $referenceAst)
-        Assert-Integration (@($referenceDefinitions|Where-Object {$overridden.Contains($_.Name)}).Count-eq42) 'Expected exactly 42 replaced legacy functions.'
+        Assert-Integration (@($referenceDefinitions|Where-Object {$overridden.Contains($_.Name)}).Count-eq48) 'Expected the original 42 persistence functions and six guarded I/O/error functions to be replaced.'
         foreach($definition in $referenceDefinitions){
             if(-not$overridden.Contains($definition.Name)){Assert-Integration $sourceFunctions.ContainsKey($definition.Name) ('GUI function removed: '+$definition.Name)}
             elseif($definition.Name-notin@('Initialize-TaskPilotStorage','Initialize-Store','Test-BackupFolder','Invoke-RestoreSnapshot')){Assert-Integration $adapterFunctions.ContainsKey($definition.Name) ('Replacement adapter missing: '+$definition.Name)}

@@ -15,11 +15,39 @@ foreach($file in Get-ChildItem -LiteralPath (Join-Path $project 'Adapters') -Fil
 $tokens=$null;$errors=$null;$ast=[Management.Automation.Language.Parser]::ParseInput($text,[ref]$tokens,[ref]$errors)
 $definitions=@($ast.FindAll({param($node) $node-is[Management.Automation.Language.FunctionDefinitionAst]},$true)|Where-Object {$overrides.Contains($_.Name)}|Sort-Object {$_.Extent.StartOffset} -Descending)
 foreach($function in $definitions){$text=$text.Remove($function.Extent.StartOffset,$function.Extent.EndOffset-$function.Extent.StartOffset)}
-$text=$text.Replace("`$Root = Join-Path `$LocalAppData 'TaskPilot'","`$LegacyRoot = Join-Path `$LocalAppData 'TaskPilot'`n`$Root = Join-Path `$LocalAppData 'TaskPilot4'")
-$text=$text.Replace("`$LogDir = Join-Path `$Root 'Logs'","`$LogDir = Join-Path `$LocalAppData 'TaskPilot4Logs'")
+$parameterBlock=@'
+[CmdletBinding(PositionalBinding=$false)]
+param([switch]$TestMode,[string]$TestEnvironmentId)
+
+'@
+$text=$text.Replace("`$ErrorActionPreference = 'Stop'",$parameterBlock+"`n`$ErrorActionPreference = 'Stop'")
+$oldPaths=@'
+$LocalAppData = [Environment]::GetFolderPath('LocalApplicationData')
+if ([string]::IsNullOrWhiteSpace($LocalAppData)) { throw 'LOCALAPPDATA を取得できません。' }
+$Root = Join-Path $LocalAppData 'TaskPilot'
+'@
+$newPaths=@'
+# Select the mode before assigning any normal user-state/log path. An invalid
+# test request never falls back to normal startup or normal error logging.
+if ($PSBoundParameters.ContainsKey('TestMode') -and -not $TestMode) { throw 'TestMode:false は受け付けません。通常起動は引数なしで実行してください。' }
+if ($TestMode -and $TestEnvironmentId -cnotmatch '^[a-f0-9]{32}$') { throw 'TestMode には32桁の小文字16進数のTestEnvironmentIdが必要です。通常データは開いていません。' }
+if (-not $TestMode -and -not [string]::IsNullOrEmpty($TestEnvironmentId)) { throw 'TestEnvironmentId はTestModeと一緒に指定してください。通常データは開いていません。' }
+. (Join-Path $InstallRoot 'Runtime/TaskPilot.Runtime.ps1')
+$script:TPRuntimeContext = Initialize-TPRuntime -TestMode:$TestMode -TestEnvironmentId $TestEnvironmentId
+$LocalAppData = $script:TPRuntimeContext.ProfileRoot
+$LegacyRoot = if ($script:TPRuntimeContext.IsTestMode) { $null } else { Join-Path $LocalAppData 'TaskPilot' }
+$Root = $script:TPRuntimeContext.Root
+'@
+if(-not$text.Contains($oldPaths)){throw 'Initial user-state configuration was not found.'}
+$text=$text.Replace($oldPaths,$newPaths)
+$text=$text.Replace("`$DataDir = Join-Path `$Root 'Data'","`$DataDir = `$script:TPRuntimeContext.DataDir")
+$text=$text.Replace("`$ExportDir = Join-Path `$Root 'Export'","`$ExportDir = `$script:TPRuntimeContext.ExportDir")
+$text=$text.Replace("`$BackupDir = Join-Path `$Root 'Backup'","`$BackupDir = `$script:TPRuntimeContext.BackupDir")
+$text=$text.Replace("`$LogDir = Join-Path `$Root 'Logs'","`$LogDir = `$script:TPRuntimeContext.LogDir")
 $bootstrap=@'
 [System.Windows.Forms.Application]::EnableVisualStyles()
 try {
+. (Join-Path $InstallRoot 'Adapters/TaskPilot.GuiIsolation.ps1')
 . (Join-Path $InstallRoot 'Adapters/TaskPilot.GuiCommon.ps1')
 . (Join-Path $InstallRoot 'Adapters/TaskPilot.GuiTasks.ps1')
 . (Join-Path $InstallRoot 'Adapters/TaskPilot.GuiDomains.ps1')
@@ -31,6 +59,7 @@ $text=$text.Replace('[System.Windows.Forms.Application]::EnableVisualStyles()',$
 $start=$text.LastIndexOf('$script:StorageLock = $null',[StringComparison]::Ordinal)
 if($start-lt0){throw 'Startup boundary not found.'}
 $text=$text.Substring(0,$start)+@'
+    Set-TPGuiTestModeVisuals -Form $form
     Repair-NextTaskId
     Load-AppSettings
     Load-NotificationData
@@ -43,13 +72,16 @@ $text=$text.Substring(0,$start)+@'
     $form.Add_Shown({
         if ([bool]$script:AppSettings.NotifyOnStartup) { try { Show-TaskPilotAlertPopup } catch { Show-Failure $_ } }
         $script:NotificationTimer.Start()
-        try { Invoke-DailyNotificationCheck } catch { Write-ErrorLog $_ }
+        try { Invoke-DailyNotificationCheck } catch { if(Test-TPGuiIsolatedMode){Show-Failure $_}else{Write-ErrorLog $_} }
     })
     [void][System.Windows.Forms.Application]::Run($form)
 } catch {
     if(Get-Command Show-Failure -ErrorAction SilentlyContinue){Show-Failure $_}
     else{Write-ErrorLog $_;[System.Windows.Forms.MessageBox]::Show($_.Exception.Message,'TaskPilot 起動エラー',[System.Windows.Forms.MessageBoxButtons]::OK,[System.Windows.Forms.MessageBoxIcon]::Error)|Out-Null}
-} finally { if(Get-Command Close-TPGuiApplication -ErrorAction SilentlyContinue){Close-TPGuiApplication} }
+} finally {
+    try { if(Get-Command Close-TPGuiApplication -ErrorAction SilentlyContinue){Close-TPGuiApplication} }
+    finally { if(Get-Command Close-TPRuntime -ErrorAction SilentlyContinue){Close-TPRuntime} }
+}
 '@
 $pattern='(?m)^(?<indent>[ \t]*)\$items = @\(Read-Tasks \$TaskFile\)\n[ \t]*\$id = Reserve-TaskId\n[\s\S]*?Save-WorkPlanFromDialog \(\[string\]\$id\) \$value[^\n]*'
 $matches=[regex]::Matches($text,$pattern)
@@ -65,6 +97,30 @@ if(-not$text.Contains($delete)){throw 'Delete callsite not found.'}
 $text=$text.Replace($delete,'        Remove-TPGuiSelectedTask $task')
 $text=$text.Replace('Save-CompanyClosures @($dates + @($date))','Add-CompanyClosure $date')
 $text=$text.Replace('Save-CompanyClosures @((Read-CompanyClosures) | Where-Object { $_ -ne $selected })','Remove-CompanyClosure $selected')
+$text=$text.Replace('try { Invoke-DailyNotificationCheck } catch { Write-ErrorLog $_; $script:NotificationTimer.Stop() }','try { Invoke-DailyNotificationCheck } catch { try { if(Test-TPGuiIsolatedMode){Show-Failure $_}else{Write-ErrorLog $_} } finally { $script:NotificationTimer.Stop() } }')
+$oldHolidayPicker=@'
+            $choose = New-Object System.Windows.Forms.OpenFileDialog
+            $choose.Filter = 'CSVファイル (*.csv)|*.csv'
+            if ($choose.ShowDialog($dlg) -ne [System.Windows.Forms.DialogResult]::OK) { return }
+            $count = Import-JapaneseHolidayCsv $choose.FileName
+'@
+$newHolidayPicker=@'
+            if (Test-TPGuiIsolatedMode) {
+                $selectedCsv = Select-TPGuiIsolatedFile -Directory (Get-TPGuiSandbox).Input -Extension '.csv'
+                if ([string]::IsNullOrEmpty($selectedCsv)) { return }
+            } else {
+                $choose = New-Object System.Windows.Forms.OpenFileDialog
+                $choose.Filter = 'CSVファイル (*.csv)|*.csv'
+                try { if ($choose.ShowDialog($dlg) -ne [System.Windows.Forms.DialogResult]::OK) { return }; $selectedCsv = $choose.FileName }
+                finally { $choose.Dispose() }
+            }
+            $count = Import-JapaneseHolidayCsv $selectedCsv
+'@
+if(-not$text.Contains($oldHolidayPicker)){throw 'Holiday CSV selection path was not found.'}
+$text=$text.Replace($oldHolidayPicker,$newHolidayPicker)
+$text=$text.Replace("`$tmp = Join-Path ([System.IO.Path]::GetTempPath()) ('TaskPilotHoliday_' + [guid]::NewGuid().ToString('N') + '.csv')",'`$tmp = Get-TPGuiHolidayTemporaryPath'.Replace('`$','$'))
+$text=$text.Replace('try { $wc.DownloadFile($OfficialHolidayUrl,$tmp) } finally { $wc.Dispose() }','try { $holidayBytes = $wc.DownloadData($OfficialHolidayUrl); Save-TPGuiDownloadedHolidayCsv -Path $tmp -Bytes $holidayBytes } finally { $wc.Dispose() }')
+$text=$text.Replace('finally { Remove-Item -LiteralPath $tmp -Force -ErrorAction SilentlyContinue }','finally { Remove-TPGuiHolidayTemporaryFile -Path $tmp }')
 $text=$text.Replace('if (Test-Path -LiteralPath $HolidayFile) {','if ($null -ne (Read-HolidaysDocument)) {')
 $text=$text.Replace('$holidayObj = Get-Content -LiteralPath $HolidayFile -Raw -Encoding UTF8 | ConvertFrom-Json -ErrorAction Stop','$holidayObj = Read-HolidaysDocument')
 $text=$text.Replace('if (Test-Path -LiteralPath $script:MonthlyAuditFile) {','if ($true) {')

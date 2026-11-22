@@ -141,7 +141,17 @@ function Get-VerifiedHolidayCalendar {
 }
 function Import-JapaneseHolidayCsv {
     param([string]$path)
-    $bytes=[IO.File]::ReadAllBytes($path)
+    $mode=Get-Variable -Name TPRuntimeContext -Scope Script -ErrorAction SilentlyContinue
+    if($null-ne$mode-and$null-ne$mode.Value-and[bool]$mode.Value.IsTestMode){
+        $sandbox=Get-TPGuiSandbox
+        $path=$sandbox.AssertPath($path)
+        $allowedParents=@([IO.Path]::GetFullPath([string]$sandbox.Input),[IO.Path]::GetFullPath([string]$sandbox.Temp))
+        if($allowedParents-notcontains[IO.Path]::GetDirectoryName($path)){throw '独立テストモードではInputの試験CSVまたはTempの公式取得CSVだけを読み込みます。'}
+        if([IO.Path]::GetExtension($path)-ine'.csv'){throw '試験用の.csvファイルを選択してください。'}
+        $size=$sandbox.GetFileLength($path)
+        if($size-lt20-or$size-gt2000000){throw '祝日CSVのファイルサイズが想定外です。'}
+        $bytes=$sandbox.ReadAllBytes($path)
+    }else{$bytes=[IO.File]::ReadAllBytes($path)}
     if($bytes.Length-lt20-or$bytes.Length-gt2000000){throw '祝日CSVのファイルサイズが想定外です。'}
     $encoding=[Text.Encoding]::GetEncoding(932,[Text.EncoderFallback]::ExceptionFallback,[Text.DecoderFallback]::ExceptionFallback)
     $text=$encoding.GetString($bytes)

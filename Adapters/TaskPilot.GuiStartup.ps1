@@ -1,4 +1,14 @@
 ﻿#requires -Version 5.1
+function Test-TPGuiIsolatedMode {
+    $runtime=Get-Variable -Name TPRuntimeContext -Scope Script -ErrorAction SilentlyContinue
+    return $null-ne$runtime-and$null-ne$runtime.Value-and[bool]$runtime.Value.IsTestMode
+}
+function Get-TPGuiSandbox {
+    if(-not(Test-TPGuiIsolatedMode)){throw '独立テストモードの保存境界がありません。'}
+    $variable=Get-Variable -Name TPRuntimeSandbox -Scope Script -ErrorAction SilentlyContinue
+    if($null-eq$variable-or$null-eq$variable.Value){throw '独立テストモードの保存境界を初期化できませんでした。'}
+    return $variable.Value
+}
 function Assert-TPGuiStoreIntegrity {
     # The active pointer can outlive a changed or damaged database. SQLite's
     # page/FK checks alone do not detect missing tables or history guards.
@@ -13,6 +23,7 @@ function Get-TPGuiStartupModule {
     return $script:TPStorageModule
 }
 function Get-TPGuiValidatedStartupPath([string]$Path){
+    if(Test-TPGuiIsolatedMode){$Path=(Get-TPGuiSandbox).AssertPath($Path)}
     $module=Get-TPGuiStartupModule
     return & $module {param($p) $full=Get-TPResolvedPath $p;Assert-TPProtectionNoLinks $full;return $full} $Path
 }
@@ -26,6 +37,25 @@ function Get-TPGuiStoreRootPath([string]$StoreRoot){
 function Test-TPGuiUninitializedRoot([string]$StoreRoot){
     # Empty directories are harmless. Files or links indicate prior user state;
     # never infer that state can be replaced by an empty database.
+    if(Test-TPGuiIsolatedMode){
+        $sandbox=Get-TPGuiSandbox
+        $full=$sandbox.AssertPath($StoreRoot)
+        $sandbox.ValidateTree()
+        $ignored=New-Object 'Collections.Generic.HashSet[string]' ([StringComparer]::OrdinalIgnoreCase)
+        foreach($path in @($sandbox.MarkerPath,$sandbox.LockPath)){$null=$ignored.Add([string]$path)}
+        $nonAuthoritative=@([string]$sandbox.Logs,[string]$sandbox.Temp,[string]$sandbox.Input)
+        $pending=New-Object 'Collections.Generic.Stack[IO.DirectoryInfo]';$pending.Push([IO.DirectoryInfo]$full)
+        while($pending.Count-gt0){
+            foreach($entry in $pending.Pop().GetFileSystemInfos()){
+                $null=$sandbox.AssertPath($entry.FullName)
+                if($ignored.Contains($entry.FullName)){continue}
+                if(($entry.Attributes-band[IO.FileAttributes]::Directory)-eq0){return $false}
+                if($nonAuthoritative-contains$entry.FullName){continue}
+                $pending.Push([IO.DirectoryInfo]$entry)
+            }
+        }
+        return $true
+    }
     $pending=New-Object 'Collections.Generic.Stack[IO.DirectoryInfo]'
     $pending.Push([IO.DirectoryInfo]$StoreRoot)
     while($pending.Count-gt0){
@@ -41,14 +71,16 @@ function Get-TPGuiActiveDatabasePath {
     param([Parameter(Mandatory=$true)][string]$StoreRoot,[switch]$AllowUninitialized)
     $rootFull=Get-TPGuiStoreRootPath $StoreRoot
     $pointer=Get-TPGuiValidatedStartupPath (Join-Path $rootFull 'active-store.json')
-    if(-not[IO.File]::Exists($pointer)){
-        if([IO.Directory]::Exists($pointer)){throw '起動DBの指定ファイルがフォルダーになっています。空DBは作成しません。'}
+    $pointerExists=if(Test-TPGuiIsolatedMode){(Get-TPGuiSandbox).Exists($pointer)}else{[IO.File]::Exists($pointer)}
+    if(-not$pointerExists){
+        if(-not(Test-TPGuiIsolatedMode)-and[IO.Directory]::Exists($pointer)){throw '起動DBの指定ファイルがフォルダーになっています。空DBは作成しません。'}
         $default=Join-Path $rootFull 'TaskPilot.db'
         $databases=@(([IO.DirectoryInfo]$rootFull).GetFiles('*.db'))
         $previous=@(([IO.DirectoryInfo]$rootFull).GetFiles('active-store.json.previous.*'))
         # Compatibility with the first SQLite build, which only created this
         # fixed filename. Multiple candidates or prior pointers are ambiguous.
-        if($databases.Count-eq1 -and [IO.File]::Exists($default) -and $previous.Count-eq0){
+        $defaultExists=if(Test-TPGuiIsolatedMode){(Get-TPGuiSandbox).Exists($default)}else{[IO.File]::Exists($default)}
+        if($databases.Count-eq1 -and $defaultExists -and $previous.Count-eq0){
             $default=Get-TPGuiValidatedStartupPath $default
             $module=Get-TPGuiStartupModule
             & $module {param($p) Assert-TPDatabaseHeader $p} $default
@@ -57,19 +89,26 @@ function Get-TPGuiActiveDatabasePath {
         if($AllowUninitialized -and (Test-TPGuiUninitializedRoot $rootFull)){return $default}
         throw '起動DBの指定ファイルがありません。既存データを確認するため、空DBは自動作成しません。'
     }
-    $stream=[IO.File]::Open($pointer,[IO.FileMode]::Open,[IO.FileAccess]::Read,[IO.FileShare]::Read)
-    try{
-        if($stream.Length-gt4096){throw '起動DBの指定ファイルが不正です。自動初期化は行いません。'}
-        $bytes=New-Object byte[] ([int]$stream.Length);$offset=0
-        while($offset-lt$bytes.Length){$read=$stream.Read($bytes,$offset,$bytes.Length-$offset);if($read-eq0){throw '起動DBの指定ファイルが読み取り中に変わりました。'};$offset+=$read}
-    }finally{$stream.Dispose()}
+    if(Test-TPGuiIsolatedMode){
+        $sandbox=Get-TPGuiSandbox
+        if($sandbox.GetFileLength($pointer)-gt4096){throw '起動DBの指定ファイルが不正です。自動初期化は行いません。'}
+        $bytes=$sandbox.ReadAllBytes($pointer)
+    }else{
+        $stream=[IO.File]::Open($pointer,[IO.FileMode]::Open,[IO.FileAccess]::Read,[IO.FileShare]::Read)
+        try{
+            if($stream.Length-gt4096){throw '起動DBの指定ファイルが不正です。自動初期化は行いません。'}
+            $bytes=New-Object byte[] ([int]$stream.Length);$offset=0
+            while($offset-lt$bytes.Length){$read=$stream.Read($bytes,$offset,$bytes.Length-$offset);if($read-eq0){throw '起動DBの指定ファイルが読み取り中に変わりました。'};$offset+=$read}
+        }finally{$stream.Dispose()}
+    }
     . (Join-Path $PSScriptRoot '../Codec/Import-TaskPilotMigrationCodec.ps1')
     $value=[TaskPilot.Migration.Codec]::ParseJson([Text.UTF8Encoding]::new($false,$true).GetString($bytes))
     if($value-isnot[Collections.IDictionary] -or $value.Count-ne2 -or -not$value.Contains('file') -or -not$value.Contains('format') -or $value['format']-isnot[TaskPilot.Migration.JsonNumber] -or $value['format'].Lexeme-cne'1'){throw '起動DBの指定形式が不正です。'}
     $leaf=$value['file']
     if($leaf-isnot[string] -or $leaf-cnotmatch'^TaskPilot(?:_[a-zA-Z0-9]+)*\.db$'){throw '起動DBにはアプリ保存フォルダー内のTaskPilot DBだけを指定できます。'}
     $candidate=Get-TPGuiValidatedStartupPath (Join-Path $rootFull $leaf)
-    if(-not[IO.File]::Exists($candidate)){throw '指定された起動DBがありません。空DBは作成しません。'}
+    $candidateExists=if(Test-TPGuiIsolatedMode){(Get-TPGuiSandbox).Exists($candidate)}else{[IO.File]::Exists($candidate)}
+    if(-not$candidateExists){throw '指定された起動DBがありません。空DBは作成しません。'}
     $module=Get-TPGuiStartupModule
     & $module {param($p) Assert-TPDatabaseHeader $p} $candidate
     return $candidate
@@ -80,7 +119,7 @@ function Set-TPGuiActiveDatabasePath {
     $full=Get-TPGuiValidatedStartupPath $DatabasePath
     if([IO.Path]::GetDirectoryName($full)-ine$rootFull -or [IO.Path]::GetFileName($full)-cnotmatch'^TaskPilot(?:_[a-zA-Z0-9]+)*\.db$'){throw '復元DBはアプリ保存フォルダー内の新しいファイルである必要があります。'}
     $pointer=Get-TPGuiValidatedStartupPath (Join-Path $rootFull 'active-store.json')
-    if([IO.Directory]::Exists($pointer)){throw '起動DBの指定先はフォルダーではなくファイルである必要があります。'}
+    if(-not(Test-TPGuiIsolatedMode)-and[IO.Directory]::Exists($pointer)){throw '起動DBの指定先はフォルダーではなくファイルである必要があります。'}
     $providerArguments=@{};if($TestProviderAssembly){$providerArguments.TestProviderAssembly=$TestProviderAssembly}
     $module=Get-TPGuiStartupModule
     $read=$null
@@ -90,6 +129,12 @@ function Set-TPGuiActiveDatabasePath {
     }finally{if($null-ne$read){Close-TaskPilotStore $read}}
     $stage=$pointer+'.'+[guid]::NewGuid().ToString('N')+'.tmp'
     $text=[ordered]@{format=1;file=[IO.Path]::GetFileName($full)}|ConvertTo-Json
+    if(Test-TPGuiIsolatedMode){
+        $sandbox=Get-TPGuiSandbox
+        $previous=if($sandbox.Exists($pointer)){$pointer+'.previous.'+[guid]::NewGuid().ToString('N')}else{$null}
+        $sandbox.AtomicWrite($pointer,[Text.UTF8Encoding]::new($false,$true).GetBytes($text),$previous)
+        return
+    }
     $owned=$false
     try{
         $stream=[IO.File]::Open($stage,[IO.FileMode]::CreateNew,[IO.FileAccess]::Write,[IO.FileShare]::None)
@@ -111,15 +156,24 @@ function Initialize-TPGuiApplication {
     }
     $script:TPAppLock=$null;$script:TPLegacyLock=$null;$script:TPGuiStore=$null
     $script:TPStorageModule=Import-Module (Join-Path $InstallRoot 'Modules/TaskPilot.Storage/TaskPilot.Storage.psm1') -PassThru
+    if(Test-TPGuiIsolatedMode){Set-TaskPilotTestSandbox -Sandbox (Get-TPGuiSandbox)}
     # Different root: neither startup nor restore writes inside the old CSV/JSON store.
     $null=Get-TPGuiValidatedStartupPath (Join-Path $Root 'TaskPilot.db')
     try{
-    $appLockPath=Get-TPGuiValidatedStartupPath (Join-Path $LocalAppData 'TaskPilot4.storage.lock')
-    $script:TPAppLock=[IO.File]::Open($appLockPath,[IO.FileMode]::OpenOrCreate,[IO.FileAccess]::ReadWrite,[IO.FileShare]::None)
-    foreach($directory in @($Root,$ExportDir,$BackupDir,$LogDir)){$null=Get-TPGuiValidatedStartupPath $directory;$null=[IO.Directory]::CreateDirectory($directory)}
+    if(Test-TPGuiIsolatedMode){
+        $sandbox=Get-TPGuiSandbox
+        $sandbox.ValidateTree()
+        $script:TPAppLock=$sandbox.AcquireLock([string]$sandbox.LockPath)
+        foreach($directory in @($Root,$ExportDir,$BackupDir,$LogDir)){$null=$sandbox.EnsureDirectory($directory)}
+    }else{
+        $appLockPath=Get-TPGuiValidatedStartupPath (Join-Path $LocalAppData 'TaskPilot4.storage.lock')
+        $script:TPAppLock=[IO.File]::Open($appLockPath,[IO.FileMode]::OpenOrCreate,[IO.FileAccess]::ReadWrite,[IO.FileShare]::None)
+        foreach($directory in @($Root,$ExportDir,$BackupDir,$LogDir)){$null=Get-TPGuiValidatedStartupPath $directory;$null=[IO.Directory]::CreateDirectory($directory)}
+    }
     $database=Get-TPGuiActiveDatabasePath -StoreRoot $Root -AllowUninitialized
-    if(-not[IO.File]::Exists($database)){
-        if([IO.Directory]::Exists($LegacyRoot)){
+    $databaseExists=if(Test-TPGuiIsolatedMode){(Get-TPGuiSandbox).Exists($database)}else{[IO.File]::Exists($database)}
+    if(-not$databaseExists){
+        if(-not(Test-TPGuiIsolatedMode)-and[IO.Directory]::Exists($LegacyRoot)){
             $inspection=Test-TaskPilotLegacyData -SourceRoot $LegacyRoot
             $reportPath=Join-Path $LogDir ('MigrationInspection_'+[guid]::NewGuid().ToString('N')+'.json')
             [IO.File]::WriteAllText($reportPath,($inspection|ConvertTo-Json -Depth 20),[Text.UTF8Encoding]::new($true))
@@ -140,9 +194,13 @@ function Initialize-TPGuiApplication {
         }else{$null=New-TaskPilotDatabase -DatabasePath $database}
     }
     # Hold the original app's cooperative lock for this entire GUI session.
-    $legacyLockPath=Get-TPGuiValidatedStartupPath (Join-Path $LocalAppData 'TaskPilot.storage.lock')
-    $script:TPLegacyLock=[IO.File]::Open($legacyLockPath,[IO.FileMode]::OpenOrCreate,[IO.FileAccess]::ReadWrite,[IO.FileShare]::None)
-    if(-not[IO.File]::Exists((Join-Path $Root 'active-store.json'))){Set-TPGuiActiveDatabasePath -StoreRoot $Root -DatabasePath $database}
+    if(-not(Test-TPGuiIsolatedMode)){
+        $legacyLockPath=Get-TPGuiValidatedStartupPath (Join-Path $LocalAppData 'TaskPilot.storage.lock')
+        $script:TPLegacyLock=[IO.File]::Open($legacyLockPath,[IO.FileMode]::OpenOrCreate,[IO.FileAccess]::ReadWrite,[IO.FileShare]::None)
+    }
+    $pointerPath=Join-Path $Root 'active-store.json'
+    $pointerExists=if(Test-TPGuiIsolatedMode){(Get-TPGuiSandbox).Exists($pointerPath)}else{[IO.File]::Exists($pointerPath)}
+    if(-not$pointerExists){Set-TPGuiActiveDatabasePath -StoreRoot $Root -DatabasePath $database}
     $opened=Open-TaskPilotStore -DatabasePath $database
     $script:TPGuiStore=$opened
     Initialize-TPGuiContext -Store $opened -ModulePath (Join-Path $InstallRoot 'Modules/TaskPilot.Storage/TaskPilot.Storage.psm1')
@@ -177,11 +235,16 @@ function Backup-Data {
     $null=New-TaskPilotDatabaseBackup -Store $script:TPGuiStore -DestinationPath $destination
 }
 function Restore-GuiBackup {
-    $dialog=New-Object System.Windows.Forms.OpenFileDialog
-    $dialog.Title='復元するTaskPilot SQLiteバックアップを選択'
-    $dialog.Filter='TaskPilot SQLite (*.db)|*.db'
-    $dialog.InitialDirectory=$BackupDir
-    try{if($dialog.ShowDialog($form)-ne[System.Windows.Forms.DialogResult]::OK){return};$selected=$dialog.FileName}finally{$dialog.Dispose()}
+    if(Test-TPGuiIsolatedMode){
+        $selected=Select-TPGuiIsolatedFile -Directory $BackupDir -Extension '.db'
+        if([string]::IsNullOrWhiteSpace($selected)){return}
+    }else{
+        $dialog=New-Object System.Windows.Forms.OpenFileDialog
+        $dialog.Title='復元するTaskPilot SQLiteバックアップを選択'
+        $dialog.Filter='TaskPilot SQLite (*.db)|*.db'
+        $dialog.InitialDirectory=$BackupDir
+        try{if($dialog.ShowDialog($form)-ne[System.Windows.Forms.DialogResult]::OK){return};$selected=$dialog.FileName}finally{$dialog.Dispose()}
+    }
     if(-not(Ask-Confirm 'バックアップから新しいDBへ復元します。現在のDBと復元前バックアップは残します。復元後にアプリを終了します。続けますか？')){return}
     Backup-Data
     $target=Join-Path $Root ('TaskPilot_restored_'+[guid]::NewGuid().ToString('N')+'.db')
