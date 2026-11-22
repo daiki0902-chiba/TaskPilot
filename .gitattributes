@@ -12,8 +12,9 @@ acceptance/TaskPilot.Acceptance.ps1 -text whitespace=cr-at-eol
 
 # Preserve downloaded Windows CI evidence as captured.
 docs/verification/windows-*.json -text
-docs/verification/acceptance-*.json -text
-docs/verification/acceptance-*.tsv -text
+docs/verification/acceptance-*.json -text whitespace=cr-at-eol
+docs/verification/acceptance-*.tsv -text whitespace=cr-at-eol
+docs/verification/acceptance-*.txt -text whitespace=cr-at-eol
 docs/verification/isolated-mode-*.json -text
 docs/verification/isolated-mode-*.txt -text
 docs/verification/isolation-fix-*.json -text

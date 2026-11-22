@@ -1,0 +1,675 @@
+{
+    "Stage":  "Native synthetic file and ancestor reparse boundary diagnostic",
+    "CapturedAtUtc":  "2026-11-22T14:48:36.8235030Z",
+    "PowerShell":  "5.1.20348.5773",
+    "Platform":  "Microsoft Windows NT 10.0.20348.0",
+    "ProcessBits":  64,
+    "Status":  "PASS",
+    "Passed":  true,
+    "UnsafeVectorConfirmed":  false,
+    "NormalFixtureUnchanged":  true,
+    "NativeRejectedFileReparse":  false,
+    "NativeRejectedAncestorReparse":  true,
+    "CompleteNativeCoverage":  true,
+    "GuardMutationChecks":  40,
+    "ProtectedDirectoryInvariant":  "A no-delete pinned guard keeps every protected directory nonempty; native junction requests must fail.",
+    "Cases":  [
+                  {
+                      "Vector":  "FileSymbolicReparse",
+                      "Protected":  false,
+                      "Access":  "GenericWrite",
+                      "HandleOpened":  true,
+                      "ReparseSet":  true,
+                      "Win32Error":  0
+                  },
+                  {
+                      "Vector":  "FileSymbolicReparse",
+                      "Protected":  true,
+                      "Access":  "GenericWrite",
+                      "HandleOpened":  false,
+                      "ReparseSet":  false,
+                      "Win32Error":  5
+                  },
+                  {
+                      "Vector":  "FileSymbolicReparse",
+                      "Protected":  false,
+                      "Access":  "WriteData",
+                      "HandleOpened":  true,
+                      "ReparseSet":  true,
+                      "Win32Error":  0
+                  },
+                  {
+                      "Vector":  "FileSymbolicReparse",
+                      "Protected":  true,
+                      "Access":  "WriteData",
+                      "HandleOpened":  false,
+                      "ReparseSet":  false,
+                      "Win32Error":  32
+                  },
+                  {
+                      "Vector":  "FileSymbolicReparse",
+                      "Protected":  false,
+                      "Access":  "WriteAttributes",
+                      "HandleOpened":  true,
+                      "ReparseSet":  true,
+                      "Win32Error":  0
+                  },
+                  {
+                      "Vector":  "FileSymbolicReparse",
+                      "Protected":  true,
+                      "Access":  "WriteAttributes",
+                      "HandleOpened":  false,
+                      "ReparseSet":  false,
+                      "Win32Error":  5
+                  },
+                  {
+                      "Vector":  "FileSymbolicReparse",
+                      "Protected":  false,
+                      "Access":  "ReadAttributes",
+                      "HandleOpened":  true,
+                      "ReparseSet":  false,
+                      "Win32Error":  5
+                  },
+                  {
+                      "Vector":  "FileSymbolicReparse",
+                      "Protected":  true,
+                      "Access":  "ReadAttributes",
+                      "HandleOpened":  true,
+                      "ReparseSet":  false,
+                      "Win32Error":  5
+                  },
+                  {
+                      "Vector":  "FileSymbolicReparse",
+                      "Protected":  false,
+                      "Access":  "Zero",
+                      "HandleOpened":  true,
+                      "ReparseSet":  false,
+                      "Win32Error":  5
+                  },
+                  {
+                      "Vector":  "FileSymbolicReparse",
+                      "Protected":  true,
+                      "Access":  "Zero",
+                      "HandleOpened":  true,
+                      "ReparseSet":  false,
+                      "Win32Error":  5
+                  },
+                  {
+                      "Vector":  "FileSymbolicReparse",
+                      "Protected":  false,
+                      "Access":  "WriteEa",
+                      "HandleOpened":  true,
+                      "ReparseSet":  false,
+                      "Win32Error":  5
+                  },
+                  {
+                      "Vector":  "FileSymbolicReparse",
+                      "Protected":  true,
+                      "Access":  "WriteEa",
+                      "HandleOpened":  false,
+                      "ReparseSet":  false,
+                      "Win32Error":  5
+                  },
+                  {
+                      "Vector":  "FileSymbolicReparse",
+                      "Protected":  false,
+                      "Access":  "AppendData",
+                      "HandleOpened":  true,
+                      "ReparseSet":  true,
+                      "Win32Error":  0
+                  },
+                  {
+                      "Vector":  "FileSymbolicReparse",
+                      "Protected":  true,
+                      "Access":  "AppendData",
+                      "HandleOpened":  false,
+                      "ReparseSet":  false,
+                      "Win32Error":  32
+                  },
+                  {
+                      "Vector":  "FileSymbolicReparse",
+                      "Protected":  false,
+                      "Access":  "MaximumAllowed",
+                      "HandleOpened":  true,
+                      "ReparseSet":  true,
+                      "Win32Error":  0
+                  },
+                  {
+                      "Vector":  "FileSymbolicReparse",
+                      "Protected":  true,
+                      "Access":  "MaximumAllowed",
+                      "HandleOpened":  false,
+                      "ReparseSet":  false,
+                      "Win32Error":  32
+                  },
+                  {
+                      "Vector":  "EmptyDirectoryJunction",
+                      "Protected":  false,
+                      "Access":  "GenericWrite",
+                      "HandleOpened":  true,
+                      "ReparseSet":  true,
+                      "Win32Error":  0
+                  },
+                  {
+                      "Vector":  "NonemptyAncestorJunction",
+                      "Protected":  false,
+                      "Access":  "GenericWrite",
+                      "HandleOpened":  true,
+                      "ReparseSet":  false,
+                      "Win32Error":  145
+                  },
+                  {
+                      "Vector":  "NonemptyAncestorJunction",
+                      "Protected":  true,
+                      "Access":  "GenericWrite",
+                      "HandleOpened":  true,
+                      "ReparseSet":  false,
+                      "Win32Error":  145
+                  },
+                  {
+                      "Vector":  "GuardedDirectoryJunction",
+                      "Protected":  true,
+                      "Access":  "GenericWrite",
+                      "HandleOpened":  false,
+                      "ReparseSet":  false,
+                      "Win32Error":  5
+                  },
+                  {
+                      "Vector":  "EmptyDirectoryJunction",
+                      "Protected":  false,
+                      "Access":  "WriteData",
+                      "HandleOpened":  true,
+                      "ReparseSet":  true,
+                      "Win32Error":  0
+                  },
+                  {
+                      "Vector":  "NonemptyAncestorJunction",
+                      "Protected":  false,
+                      "Access":  "WriteData",
+                      "HandleOpened":  true,
+                      "ReparseSet":  false,
+                      "Win32Error":  145
+                  },
+                  {
+                      "Vector":  "NonemptyAncestorJunction",
+                      "Protected":  true,
+                      "Access":  "WriteData",
+                      "HandleOpened":  true,
+                      "ReparseSet":  false,
+                      "Win32Error":  145
+                  },
+                  {
+                      "Vector":  "GuardedDirectoryJunction",
+                      "Protected":  true,
+                      "Access":  "WriteData",
+                      "HandleOpened":  true,
+                      "ReparseSet":  false,
+                      "Win32Error":  145
+                  },
+                  {
+                      "Vector":  "EmptyDirectoryJunction",
+                      "Protected":  false,
+                      "Access":  "WriteAttributes",
+                      "HandleOpened":  true,
+                      "ReparseSet":  true,
+                      "Win32Error":  0
+                  },
+                  {
+                      "Vector":  "NonemptyAncestorJunction",
+                      "Protected":  false,
+                      "Access":  "WriteAttributes",
+                      "HandleOpened":  true,
+                      "ReparseSet":  false,
+                      "Win32Error":  145
+                  },
+                  {
+                      "Vector":  "NonemptyAncestorJunction",
+                      "Protected":  true,
+                      "Access":  "WriteAttributes",
+                      "HandleOpened":  true,
+                      "ReparseSet":  false,
+                      "Win32Error":  145
+                  },
+                  {
+                      "Vector":  "GuardedDirectoryJunction",
+                      "Protected":  true,
+                      "Access":  "WriteAttributes",
+                      "HandleOpened":  false,
+                      "ReparseSet":  false,
+                      "Win32Error":  5
+                  },
+                  {
+                      "Vector":  "EmptyDirectoryJunction",
+                      "Protected":  false,
+                      "Access":  "ReadAttributes",
+                      "HandleOpened":  true,
+                      "ReparseSet":  false,
+                      "Win32Error":  5
+                  },
+                  {
+                      "Vector":  "NonemptyAncestorJunction",
+                      "Protected":  false,
+                      "Access":  "ReadAttributes",
+                      "HandleOpened":  true,
+                      "ReparseSet":  false,
+                      "Win32Error":  5
+                  },
+                  {
+                      "Vector":  "NonemptyAncestorJunction",
+                      "Protected":  true,
+                      "Access":  "ReadAttributes",
+                      "HandleOpened":  true,
+                      "ReparseSet":  false,
+                      "Win32Error":  5
+                  },
+                  {
+                      "Vector":  "GuardedDirectoryJunction",
+                      "Protected":  true,
+                      "Access":  "ReadAttributes",
+                      "HandleOpened":  true,
+                      "ReparseSet":  false,
+                      "Win32Error":  5
+                  },
+                  {
+                      "Vector":  "EmptyDirectoryJunction",
+                      "Protected":  false,
+                      "Access":  "Zero",
+                      "HandleOpened":  true,
+                      "ReparseSet":  false,
+                      "Win32Error":  5
+                  },
+                  {
+                      "Vector":  "NonemptyAncestorJunction",
+                      "Protected":  false,
+                      "Access":  "Zero",
+                      "HandleOpened":  true,
+                      "ReparseSet":  false,
+                      "Win32Error":  5
+                  },
+                  {
+                      "Vector":  "NonemptyAncestorJunction",
+                      "Protected":  true,
+                      "Access":  "Zero",
+                      "HandleOpened":  true,
+                      "ReparseSet":  false,
+                      "Win32Error":  5
+                  },
+                  {
+                      "Vector":  "GuardedDirectoryJunction",
+                      "Protected":  true,
+                      "Access":  "Zero",
+                      "HandleOpened":  true,
+                      "ReparseSet":  false,
+                      "Win32Error":  5
+                  },
+                  {
+                      "Vector":  "EmptyDirectoryJunction",
+                      "Protected":  false,
+                      "Access":  "WriteEa",
+                      "HandleOpened":  true,
+                      "ReparseSet":  false,
+                      "Win32Error":  5
+                  },
+                  {
+                      "Vector":  "NonemptyAncestorJunction",
+                      "Protected":  false,
+                      "Access":  "WriteEa",
+                      "HandleOpened":  true,
+                      "ReparseSet":  false,
+                      "Win32Error":  5
+                  },
+                  {
+                      "Vector":  "NonemptyAncestorJunction",
+                      "Protected":  true,
+                      "Access":  "WriteEa",
+                      "HandleOpened":  true,
+                      "ReparseSet":  false,
+                      "Win32Error":  5
+                  },
+                  {
+                      "Vector":  "GuardedDirectoryJunction",
+                      "Protected":  true,
+                      "Access":  "WriteEa",
+                      "HandleOpened":  false,
+                      "ReparseSet":  false,
+                      "Win32Error":  5
+                  },
+                  {
+                      "Vector":  "EmptyDirectoryJunction",
+                      "Protected":  false,
+                      "Access":  "AppendData",
+                      "HandleOpened":  true,
+                      "ReparseSet":  true,
+                      "Win32Error":  0
+                  },
+                  {
+                      "Vector":  "NonemptyAncestorJunction",
+                      "Protected":  false,
+                      "Access":  "AppendData",
+                      "HandleOpened":  true,
+                      "ReparseSet":  false,
+                      "Win32Error":  145
+                  },
+                  {
+                      "Vector":  "NonemptyAncestorJunction",
+                      "Protected":  true,
+                      "Access":  "AppendData",
+                      "HandleOpened":  true,
+                      "ReparseSet":  false,
+                      "Win32Error":  145
+                  },
+                  {
+                      "Vector":  "GuardedDirectoryJunction",
+                      "Protected":  true,
+                      "Access":  "AppendData",
+                      "HandleOpened":  true,
+                      "ReparseSet":  false,
+                      "Win32Error":  145
+                  },
+                  {
+                      "Vector":  "EmptyDirectoryJunction",
+                      "Protected":  false,
+                      "Access":  "MaximumAllowed",
+                      "HandleOpened":  true,
+                      "ReparseSet":  true,
+                      "Win32Error":  0
+                  },
+                  {
+                      "Vector":  "NonemptyAncestorJunction",
+                      "Protected":  false,
+                      "Access":  "MaximumAllowed",
+                      "HandleOpened":  true,
+                      "ReparseSet":  false,
+                      "Win32Error":  145
+                  },
+                  {
+                      "Vector":  "NonemptyAncestorJunction",
+                      "Protected":  true,
+                      "Access":  "MaximumAllowed",
+                      "HandleOpened":  false,
+                      "ReparseSet":  false,
+                      "Win32Error":  32
+                  },
+                  {
+                      "Vector":  "GuardedDirectoryJunction",
+                      "Protected":  true,
+                      "Access":  "MaximumAllowed",
+                      "HandleOpened":  false,
+                      "ReparseSet":  false,
+                      "Win32Error":  32
+                  },
+                  {
+                      "Vector":  "EmptyDirectorySymbolic",
+                      "Protected":  false,
+                      "Access":  "GenericWrite",
+                      "HandleOpened":  true,
+                      "ReparseSet":  true,
+                      "Win32Error":  0
+                  },
+                  {
+                      "Vector":  "NonemptyAncestorSymbolic",
+                      "Protected":  false,
+                      "Access":  "GenericWrite",
+                      "HandleOpened":  true,
+                      "ReparseSet":  false,
+                      "Win32Error":  145
+                  },
+                  {
+                      "Vector":  "NonemptyAncestorSymbolic",
+                      "Protected":  true,
+                      "Access":  "GenericWrite",
+                      "HandleOpened":  true,
+                      "ReparseSet":  false,
+                      "Win32Error":  145
+                  },
+                  {
+                      "Vector":  "GuardedDirectorySymbolic",
+                      "Protected":  true,
+                      "Access":  "GenericWrite",
+                      "HandleOpened":  false,
+                      "ReparseSet":  false,
+                      "Win32Error":  5
+                  },
+                  {
+                      "Vector":  "EmptyDirectorySymbolic",
+                      "Protected":  false,
+                      "Access":  "WriteData",
+                      "HandleOpened":  true,
+                      "ReparseSet":  true,
+                      "Win32Error":  0
+                  },
+                  {
+                      "Vector":  "NonemptyAncestorSymbolic",
+                      "Protected":  false,
+                      "Access":  "WriteData",
+                      "HandleOpened":  true,
+                      "ReparseSet":  false,
+                      "Win32Error":  145
+                  },
+                  {
+                      "Vector":  "NonemptyAncestorSymbolic",
+                      "Protected":  true,
+                      "Access":  "WriteData",
+                      "HandleOpened":  true,
+                      "ReparseSet":  false,
+                      "Win32Error":  145
+                  },
+                  {
+                      "Vector":  "GuardedDirectorySymbolic",
+                      "Protected":  true,
+                      "Access":  "WriteData",
+                      "HandleOpened":  true,
+                      "ReparseSet":  false,
+                      "Win32Error":  145
+                  },
+                  {
+                      "Vector":  "EmptyDirectorySymbolic",
+                      "Protected":  false,
+                      "Access":  "WriteAttributes",
+                      "HandleOpened":  true,
+                      "ReparseSet":  true,
+                      "Win32Error":  0
+                  },
+                  {
+                      "Vector":  "NonemptyAncestorSymbolic",
+                      "Protected":  false,
+                      "Access":  "WriteAttributes",
+                      "HandleOpened":  true,
+                      "ReparseSet":  false,
+                      "Win32Error":  145
+                  },
+                  {
+                      "Vector":  "NonemptyAncestorSymbolic",
+                      "Protected":  true,
+                      "Access":  "WriteAttributes",
+                      "HandleOpened":  true,
+                      "ReparseSet":  false,
+                      "Win32Error":  145
+                  },
+                  {
+                      "Vector":  "GuardedDirectorySymbolic",
+                      "Protected":  true,
+                      "Access":  "WriteAttributes",
+                      "HandleOpened":  false,
+                      "ReparseSet":  false,
+                      "Win32Error":  5
+                  },
+                  {
+                      "Vector":  "EmptyDirectorySymbolic",
+                      "Protected":  false,
+                      "Access":  "ReadAttributes",
+                      "HandleOpened":  true,
+                      "ReparseSet":  false,
+                      "Win32Error":  5
+                  },
+                  {
+                      "Vector":  "NonemptyAncestorSymbolic",
+                      "Protected":  false,
+                      "Access":  "ReadAttributes",
+                      "HandleOpened":  true,
+                      "ReparseSet":  false,
+                      "Win32Error":  5
+                  },
+                  {
+                      "Vector":  "NonemptyAncestorSymbolic",
+                      "Protected":  true,
+                      "Access":  "ReadAttributes",
+                      "HandleOpened":  true,
+                      "ReparseSet":  false,
+                      "Win32Error":  5
+                  },
+                  {
+                      "Vector":  "GuardedDirectorySymbolic",
+                      "Protected":  true,
+                      "Access":  "ReadAttributes",
+                      "HandleOpened":  true,
+                      "ReparseSet":  false,
+                      "Win32Error":  5
+                  },
+                  {
+                      "Vector":  "EmptyDirectorySymbolic",
+                      "Protected":  false,
+                      "Access":  "Zero",
+                      "HandleOpened":  true,
+                      "ReparseSet":  false,
+                      "Win32Error":  5
+                  },
+                  {
+                      "Vector":  "NonemptyAncestorSymbolic",
+                      "Protected":  false,
+                      "Access":  "Zero",
+                      "HandleOpened":  true,
+                      "ReparseSet":  false,
+                      "Win32Error":  5
+                  },
+                  {
+                      "Vector":  "NonemptyAncestorSymbolic",
+                      "Protected":  true,
+                      "Access":  "Zero",
+                      "HandleOpened":  true,
+                      "ReparseSet":  false,
+                      "Win32Error":  5
+                  },
+                  {
+                      "Vector":  "GuardedDirectorySymbolic",
+                      "Protected":  true,
+                      "Access":  "Zero",
+                      "HandleOpened":  true,
+                      "ReparseSet":  false,
+                      "Win32Error":  5
+                  },
+                  {
+                      "Vector":  "EmptyDirectorySymbolic",
+                      "Protected":  false,
+                      "Access":  "WriteEa",
+                      "HandleOpened":  true,
+                      "ReparseSet":  false,
+                      "Win32Error":  5
+                  },
+                  {
+                      "Vector":  "NonemptyAncestorSymbolic",
+                      "Protected":  false,
+                      "Access":  "WriteEa",
+                      "HandleOpened":  true,
+                      "ReparseSet":  false,
+                      "Win32Error":  5
+                  },
+                  {
+                      "Vector":  "NonemptyAncestorSymbolic",
+                      "Protected":  true,
+                      "Access":  "WriteEa",
+                      "HandleOpened":  true,
+                      "ReparseSet":  false,
+                      "Win32Error":  5
+                  },
+                  {
+                      "Vector":  "GuardedDirectorySymbolic",
+                      "Protected":  true,
+                      "Access":  "WriteEa",
+                      "HandleOpened":  false,
+                      "ReparseSet":  false,
+                      "Win32Error":  5
+                  },
+                  {
+                      "Vector":  "EmptyDirectorySymbolic",
+                      "Protected":  false,
+                      "Access":  "AppendData",
+                      "HandleOpened":  true,
+                      "ReparseSet":  true,
+                      "Win32Error":  0
+                  },
+                  {
+                      "Vector":  "NonemptyAncestorSymbolic",
+                      "Protected":  false,
+                      "Access":  "AppendData",
+                      "HandleOpened":  true,
+                      "ReparseSet":  false,
+                      "Win32Error":  145
+                  },
+                  {
+                      "Vector":  "NonemptyAncestorSymbolic",
+                      "Protected":  true,
+                      "Access":  "AppendData",
+                      "HandleOpened":  true,
+                      "ReparseSet":  false,
+                      "Win32Error":  145
+                  },
+                  {
+                      "Vector":  "GuardedDirectorySymbolic",
+                      "Protected":  true,
+                      "Access":  "AppendData",
+                      "HandleOpened":  true,
+                      "ReparseSet":  false,
+                      "Win32Error":  145
+                  },
+                  {
+                      "Vector":  "EmptyDirectorySymbolic",
+                      "Protected":  false,
+                      "Access":  "MaximumAllowed",
+                      "HandleOpened":  true,
+                      "ReparseSet":  true,
+                      "Win32Error":  0
+                  },
+                  {
+                      "Vector":  "NonemptyAncestorSymbolic",
+                      "Protected":  false,
+                      "Access":  "MaximumAllowed",
+                      "HandleOpened":  true,
+                      "ReparseSet":  false,
+                      "Win32Error":  145
+                  },
+                  {
+                      "Vector":  "NonemptyAncestorSymbolic",
+                      "Protected":  true,
+                      "Access":  "MaximumAllowed",
+                      "HandleOpened":  false,
+                      "ReparseSet":  false,
+                      "Win32Error":  32
+                  },
+                  {
+                      "Vector":  "GuardedDirectorySymbolic",
+                      "Protected":  true,
+                      "Access":  "MaximumAllowed",
+                      "HandleOpened":  false,
+                      "ReparseSet":  false,
+                      "Win32Error":  32
+                  }
+              ],
+    "Errors":  [
+
+               ],
+    "UnverifiedVectors":  [
+
+                          ],
+    "TestRoot":  "D:\\a\\TaskPilot\\TaskPilot\\TestResults\\IsolatedFileBoundary_1e69d49dc0164766a740c40ab3eff09c",
+    "RuntimeAssemblySha256":  "ecc28ca3890142c74eb80ce8f285c0c8b8a533b813e23f3dc37873e3eb5b50de",
+    "ProductionProfileAccessed":  false,
+    "PrivilegesEnabled":  false,
+    "OSProtectionSettingsChanged":  false,
+    "Limits":  [
+                   "No existing business profile is used.",
+                   "Every original native probe remains; writable file and empty-directory positive controls are mandatory.",
+                   "Nonempty-directory refusal is verified against actual guarded directories rather than treated as an unsupported mutation.",
+                   "Windows 10/11 client GUI and developer-mode configurations remain unverified."
+               ]
+}

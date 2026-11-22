@@ -88,9 +88,13 @@
     "windows10And11GuiVerified": false
   },
   "verificationInThisImplementation": {
-    "newTestResults": "PENDING_RECORDED_EVIDENCE",
+    "newTestResults": "AUTOMATED_TESTS_PASSED_ACCEPTANCE_BLOCKED",
+    "sourceCommit": "07e785425be235b300d3cfcfb75ce15ad5e4579a",
+    "permanentEvidence": "../verification/acceptance-host-ci-20261122.json",
     "applicationGuiLaunched": false,
-    "windows10And11Verified": false
+    "windows10And11Verified": false,
+    "executableInternalCompileSucceeded": true,
+    "unsignedExecutableHeadlessDenialExitCode": 2
   },
   "readinessRequirementsOutstanding": [
     "Pinned official trusted publisher and authentic signed launcher/scripts/DLLs.",
@@ -98,7 +102,6 @@
     "Package protection and browser-origin/DLL loading qualified with OS protections enabled.",
     "Safe client-native synthetic qualification runner before first Windows 10/11 GUI launch.",
     "Actual recipient access control; public Actions artifacts are not a restricted delivery channel.",
-    "Completed dedicated-entry regressions and binary-to-evidence binding.",
     "Signed delivery/download/start instructions matched to an authorized kit.",
     "Additional package-guard adversarial tests for in-place file and directory changes.",
     "OS-enforced immutable signed installation covering CLR and EXE.config reads before Main.",
@@ -120,7 +123,7 @@
   "documentationChecks": {
     "uniqueCaseIds": 31,
     "unexecutedOsRows": 62,
-    "localLinksVerified": 26,
+    "localLinksVerified": 53,
     "monthlyResidualHours": 4,
     "latestCheckResult": "PASS",
     "verificationScope": "Document structure only; no application or desktop test executed."
@@ -144,5 +147,38 @@
     "osEnforcedImmutableSignedInstallationVerified": false,
     "postExitDiagnosticReopenProtocolImplemented": false,
     "diagnosticCollectionStatus": "BLOCKED"
+  },
+  "currentServerEvidence": {
+    "sourceCommit": "07e785425be235b300d3cfcfb75ce15ad5e4579a",
+    "runId": 45034590808,
+    "runUrl": "https://github.com/daiki0902-chiba/TaskPilot/actions/runs/45034590808",
+    "conclusion": "success",
+    "reportsOnly": true,
+    "artifact": {
+      "id": 14758673734,
+      "name": "TaskPilot-Windows-Server-native-test-reports-45034590808-1",
+      "sha256": "aba934196f5e68a1721f35d931c82b3730277551d9fed008742e24779a77609d",
+      "expiresAt": "2026-12-06T14:48:48Z",
+      "reportsOnly": true
+    },
+    "dedicatedSuites": 6,
+    "dedicatedAssertions": 690,
+    "authorityChecks": 46,
+    "nativePackageBoundaryChecks": 9,
+    "entryChecks": 30,
+    "preflightChecks": 30,
+    "diagnosticChecks": 12,
+    "acceptanceNamespaceCases": 6,
+    "acceptanceNamespaceChecks": 26,
+    "packagingChecks": 546,
+    "normalGroups": 8,
+    "independentCases": 27,
+    "memoryCases": 8,
+    "releaseGateChecks": 12,
+    "boundaryProbes": 80,
+    "guardMutationChecks": 40,
+    "normalProviderSpecificCaseSkipped": true,
+    "positiveProductionAuthorizationVerified": false,
+    "windows10And11GuiVerified": false
   }
 }
