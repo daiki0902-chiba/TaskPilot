@@ -387,7 +387,7 @@ try{
         $null=[IO.Directory]::CreateDirectory($target)
         $pinned=[string]$script:isoSandbox.Export
         try{
-            foreach($access in @(@('GenericWrite',[uint32]1073741824),@('WriteAttributes',[uint32]256),@('ReadAttributes',[uint32]128),@('Zero',[uint32]0))){
+            foreach($access in @(@('GenericWrite',[uint32]1073741824),@('WriteData',[uint32]2),@('WriteAttributes',[uint32]256),@('ReadAttributes',[uint32]128),@('Zero',[uint32]0))){
                 # A fresh unpinned control for each access distinguishes native
                 # access checks from the runtime's sharing restriction.
                 $control=Join-Path $suiteRoot ('FSCTLControl_'+[guid]::NewGuid().ToString('N'))
@@ -400,7 +400,7 @@ try{
                 $attempt=[TaskPilot.IsolationTests.ReparseAttack]::AttemptSetJunction($suiteRoot,$pinned,$target,$access[1])
                 $script:isoReparseAttempts.Add([pscustomobject]@{Pinned=$true;Access=$access[0];HandleOpened=$attempt.HandleOpened;ReparseSet=$attempt.ReparseSet;Win32Error=$attempt.Win32Error})
                 Assert-Isolated (-not$attempt.ReparseSet) ('A pinned empty directory became a junction using '+$access[0]+'. Do not publish this runtime.')
-                if($access[0]-ceq'GenericWrite'){Assert-Isolated (-not$attempt.HandleOpened-and$attempt.Win32Error-eq32) 'The directory pin did not reject a competing GENERIC_WRITE handle with a sharing violation.'}
+                if($access[0]-in@('GenericWrite','WriteAttributes')){Assert-Isolated (-not$attempt.HandleOpened-and$attempt.Win32Error-in@(5,32)) 'The protected directory did not reject a writable attribute handle.'}
             }
             $script:isoSandbox.ValidateTree()
             $child=Join-Path $pinned 'ordinary-child.csv'

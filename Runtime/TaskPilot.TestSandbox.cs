@@ -7,6 +7,8 @@ using System.IO;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Security.AccessControl;
+using System.Security.Principal;
 using Microsoft.Win32.SafeHandles;
 
 namespace TaskPilot.Runtime
@@ -30,6 +32,7 @@ namespace TaskPilot.Runtime
         private readonly Dictionary<string, LockLease> locks = new Dictionary<string, LockLease>(StringComparer.OrdinalIgnoreCase);
         private bool disposed, faulted, readOnly;
         private string faultReason;
+        private string ownerSid;
 
         private sealed class FilePin
         {
@@ -98,10 +101,22 @@ namespace TaskPilot.Runtime
         private static extern bool SetFileInformationByHandle(SafeFileHandle handle, int informationClass, IntPtr information, uint size);
         [StructLayout(LayoutKind.Sequential)]
         private struct IoStatusBlock { public IntPtr Status; public UIntPtr Information; }
+        [StructLayout(LayoutKind.Sequential)]
+        private struct UnicodeString { public ushort Length, MaximumLength; public IntPtr Buffer; }
+        [StructLayout(LayoutKind.Sequential)]
+        private struct ObjectAttributes { public int Length; public IntPtr RootDirectory, ObjectName; public uint Attributes; public IntPtr SecurityDescriptor, SecurityQualityOfService; }
+        [DllImport("ntdll.dll")]
+        private static extern int NtCreateFile(out SafeFileHandle handle, uint access, ref ObjectAttributes attributes, out IoStatusBlock status, IntPtr allocationSize, uint fileAttributes, uint share, uint disposition, uint options, IntPtr ea, uint eaLength);
         [DllImport("ntdll.dll")]
         private static extern int NtSetInformationFile(SafeFileHandle handle, out IoStatusBlock status, IntPtr information, uint size, int informationClass);
         [DllImport("ntdll.dll")]
         private static extern uint RtlNtStatusToDosError(int status);
+        [DllImport("advapi32.dll")]
+        private static extern uint GetSecurityInfo(IntPtr handle, int objectType, uint information, out IntPtr owner, out IntPtr group, out IntPtr dacl, out IntPtr sacl, out IntPtr descriptor);
+        [DllImport("advapi32.dll")]
+        private static extern uint GetSecurityDescriptorLength(IntPtr descriptor);
+        [DllImport("kernel32.dll")]
+        private static extern IntPtr LocalFree(IntPtr memory);
 
         public static Sandbox Create(string profileRoot, string environmentId)
         {
@@ -122,6 +137,7 @@ namespace TaskPilot.Runtime
             try
             {
                 context.ProfileRoot = context.NormalizeAbsolute(profileRoot);
+                context.ownerSid = WindowsIdentity.GetCurrent().User.Value;
                 string drive = Path.GetPathRoot(context.ProfileRoot);
                 DriveInfo info = new DriveInfo(drive);
                 if (info.DriveType != DriveType.Fixed) throw context.Violation("Test mode requires a local fixed NTFS drive.");
@@ -249,22 +265,90 @@ namespace TaskPilot.Runtime
         private bool TryPinDirectory(string path)
         {
             SafeFileHandle pinned;
-            if (directories.TryGetValue(path, out pinned)) { Information(pinned, path, true); return true; }
-            // Deny write sharing as well as delete sharing. A no-delete handle
-            // alone permits an empty directory to become a junction in place
-            // through FSCTL_SET_REPARSE_POINT, without renaming that directory.
-            // Child creation opens the child file/directory, not this object.
+            if (directories.TryGetValue(path, out pinned)) { Information(pinned, path, true); VerifyDirectoryPolicy(path, pinned); return true; }
+            // A list-directory lease participates in delete sharing. Directory
+            // attribute changes require a separate ACL rule: metadata access
+            // is not mediated by FILE_SHARE_WRITE.
             // FILE_LIST_DIRECTORY participates in Windows sharing checks;
             // FILE_READ_ATTRIBUTES alone does not establish a sharing lease.
-            SafeFileHandle handle = CreateFileW(path, ReadAttributes | 1, ShareRead, IntPtr.Zero, OpenExistingFile, BackupSemantics | OpenReparsePoint, IntPtr.Zero);
+            uint access = ReadAttributes | 1;
+            if (RequiresDirectoryPolicy(path)) access |= 0x20000;
+            SafeFileHandle handle = CreateFileW(path, access, ShareReadWrite, IntPtr.Zero, OpenExistingFile, BackupSemantics | OpenReparsePoint, IntPtr.Zero);
             if (handle.IsInvalid)
             {
                 int code = Marshal.GetLastWin32Error(); handle.Dispose();
                 if (code == 2 || code == 3) return false;
                 throw new IOException("Cannot pin test directory: " + path, new Win32Exception(code));
             }
-            try { Information(handle, path, true); directories.Add(path, handle); return true; }
+            try { Information(handle, path, true); VerifyDirectoryPolicy(path, handle); directories.Add(path, handle); return true; }
             catch { handle.Dispose(); throw; }
+        }
+        private bool RequiresDirectoryPolicy(string path)
+        {
+            if (ProfileRoot == null) return false;
+            string home = Path.Combine(ProfileRoot, "TaskPilotTest");
+            return String.Equals(path, home, StringComparison.OrdinalIgnoreCase) || path.StartsWith(home + "\\", StringComparison.OrdinalIgnoreCase);
+        }
+        private byte[] NewDirectoryPolicy()
+        {
+            // Only newly created test directories receive this policy. Files
+            // inherit normal owner access; the denials inherit to containers.
+            string sddl = "O:" + ownerSid + "D:P(D;CI;0x100;;;S-1-1-0)(D;CI;0xc0000;;;S-1-3-4)(A;OICI;FA;;;" + ownerSid + ")(A;OICI;FA;;;SY)(A;OICI;FA;;;BA)";
+            RawSecurityDescriptor descriptor = new RawSecurityDescriptor(sddl);
+            byte[] bytes = new byte[descriptor.BinaryLength]; descriptor.GetBinaryForm(bytes, 0); return bytes;
+        }
+        private void VerifyDirectoryPolicy(string path, SafeFileHandle handle)
+        {
+            if (!RequiresDirectoryPolicy(path)) return;
+            IntPtr owner, group, dacl, sacl, descriptor;
+            uint error = GetSecurityInfo(handle.DangerousGetHandle(), 1, 5, out owner, out group, out dacl, out sacl, out descriptor);
+            if (error != 0) throw new IOException("Cannot inspect test-directory protection.", new Win32Exception(unchecked((int)error)));
+            try
+            {
+                uint size = GetSecurityDescriptorLength(descriptor);
+                if (size == 0 || size > 1048576) throw Violation("Invalid test-directory security descriptor.");
+                byte[] bytes = new byte[size]; Marshal.Copy(descriptor, bytes, 0, bytes.Length);
+                RawSecurityDescriptor policy = new RawSecurityDescriptor(bytes, 0);
+                if (policy.Owner == null || policy.Owner.Value != ownerSid || policy.DiscretionaryAcl == null || (policy.ControlFlags & ControlFlags.DiscretionaryAclProtected) == 0)
+                    throw Violation("An existing test directory does not have the required protected policy. It will not be modified or adopted.");
+                bool attributesDenied = false, ownerChangeDenied = false;
+                foreach (GenericAce raw in policy.DiscretionaryAcl)
+                {
+                    CommonAce ace = raw as CommonAce;
+                    if (ace == null || ace.AceQualifier != AceQualifier.AccessDenied || (ace.AceFlags & AceFlags.InheritOnly) != 0 || (ace.AceFlags & AceFlags.ContainerInherit) == 0) continue;
+                    if (ace.SecurityIdentifier.Value == "S-1-1-0" && (ace.AccessMask & 0x100) == 0x100) attributesDenied = true;
+                    if (ace.SecurityIdentifier.Value == "S-1-3-4" && (ace.AccessMask & 0xc0000) == 0xc0000) ownerChangeDenied = true;
+                }
+                if (!attributesDenied || !ownerChangeDenied) throw Violation("Test-directory attribute/owner protection is missing. No policy was changed.");
+            }
+            finally { if (descriptor != IntPtr.Zero) LocalFree(descriptor); }
+        }
+        private void CreateProtectedDirectory(string path)
+        {
+            string parent = Path.GetDirectoryName(path), leaf = Path.GetFileName(path);
+            SafeFileHandle parentHandle;
+            if (!directories.TryGetValue(parent, out parentHandle)) throw new IOException("The test directory parent is not pinned.");
+            byte[] security = NewDirectoryPolicy();
+            IntPtr securityMemory = Marshal.AllocHGlobal(security.Length), nameMemory = Marshal.StringToHGlobalUni(leaf), unicodeMemory = Marshal.AllocHGlobal(Marshal.SizeOf(typeof(UnicodeString)));
+            SafeFileHandle created = null;
+            try
+            {
+                Marshal.Copy(security, 0, securityMemory, security.Length);
+                UnicodeString name = new UnicodeString(); name.Length = checked((ushort)(leaf.Length * 2)); name.MaximumLength = checked((ushort)(name.Length + 2)); name.Buffer = nameMemory;
+                Marshal.StructureToPtr(name, unicodeMemory, false);
+                ObjectAttributes attributes = new ObjectAttributes(); attributes.Length = Marshal.SizeOf(typeof(ObjectAttributes)); attributes.RootDirectory = parentHandle.DangerousGetHandle(); attributes.ObjectName = unicodeMemory;
+                attributes.Attributes = 0x40 | 0x1000; attributes.SecurityDescriptor = securityMemory;
+                IoStatusBlock result;
+                int status = NtCreateFile(out created, 0x100000 | 0x20000 | ReadAttributes | 1, ref attributes, out result, IntPtr.Zero, DirectoryAttribute, ShareReadWrite, 2, 1 | 0x20 | OpenReparsePoint, IntPtr.Zero, 0);
+                if (status < 0)
+                {
+                    int error = unchecked((int)RtlNtStatusToDosError(status));
+                    if (error == 183) { if (!TryPinDirectory(path)) throw new DirectoryNotFoundException(path); return; }
+                    throw new IOException("Cannot create protected test directory: " + path, new Win32Exception(error));
+                }
+                Information(created, path, true); VerifyDirectoryPolicy(path, created); directories.Add(path, created); created = null;
+            }
+            finally { if (created != null) created.Dispose(); Marshal.FreeHGlobal(unicodeMemory); Marshal.FreeHGlobal(nameMemory); Marshal.FreeHGlobal(securityMemory); }
         }
         private void PinDirectoryChain(string full, bool create)
         {
@@ -276,12 +360,7 @@ namespace TaskPilot.Runtime
                 cursor = Path.Combine(cursor, component);
                 if (TryPinDirectory(cursor)) continue;
                 if (!create) throw new DirectoryNotFoundException(cursor);
-                if (!CreateDirectoryW(cursor, IntPtr.Zero))
-                {
-                    int code = Marshal.GetLastWin32Error();
-                    if (code != 183) throw new IOException("Cannot create test directory: " + cursor, new Win32Exception(code));
-                }
-                if (!TryPinDirectory(cursor)) throw new DirectoryNotFoundException(cursor);
+                CreateProtectedDirectory(cursor);
             }
         }
         private void PinParent(string full)
