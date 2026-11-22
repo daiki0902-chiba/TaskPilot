@@ -271,8 +271,9 @@ namespace TaskPilot.Runtime
             // is not mediated by FILE_SHARE_WRITE.
             // FILE_LIST_DIRECTORY participates in Windows sharing checks;
             // FILE_READ_ATTRIBUTES alone does not establish a sharing lease.
-            uint access = ReadAttributes | 1;
-            if (RequiresDirectoryPolicy(path)) access |= 0x20000;
+            uint access = ReadAttributes | 1 | 0x20;
+            if (RequiresDirectoryPolicy(path)) access |= 0x20000 | 2 | 4;
+            else if (String.Equals(path, ProfileRoot, StringComparison.OrdinalIgnoreCase)) access |= 4;
             SafeFileHandle handle = CreateFileW(path, access, ShareReadWrite, IntPtr.Zero, OpenExistingFile, BackupSemantics | OpenReparsePoint, IntPtr.Zero);
             if (handle.IsInvalid)
             {
@@ -339,12 +340,12 @@ namespace TaskPilot.Runtime
                 ObjectAttributes attributes = new ObjectAttributes(); attributes.Length = Marshal.SizeOf(typeof(ObjectAttributes)); attributes.RootDirectory = parentHandle.DangerousGetHandle(); attributes.ObjectName = unicodeMemory;
                 attributes.Attributes = 0x40 | 0x1000; attributes.SecurityDescriptor = securityMemory;
                 IoStatusBlock result;
-                int status = NtCreateFile(out created, 0x100000 | 0x20000 | ReadAttributes | 1, ref attributes, out result, IntPtr.Zero, DirectoryAttribute, ShareReadWrite, 2, 1 | 0x20 | OpenReparsePoint, IntPtr.Zero, 0);
+                int status = NtCreateFile(out created, 0x100000 | 0x20000 | ReadAttributes | 1 | 2 | 4 | 0x20, ref attributes, out result, IntPtr.Zero, DirectoryAttribute, ShareReadWrite, 2, 1 | 0x20 | OpenReparsePoint, IntPtr.Zero, 0);
                 if (status < 0)
                 {
                     int error = unchecked((int)RtlNtStatusToDosError(status));
                     if (error == 183) { if (!TryPinDirectory(path)) throw new DirectoryNotFoundException(path); return; }
-                    throw new IOException("Cannot create protected test directory: " + path, new Win32Exception(error));
+                    throw new IOException("Cannot create protected test directory: " + path + ": " + new Win32Exception(error).Message + " (" + error.ToString() + ", NT=" + status.ToString("X8") + ")", new Win32Exception(error));
                 }
                 Information(created, path, true); VerifyDirectoryPolicy(path, created); directories.Add(path, created); created = null;
             }
