@@ -128,11 +128,27 @@ function Restore-TPMemoryConnection($Store,[byte[]]$Image){
         $Store.Connection=$replacement;$replacement=$null
     }finally{if($null-ne$replacement){Close-TPConnection $replacement}}
 }
+function Get-TPTestScopePrefix {
+    # Existing independent/acceptance databases retain their exact prior tag.
+    # A locally validated database cannot be adopted by those modes even when
+    # a developer accidentally reuses the same environment GUID.
+    if($null-ne$script:TPTestSandbox-and
+       $null-ne$script:TPTestSandbox.PSObject.Properties['IsLocalValidation']-and
+       $script:TPTestSandbox.IsLocalValidation-is[bool]-and$script:TPTestSandbox.IsLocalValidation){
+        return 'TaskPilot local validation environment:'
+    }
+    return 'TaskPilot independent test environment:'
+}
 function Assert-TPStoreScope($Store){
     $description=[string](Invoke-TPSql $Store 'SELECT description FROM schema_migrations WHERE version=@version' -Parameters @{version=$script:TPSchemaVersion} -Mode Scalar)
-    $prefix='TaskPilot independent test environment:'
+    $prefix=Get-TPTestScopePrefix
     if($null-ne$script:TPTestSandbox){
-        if($description-cne($prefix+$script:TPTestSandbox.EnvironmentId)){throw 'This database does not belong to this independent test environment. No data is imported or retagged.'}
+        if($description-cne($prefix+$script:TPTestSandbox.EnvironmentId)){
+            if($prefix-ceq'TaskPilot local validation environment:'){throw 'This database does not belong to this local validation environment. No data is imported or retagged.'}
+            throw 'This database does not belong to this independent test environment. No data is imported or retagged.'
+        }
+    }elseif($description.StartsWith('TaskPilot local validation environment:',[StringComparison]::Ordinal)){
+        throw 'A local validation database cannot be opened as a normal TaskPilot database.'
     }elseif($description.StartsWith($prefix,[StringComparison]::Ordinal)){
         throw 'An independent test database cannot be opened as a normal TaskPilot database.'
     }
@@ -435,7 +451,7 @@ function New-TaskPilotDatabase {
             $cmd.CommandText=Get-Content -LiteralPath (Join-Path $script:TPModuleRoot '../../schema/001_initial.sql') -Raw -Encoding UTF8;$null=$cmd.ExecuteNonQuery()
             if($null-ne$script:TPTestSandbox){
                 $cmd.CommandText='UPDATE schema_migrations SET description=@scope WHERE version=@version'
-                $scopeParameter=$cmd.CreateParameter();$scopeParameter.ParameterName='@scope';$scopeParameter.Value='TaskPilot independent test environment:'+$script:TPTestSandbox.EnvironmentId;$null=$cmd.Parameters.Add($scopeParameter)
+                $scopeParameter=$cmd.CreateParameter();$scopeParameter.ParameterName='@scope';$scopeParameter.Value=(Get-TPTestScopePrefix)+$script:TPTestSandbox.EnvironmentId;$null=$cmd.Parameters.Add($scopeParameter)
                 $versionParameter=$cmd.CreateParameter();$versionParameter.ParameterName='@version';$versionParameter.Value=$script:TPSchemaVersion;$null=$cmd.Parameters.Add($versionParameter)
                 if($cmd.ExecuteNonQuery()-ne1){throw 'Could not mark the newly created database as an independent test database.'}
             }

@@ -32,7 +32,7 @@ namespace TaskPilot.Runtime
         private readonly Dictionary<string, WriterLease> writers = new Dictionary<string, WriterLease>(StringComparer.OrdinalIgnoreCase);
         private const string DirectoryGuardName = ".taskpilot-directory-guard";
         private static readonly byte[] DirectoryGuardBytes = Encoding.UTF8.GetBytes("TaskPilot pinned directory guard v2\n");
-        private enum SandboxPurpose { IndependentTest, DesktopAcceptance }
+        private enum SandboxPurpose { IndependentTest, DesktopAcceptance, LocalValidation }
         private readonly string sandboxNamespace;
         private readonly string markerHeading;
         private readonly string markerFileName;
@@ -106,7 +106,9 @@ namespace TaskPilot.Runtime
         public bool IsFaulted { get { lock (sync) { return faulted; } } }
         public bool IsDisposed { get { lock (sync) { return disposed; } } }
         public bool IsReadOnly { get { return readOnly; } }
+        public bool IsLocalValidation { get { return sandboxNamespace == "TaskPilotLocalValidation"; } }
         public bool HasAcceptanceDiagnosticLock { get { lock (sync) { return !disposed && readOnly && sandboxNamespace == "TaskPilotAcceptance" && locks.ContainsKey(LockPath); } } }
+        public bool HasLocalValidationDiagnosticLock { get { lock (sync) { return !disposed && readOnly && sandboxNamespace == "TaskPilotLocalValidation" && locks.ContainsKey(LockPath); } } }
         public string FaultReason { get { lock (sync) { return faultReason; } } }
         public string[] InfrastructurePaths { get { return new string[] { MarkerPath, LockPath }; } }
 
@@ -166,6 +168,14 @@ namespace TaskPilot.Runtime
         public static Sandbox OpenExistingAcceptance(string profileRoot, string environmentId)
         {
             return OpenCore(profileRoot, environmentId, false, SandboxPurpose.DesktopAcceptance);
+        }
+        public static Sandbox CreateLocalValidation(string profileRoot, string environmentId)
+        {
+            return OpenCore(profileRoot, environmentId, true, SandboxPurpose.LocalValidation);
+        }
+        public static Sandbox OpenExistingLocalValidation(string profileRoot, string environmentId)
+        {
+            return OpenCore(profileRoot, environmentId, false, SandboxPurpose.LocalValidation);
         }
         private static Sandbox OpenCore(string profileRoot, string environmentId, bool initialize, SandboxPurpose purpose)
         {
@@ -238,9 +248,10 @@ namespace TaskPilot.Runtime
             // Namespace and purpose are chosen exclusively by fixed public
             // factories. They are never caller-supplied paths or settings.
             bool acceptance = purpose == SandboxPurpose.DesktopAcceptance;
-            sandboxNamespace = acceptance ? "TaskPilotAcceptance" : "TaskPilotTest";
-            markerFileName = acceptance ? ".taskpilot-acceptance-environment" : ".taskpilot-test-environment";
-            markerHeading = acceptance ? "TaskPilot desktop acceptance synthetic-only environment v1\n" : "TaskPilot independent test environment v2\n";
+            bool localValidation = purpose == SandboxPurpose.LocalValidation;
+            sandboxNamespace = localValidation ? "TaskPilotLocalValidation" : (acceptance ? "TaskPilotAcceptance" : "TaskPilotTest");
+            markerFileName = localValidation ? ".taskpilot-local-validation-environment" : (acceptance ? ".taskpilot-acceptance-environment" : ".taskpilot-test-environment");
+            markerHeading = localValidation ? "TaskPilot local validation synthetic-only environment v1\n" : (acceptance ? "TaskPilot desktop acceptance synthetic-only environment v1\n" : "TaskPilot independent test environment v2\n");
         }
         private static IOException NativeError(string action)
         {
@@ -740,6 +751,25 @@ namespace TaskPilot.Runtime
                 if (locks.ContainsKey(full)) throw new IOException("This diagnostic lock is already held.");
                 // FILE_OPEN only: a missing lock means no authorized GUI session
                 // prepared this environment. Never create or repair it here.
+                SafeFileHandle handle = OpenRelative(full, 1 | 0x20000, OpenExistingFile, 0, false, null);
+                try
+                {
+                    Information(handle, full, false); VerifyProtection(full, handle, false);
+                    LockLease lease = new LockLease(this, full, handle); locks.Add(full, lease); handle = null; return lease;
+                }
+                finally { if (handle != null) handle.Dispose(); }
+            }
+        }
+        public IDisposable AcquireExistingLocalValidationDiagnosticLock()
+        {
+            lock (sync)
+            {
+                CheckLive();
+                if (!readOnly || sandboxNamespace != "TaskPilotLocalValidation") throw new InvalidOperationException("Read-only local validation diagnostics are required.");
+                string full = AssertPath(LockPath);
+                if (locks.ContainsKey(full)) throw new IOException("This diagnostic lock is already held.");
+                // The local collector can open only this existing fixed lock.
+                // It never creates, repairs or writes session state.
                 SafeFileHandle handle = OpenRelative(full, 1 | 0x20000, OpenExistingFile, 0, false, null);
                 try
                 {
