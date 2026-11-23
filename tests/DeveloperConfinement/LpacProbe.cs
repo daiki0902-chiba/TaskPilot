@@ -19,7 +19,7 @@ internal static class LpacProbe
 {
     private const uint ExtendedStartupInfoPresent = 0x00080000, CreateSuspended = 0x4, CreateNoWindow = 0x08000000, CreateUnicodeEnvironment = 0x400;
     private const int SecurityCapabilitiesAttribute = 0x20009, AllApplicationPackagesPolicyAttribute = 0x2000f;
-    private const uint AllApplicationPackagesOptOut = 0x1, TokenQuery = 0x8;
+    private const uint AllApplicationPackagesOptOut = 0x1, TokenQuery = 0xa;
     private static readonly JavaScriptSerializer Json = new JavaScriptSerializer();
     private static readonly List<FileStream> PinnedPayload = new List<FileStream>();
 
@@ -31,6 +31,7 @@ internal static class LpacProbe
     }
     [StructLayout(LayoutKind.Sequential)] private struct StartupInfoEx { public StartupInfo StartupInfo; public IntPtr AttributeList; }
     [StructLayout(LayoutKind.Sequential)] private struct ProcessInformation { public IntPtr Process, Thread; public uint ProcessId, ThreadId; }
+    [StructLayout(LayoutKind.Sequential)] private struct GenericMapping { public uint Read, Write, Execute, All; }
     [StructLayout(LayoutKind.Sequential)] private struct SecurityCapabilities { public IntPtr AppContainerSid, Capabilities; public uint CapabilityCount, Reserved; }
     [StructLayout(LayoutKind.Sequential)] private struct IoCounters { public ulong ReadOperationCount, WriteOperationCount, OtherOperationCount, ReadTransferCount, WriteTransferCount, OtherTransferCount; }
     [StructLayout(LayoutKind.Sequential)] private struct BasicLimitInformation
@@ -65,6 +66,9 @@ internal static class LpacProbe
     [DllImport("kernel32.dll")] private static extern bool CloseHandle(IntPtr handle);
     [DllImport("advapi32.dll", SetLastError=true)] private static extern bool OpenProcessToken(IntPtr process, uint access, out IntPtr token);
     [DllImport("advapi32.dll", SetLastError=true)] private static extern bool GetTokenInformation(IntPtr token, int informationClass, IntPtr buffer, int length, out int returned);
+    [DllImport("advapi32.dll", SetLastError=true)] private static extern bool DuplicateTokenEx(IntPtr token, uint access, IntPtr attributes, int level, int type, out IntPtr duplicate);
+    [DllImport("advapi32.dll", SetLastError=true)] private static extern bool AccessCheck(IntPtr descriptor, IntPtr token, uint desiredAccess, ref GenericMapping mapping, IntPtr privileges, ref uint privilegesLength, out uint grantedAccess, out bool accessStatus);
+    [DllImport("ntdll.dll")] private static extern int NtQueryInformationToken(IntPtr token, int informationClass, IntPtr buffer, int length, out int returned);
     [DllImport("kernel32.dll", CharSet=CharSet.Unicode, SetLastError=true)] private static extern bool CreateSymbolicLink(string link, string target, uint flags);
 
     private static Dictionary<string, object> Record() { return new Dictionary<string, object>(); }
@@ -156,6 +160,51 @@ internal static class LpacProbe
         try { if (!GetTokenInformation(token, 30, buffer, size, out size)) throw new Win32Exception(Marshal.GetLastWin32Error()); return Marshal.ReadInt32(buffer); }
         finally { Marshal.FreeHGlobal(buffer); }
     }
+    private static uint LpacAccessMask(IntPtr token)
+    {
+        // Kernel access-check semantics, also used by Chromium's LPAC tests:
+        // the ordinary user gets bits 1|2, AAP gets bit 1, ARAP gets bit 2.
+        // LPAC must receive exactly bit 2, not the AAP bit. No actual file or
+        // registry ACL is changed by this in-memory descriptor.
+        IntPtr descriptor = IntPtr.Zero, impersonation = IntPtr.Zero, privileges = IntPtr.Zero;
+        try
+        {
+            uint size;
+            if (!ConvertStringSecurityDescriptorToSecurityDescriptor("O:SYG:SYD:(A;;0x3;;;WD)(A;;0x1;;;S-1-15-2-1)(A;;0x2;;;S-1-15-2-2)", 1, out descriptor, out size)) throw new Win32Exception(Marshal.GetLastWin32Error());
+            if (!DuplicateTokenEx(token, 0x8, IntPtr.Zero, 2, 2, out impersonation)) throw new Win32Exception(Marshal.GetLastWin32Error());
+            GenericMapping mapping = new GenericMapping(); uint granted, length = 0; bool allowed;
+            bool checkedWithoutBuffer = AccessCheck(descriptor, impersonation, 0x02000000, ref mapping, IntPtr.Zero, ref length, out granted, out allowed);
+            if (!checkedWithoutBuffer)
+            {
+                int error = Marshal.GetLastWin32Error();
+                if (error != 122 || length == 0 || length > 65536) throw new Win32Exception(error);
+                privileges = Marshal.AllocHGlobal((int)length);
+                if (!AccessCheck(descriptor, impersonation, 0x02000000, ref mapping, privileges, ref length, out granted, out allowed)) throw new Win32Exception(Marshal.GetLastWin32Error());
+            }
+            Check(allowed, "LPAC in-memory access check did not grant its synthetic ARAP right.");
+            return granted;
+        }
+        finally
+        {
+            if (privileges != IntPtr.Zero) Marshal.FreeHGlobal(privileges);
+            if (impersonation != IntPtr.Zero) CloseHandle(impersonation);
+            if (descriptor != IntPtr.Zero) LocalFree(descriptor);
+        }
+    }
+    private static void RecordLpacQueryDiagnostic(IntPtr token, Dictionary<string, object> report)
+    {
+        try { report["Win32TokenClass46Value"] = TokenInt(token, 46); }
+        catch (Win32Exception e) { report["Win32TokenClass46Error"] = e.NativeErrorCode; }
+        IntPtr value = Marshal.AllocHGlobal(4);
+        try
+        {
+            int returned; int status = NtQueryInformationToken(token, 46, value, 4, out returned);
+            report["NativeTokenClass46Status"] = "0x" + unchecked((uint)status).ToString("x8", CultureInfo.InvariantCulture);
+            report["NativeTokenClass46ReturnedLength"] = returned;
+            if (status >= 0) report["NativeTokenClass46Value"] = Marshal.ReadInt32(value);
+        }
+        finally { Marshal.FreeHGlobal(value); }
+    }
     private static bool DeniedRead(string file)
     {
         try { using (FileStream stream = File.Open(file, FileMode.Open, FileAccess.Read, FileShare.Read)) { stream.ReadByte(); } return false; }
@@ -229,7 +278,10 @@ internal static class LpacProbe
             try
             {
                 result["IsAppContainer"] = TokenInt(token, 29) != 0;
-                result["IsLessPrivilegedAppContainer"] = TokenInt(token, 46) != 0;
+                uint mask = LpacAccessMask(token);
+                result["KernelLpacAccessMask"] = mask;
+                result["LpacVerificationMethod"] = "AccessCheck: AAP bit absent; ARAP bit present";
+                result["IsLessPrivilegedAppContainer"] = mask == 2;
                 result["CapabilityCount"] = TokenCapabilitiesCount(token);
             }
             finally { CloseHandle(token); }
@@ -383,12 +435,52 @@ internal static class LpacProbe
             {
                 report["ChildSameOrdinaryUserSid"] = TokenUser(childToken) == WindowsIdentity.GetCurrent().User.Value;
                 report["ChildKernelIsAppContainer"] = TokenInt(childToken, 29) != 0;
-                report["ChildKernelIsLpac"] = TokenInt(childToken, 46) != 0;
+                RecordLpacQueryDiagnostic(childToken, report);
+                uint mask = LpacAccessMask(childToken);
+                report["ChildKernelLpacAccessMask"] = mask;
+                report["ChildKernelIsLpac"] = mask == 2;
+                report["LpacVerificationMethod"] = "AccessCheck: AAP bit absent; ARAP bit present; suspended ordinary-AC control";
                 report["ChildKernelAppContainerSidMatchesUniqueProfile"] = TokenAppSid(childToken) == appSid.Value;
                 report["ChildKernelCapabilityCount"] = TokenCapabilitiesCount(childToken);
                 Check((bool)report["ChildSameOrdinaryUserSid"] && (bool)report["ChildKernelIsAppContainer"] && (bool)report["ChildKernelIsLpac"] && (bool)report["ChildKernelAppContainerSidMatchesUniqueProfile"] && (int)report["ChildKernelCapabilityCount"] == 0, "Kernel token did not match requested LPAC conditions.");
             }
             finally { CloseHandle(childToken); }
+            // Counterfactual control is another AppContainer, never an ordinary
+            // full-trust process. It remains suspended and is never resumed.
+            ProcessInformation control = new ProcessInformation(); bool controlCreated = false, controlAttributesInitialized = false;
+            IntPtr controlAttributes = IntPtr.Zero;
+            try
+            {
+                IntPtr controlSize = IntPtr.Zero; InitializeProcThreadAttributeList(IntPtr.Zero, 1, 0, ref controlSize);
+                controlAttributes = Marshal.AllocHGlobal(controlSize);
+                if (!InitializeProcThreadAttributeList(controlAttributes, 1, 0, ref controlSize)) throw new Win32Exception(Marshal.GetLastWin32Error());
+                controlAttributesInitialized = true;
+                if (!UpdateProcThreadAttribute(controlAttributes, 0, new IntPtr(SecurityCapabilitiesAttribute), capsMemory, new IntPtr(Marshal.SizeOf(typeof(SecurityCapabilities))), IntPtr.Zero, IntPtr.Zero)) throw new Win32Exception(Marshal.GetLastWin32Error());
+                StartupInfoEx controlStartup = new StartupInfoEx(); controlStartup.StartupInfo.cb = Marshal.SizeOf(typeof(StartupInfoEx)); controlStartup.AttributeList = controlAttributes;
+                if (!CreateProcess(image, new StringBuilder(command.ToString()), IntPtr.Zero, IntPtr.Zero, false, ExtendedStartupInfoPresent | CreateSuspended | CreateNoWindow | CreateUnicodeEnvironment, environment, data, ref controlStartup, out control)) throw new Win32Exception(Marshal.GetLastWin32Error());
+                controlCreated = true;
+                if (!AssignProcessToJobObject(job, control.Process)) throw new Win32Exception(Marshal.GetLastWin32Error());
+                IntPtr controlToken; if (!OpenProcessToken(control.Process, TokenQuery, out controlToken)) throw new Win32Exception(Marshal.GetLastWin32Error());
+                try
+                {
+                    Check(TokenInt(controlToken, 29) != 0 && TokenAppSid(controlToken) == appSid.Value && TokenCapabilitiesCount(controlToken) == 0, "The suspended control token did not match the same AppContainer identity.");
+                    uint mask = LpacAccessMask(controlToken);
+                    report["SuspendedOrdinaryAppContainerAccessMask"] = mask;
+                    Check(mask == 3, "The ordinary AppContainer control must grant both synthetic AAP/ARAP rights.");
+                    report["SuspendedOrdinaryAppContainerControlVerified"] = true;
+                }
+                finally { CloseHandle(controlToken); }
+            }
+            finally
+            {
+                if (controlCreated)
+                {
+                    TerminateProcess(control.Process, 0); WaitForSingleObject(control.Process, 5000);
+                    CloseHandle(control.Thread); CloseHandle(control.Process);
+                }
+                if (controlAttributes != IntPtr.Zero) { if (controlAttributesInitialized) DeleteProcThreadAttributeList(controlAttributes); Marshal.FreeHGlobal(controlAttributes); }
+                report["OrdinaryAppContainerControlEverResumed"] = false;
+            }
             if (ResumeThread(child.Thread) == UInt32.MaxValue) throw new Win32Exception(Marshal.GetLastWin32Error());
             uint wait = WaitForSingleObject(child.Process, 45000);
             if (wait != 0) { TerminateProcess(child.Process, 3); WaitForSingleObject(child.Process, 5000); report["MeasuredBlocker"] = "LPAC_CHILD_TIMED_OUT"; report["ChildTimedOut"] = true; }
