@@ -1,5 +1,7 @@
 # TaskPilot 開発者向けビルド手順
 
+2026-11-23更新：現在は[通常版中心の開発計画](../development/NORMAL-DEVELOPMENT-ja.md)を優先します。このページはビルダーの仕様書であり、実機起動や配布の許可ではありません。内部ビルドのみとし、EXE・配布ZIPの一般公開は停止中です。有料署名証明書は必須にしません。実機はクリーンVMでの事前条件が未確認のためNOT_READYです。
+
 この手順は新しい SQLite GUI `TaskPilot.ps1` から Windows x64 の顧客配布物を作るためのものです。旧 `Build_TaskPilot_STEP3_6F_4.ps1/.bat` と過去の配布物は保存し、この新しい手順には使用しません。購入者の起動処理は依存取得・インストールを行いません。
 
 Linuxで依存の実物・SHA-256・ライセンス・配布予定一覧・構文を検証した後、GitHub ActionsのWindows Server 2022 / Windows PowerShell 5.1でnative SQLiteの自動試験と未署名EXE・配布候補ZIPの生成が成功しました。[証跡](../verification/windows-native-verification.json)を参照してください。生成EXEの起動、Windows 10/11の実機受入、WinForms、実際のExcel出力、コード署名は **未検証** です。`-ValidateOnly` やコンパイル成功は製品の動作合格を意味しません。

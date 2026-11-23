@@ -4,13 +4,15 @@ PowerShell 5.1とWindows Formsを維持し、既存GUIの保存処理をSQLite�
 
 依頼全体の達成状況は[要件の達成状況](docs/08-requirements-status.md)を参照してください。成果物の作成と、Windows 10/11での受入・販売判定を区別して記録します。
 
-**独立テストモードの公開停止は維持しています。** I25/I28の原因を修正し、Windows Serverで独立27件・追加保存8件・通常8群・停止措置12項目が合格しました。Windows 10/11実機と実ディスク障害は未検証のため、本体・検査・診断の入口とEXE・ZIPの公開は停止したままです。[修正内容・証跡・配布判定](docs/11-isolation-safety-fix.md)を参照してください。既存データがあるユーザーで起動してよいとは案内しません。
+**2026-11-23更新：通常版を唯一の製品本体として開発します。** データを購入者のPC内に保存し、クラウド同期・サーバー保存・共有機能は追加しません。個人開発、有料証明書は現段階で購入しない、将来の限定配布先はGitHub privateという方針です。
 
-Windows 10/11の実機確認に向けた[受入専用入口の実装と制限](docs/12-desktop-acceptance-build.md)、[初心者向け準備ガイド](docs/desktop-acceptance/README-ja.md)、[開始条件と未達条件](docs/desktop-acceptance/READINESS-ja.md)、[31件の確認表](docs/desktop-acceptance/CHECKLIST-ja.md)、[OS別結果票](docs/desktop-acceptance/RESULT-TEMPLATE-ja.md)を用意しています。専用の入口・検査・内部コンパイルを実装していますが、署名・保護された導入・対象PCの事前安全性検査が未整備で、受入GUIとEXE・ZIPの配布は引き続き停止しています。
+[最小構成への移行計画・テスト選定](docs/development/NORMAL-DEVELOPMENT-ja.md)に従い、独立・受入・ローカル専用版の追加開発を停止します。CIは通常版を1回だけビルドし、共通コードの保護検査を1回実行します。専用入口の起動拒否、一般配布の停止、DB用途の検査は維持し、EXE・配布ZIPは公開しません。
 
-次の作業は[A・B・C別の残課題と優先順位](docs/desktop-acceptance/REMAINING-WORK-ja.md)、[開発者の準備・費用・操作](docs/desktop-acceptance/DEVELOPER-PREPARATION-ja.md)、[条件成立後の実機手順](docs/desktop-acceptance/AFTER-READY-ja.md)へ整理しました。Aの追加実装と再試験は[追補記録](docs/13-acceptance-followup.md)に保存します。証明書購入だけで起動できる状態ではなく、今は販売者区分と限定配布先の選択を先に行います。
+[通常版CI 45184776656](https://github.com/daiki0902-chiba/TaskPilot/actions/runs/45184776656)は成功しました。通常8群、追加保存8件、共通コード27件、公開停止12項目が合格し、通常群内のテスト専用プロバイダー向け1項目はSKIPとして記録しています。[差分と検証結果](docs/verification/normal-development-20261123.json)を参照してください。
 
-[受入用README](docs/acceptance/README-ja.md)と[テストモード計画](docs/acceptance/TEST-MODE-ja.md)は未検証項目を含む資料です。[以前の準備結果](docs/09-windows-acceptance-preparation.md)は0.4.0.1の履歴で、独立モードには対応しません。旧ZIPへ新しい引数を渡して代用しないでください。
+Windows 10/11の実機開始は**NOT_READY**です。[通常EXEのホスト・保存先の調査](docs/development/NORMAL-HOST-COMPATIBILITY-ja.md)と、クリーンVMでの事前確認が残ります。既存データのあるユーザーでの起動は案内しません。OSの保護設定や実行ポリシーを変更して起動させません。
+
+[独立モードの修正記録](docs/11-isolation-safety-fix.md)、[受入専用の実装](docs/12-desktop-acceptance-build.md)、[受入残課題](docs/desktop-acceptance/REMAINING-WORK-ja.md)、[ローカル専用版の実装](docs/local-validation/IMPLEMENTATION-ja.md)は過去の設計・検証資料です。専用版を完成させることを、通常版のローカル検証の前提にしません。過去のZIPや起動引数で代用しないでください。
 
 **GitHubへの反映先は開発ブランチ `development/sqlite-commercial-20261116` です。** main `a761e76fbe4c4335a1847dbfc4417516d205316f` の全ツリーにはREADMEと.gitattributesの2ファイルだけがあり、アプリ本体・テストが未登録だったため、以前確認したSTEP3本体とSTEP4Cを基準に候補版を作成しました。mainを親とする履歴を用い、mainへ直接反映しません。GitHub連携アプリの一時停止は解除され、開発ブランチの作成も成功しました。詳細は [GitHub反映状況](docs/07-github-sync.md) を参照してください。
 
@@ -32,10 +34,10 @@ Windows 10/11の実機確認に向けた[受入専用入口の実装と制限](d
 Windows PowerShell 5.1でリポジトリ直下を開き、合成データだけを使うテストを実行します。
 
 ```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\Test-TaskPilotCommercial.ps1
+powershell.exe -NoProfile -File .\Test-TaskPilotCommercial.ps1
 ```
 
-ビルド用依存物を準備済みの場合は `-DependencyRoot C:\TaskPilotBuild\deps-1` を加えます。指定しない場合の依存物を使う配布検査は明示的にSKIPされます。テスト結果は `TestResults` に保存します。実ユーザーデータは読み書きしません。Linux上のテスト用アダプターは購入者向け配布には含めません。
+PowerShell上で`.\Test-TaskPilotCommercial.ps1 -ListSuites`と実行すれば、テストを起動せず一覧を確認できます。軽微な変更では`.\Test-TaskPilotCommercial.ps1 -Suite GuiTasks,GuiIntegration`のように必要な群だけ選べます。省略時は従来どおり全8群です。ビルド用依存物を準備済みの場合は `-DependencyRoot C:\TaskPilotBuild\deps-1` を加えます。指定しない場合の依存物を使う配布検査は明示的にSKIPされます。未選択・SKIPを合格とは扱いません。テスト結果は `TestResults` に保存します。実ユーザーデータは読み書きしません。ポリシーが実行を拒否したら停止してください。Linux上のテスト用アダプターは購入者向け配布には含めません。
 
 依存取得・Windowsビルド・署名・配布予定の検証は [ビルド手順](docs/build/README.md) に従ってください。購入者の起動時に依存のダウンロードやモジュールのインストールは行いません。
 

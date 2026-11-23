@@ -1,0 +1,207 @@
+{
+  "FormatVersion": 1,
+  "CapturedDateUtc": "2026-11-23",
+  "Scope": "normal-product development simplification; source analysis and synthetic fixtures only",
+  "SourceCommit": "d6a1dedcb7b3ac539c180d5838d12b80881359d5",
+  "PreviousSourceCommit": "bbbe6303c6938ef709f1737f5947f8fa71638448",
+  "ProductRuntimeGuiStorageMigrationAndBuildSourcesUnchangedFromPreviousCommit": true,
+  "MainCommitUnchanged": "a761e76fbe4c4335a1847dbfc4417516d205316f",
+  "Ci": {
+    "Url": "https://github.com/daiki0902-chiba/TaskPilot/actions/runs/45184776656",
+    "Conclusion": "success",
+    "Platform": "Windows Server 2022 / Windows PowerShell Desktop 5.1 x64",
+    "PowerShell": "5.1.20348.5773",
+    "StartedAtUtc": "2026-11-23T13:31:34Z",
+    "CompletedAtUtc": "2026-11-23T13:33:52Z",
+    "Artifacts": [
+      {
+        "Id": 14822359438,
+        "Name": "TaskPilot-Normal-Server-test-reports-45184776656-1",
+        "SizeBytes": 17390,
+        "Sha256": "ef78d614b9e72a0fef5a917b9243845b713453769c014a6126fee5daa1c9550b",
+        "ExpiresAtUtc": "2026-12-07T13:33:47Z",
+        "ContainsOnlyTestReports": true,
+        "ContainsApplicationExeOrDistributionZip": false
+      }
+    ]
+  },
+  "NativeNormalSuites": {
+    "Passed": 8,
+    "Failed": 0,
+    "AllEightGroupsExecuted": true,
+    "Selected": [
+      "Migration",
+      "Protection",
+      "GuiTasks",
+      "GuiDomains",
+      "GuiOperations",
+      "GuiStartup",
+      "GuiIntegration",
+      "Packaging"
+    ],
+    "Unselected": [],
+    "SkippedDetails": [
+      "Test-TaskPilotStep4C.ps1: SKIP: synthetic in-transaction tampering hooks are restricted to an explicitly selected test provider."
+    ],
+    "Results": [
+      {
+        "Suite": "Test-TaskPilotStep4C.ps1",
+        "Passed": true,
+        "ExitCode": 0,
+        "ResultLines": [
+          "SKIP: synthetic in-transaction tampering hooks are restricted to an explicitly selected test provider.",
+          "Result: 9 migration cases passed, 0 failed; 111 assertions.",
+          "Result: 27 passed, 0 failed. Report: D:\\a\\TaskPilot\\TaskPilot\\DeveloperSandbox\\STEP4B_TestResult_038ede98ed8141c3a87bea65b992b68b.json",
+          "Result: 6 suites passed, 0 failed."
+        ]
+      },
+      {
+        "Suite": "tests/Test-Protection.ps1",
+        "Passed": true,
+        "ExitCode": 0,
+        "ResultLines": [
+          "Result: 6 protection cases passed, 0 failed; 56 assertions."
+        ]
+      },
+      {
+        "Suite": "tests/Test-GuiTasks.ps1",
+        "Passed": true,
+        "ExitCode": 0,
+        "ResultLines": [
+          "Result: 14 GUI task cases passed, 0 failed; 52 assertions."
+        ]
+      },
+      {
+        "Suite": "tests/Test-GuiDomainAdapters.ps1",
+        "Passed": true,
+        "ExitCode": 0,
+        "ResultLines": []
+      },
+      {
+        "Suite": "tests/Test-GuiOperations.ps1",
+        "Passed": true,
+        "ExitCode": 0,
+        "ResultLines": [
+          "Result: 5 GUI orchestration cases passed, 0 failed; 38 assertions. Excel/Windows 未検証."
+        ]
+      },
+      {
+        "Suite": "tests/Test-GuiStartup.ps1",
+        "Passed": true,
+        "ExitCode": 0,
+        "ResultLines": [
+          "Result: 9 GUI startup cases passed, 0 failed; 89 assertions; 0 privilege skips; no WinForms invoked."
+        ]
+      },
+      {
+        "Suite": "tests/Test-GuiIntegration.ps1",
+        "Passed": true,
+        "ExitCode": 0,
+        "ResultLines": [
+          "Result: 8 generated-GUI integration cases passed, 0 failed; 413 assertions. Windows GUI and Excel generation 未検証 (DTO capture only)."
+        ]
+      },
+      {
+        "Suite": "tests/Test-BuildPackaging.ps1",
+        "Passed": true,
+        "ExitCode": 0,
+        "ResultLines": []
+      }
+    ]
+  },
+  "PreservedLegacyStorageRegression": "success (separate CI job step)",
+  "VerificationSummary": {
+    "Status": "NORMAL_PRODUCT_TESTS_PASSED_DISTRIBUTION_BLOCKED",
+    "SourceCommit": "d6a1dedcb7b3ac539c180d5838d12b80881359d5",
+    "ProductEntry": "TaskPilot.exe",
+    "ProductBuilds": 1,
+    "SpecialFlavorBuilds": 0,
+    "NativeNormalGroupsPassed": 8,
+    "PublicReleaseGateChecks": 12,
+    "NormalSkippedDetails": [
+      "Test-TaskPilotStep4C.ps1: SKIP: synthetic in-transaction tampering hooks are restricted to an explicitly selected test provider."
+    ],
+    "MemoryCasesPassed": 8,
+    "SharedBoundaryCasesPassed": 27,
+    "NormalFixtureUnchanged": true,
+    "ActualExcelFilesGenerated": true,
+    "RuntimeAssemblySha256": "74ab89ad97f5725e4fbea6409528604733f443dc0316ac41b2ec5ec2f5a3a40d",
+    "SharedBoundaryReport": "Isolated_b3ff1a7028984deebbf3baabd36c6c7a.json",
+    "Windows10And11AcceptanceVerified": false,
+    "ApplicationLaunched": false,
+    "ProductionProfileAccessed": false,
+    "ExecutableGenerated": true,
+    "ExecutablePublished": false,
+    "DistributionZipPublished": false,
+    "GeneralDistributionBlocked": true,
+    "IndependentModeBlocked": true,
+    "FormalAcceptanceBlocked": true,
+    "FrozenFlavorSources": [
+      "acceptance/",
+      "local-validation/"
+    ],
+    "Reason": "Normal product and common-code regressions passed on Windows Server. No GUI launch or application artifact publication is authorized."
+  },
+  "SharedNativeProtection": {
+    "HandleSmokeChecks": 8,
+    "HandleSmokePassed": true,
+    "PublicReleaseGateChecks": 12,
+    "PublicReleaseGatePassed": true,
+    "MemoryCases": 8,
+    "MemoryFailed": 0,
+    "MemorySkipped": [],
+    "BoundaryCases": 27,
+    "BoundaryFailed": 0,
+    "BoundarySkipped": [],
+    "FileAndAncestorVectorObservations": 80,
+    "GuardMutationChecks": 40,
+    "FileAndAncestorSuitePassed": true,
+    "UnsafeVectorConfirmed": false,
+    "UnverifiedVectors": [],
+    "OsProtectionSettingsChanged": false,
+    "NormalSyntheticFixtureBeforeManifestSha256": "4c4429abfa051bf14d4d48c5ed0d06bd94e8d36a10cc3dfd40bdad8e7a2793a4",
+    "NormalSyntheticFixtureAfterManifestSha256": "4c4429abfa051bf14d4d48c5ed0d06bd94e8d36a10cc3dfd40bdad8e7a2793a4"
+  },
+  "LinuxSupplement": {
+    "Platform": "Linux / PowerShell 7 with test-only Mono SQLite provider",
+    "SelectedSuite": "Protection",
+    "PassedCases": 6,
+    "FailedCases": 0,
+    "Assertions": 56,
+    "UnselectedSuites": 7,
+    "AllEightGroupsExecuted": false,
+    "SuiteCatalogDefaultCount": 8,
+    "ListSuitesExecutedTests": false,
+    "LowercaseNameCanonicalized": true,
+    "DuplicateNamesRejected": true,
+    "CaseVariantDuplicatesRejected": true,
+    "EightCaseVariantSpoofRejected": true,
+    "ChangedPowerShellSyntaxPassed": true,
+    "WorkflowActionlintPassed": true
+  },
+  "Readiness": "NOT_READY",
+  "ApplicationLaunchAuthorized": false,
+  "ProductionUserDataAccessed": false,
+  "RealUserDataHashesRead": false,
+  "ExeOrDistributionZipPublished": false,
+  "FrozenFlavorBuilds": 0,
+  "GeneralIndependentAndAcceptancePublicationStillBlocked": true,
+  "RemainingPrerequisites": [
+    "Developer-controlled clean Windows 10/11 VM without business data, host shares or attached host data disks",
+    "Measure the actual normal ps2exe host and external module loading under unchanged OS policy and origin protections",
+    "Prepare a minimal normal-product preflight using existing package hash/origin checks and the six known first-use paths; do not weaken the old acceptance gate"
+  ],
+  "Windows10And11Unverified": [
+    "Normal EXE startup under actual OS protection and source provenance",
+    "Interactive task/subtask/work log/monthly/recurrence GUI",
+    "Notification delivery",
+    "Excel application display, graph appearance and interactive export",
+    "Interactive backup/restore/restart on a clean VM"
+  ],
+  "ArchivedPriorFlavorRun": {
+    "Url": "https://github.com/daiki0902-chiba/TaskPilot/actions/runs/45139980609",
+    "SourceCommit": "bbbe6303c6938ef709f1737f5947f8fa71638448",
+    "Report": "local-validation-paused-20261123.json",
+    "FurtherDedicatedFlavorDevelopment": "frozen"
+  }
+}
