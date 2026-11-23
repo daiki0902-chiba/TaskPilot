@@ -33,17 +33,15 @@ Windows 10/11の既定設定、WDAC/AppLocker/SmartScreen/Defender、取得元�
 
 `$env:LOCALAPPDATA`だけを書き換えたり、EXEを別フォルダーにコピーしたりしても保存先の分離は保証できない。通常版は専用sandboxではなく、そのWindowsユーザーがアクセスできるファイルを選択して復元・出力できる。
 
-優先する環境は、開発者管理のクリーンなWindows 10/11仮想マシン。旧TaskPilotデータ・実業務データを持ち込まず、ホストのフォルダー共有・追加ディスク・ファイル転送連携を接続しない。依存ファイルを含むソースと検証用ファイルだけを用意し、ネットワーク切断後に架空データで試す。Windowsの保護設定は維持する。
-
-専用の標準Windowsユーザーも候補だが、他ユーザー領域・共有・追加ディスクへの既存ACLを含む環境確認が必要。他ユーザーのデータへのアクセスをアプリが全面禁止する設計ではないため、同じPCでアカウントを切り替えるだけで完全分離したとは扱わない。クリーンVMを優先する。
+最新方針でVMは必須にしない。[同じPCの専用標準Windowsユーザーによる代替策](NO-VM-LOCAL-TESTING-ja.md)を検討する。通常のKnownFolder・TEMP・Officeユーザー設定は分かれるが、他ユーザー領域・Public・共有・追加ディスクの権限まで自動遮断しない。ユーザーを切り替えるだけで全面隔離したとは扱わない。普段と同じユーザーでの保存先切替だけによる完全隔離は保証できず、今回追加していない。
 
 旧`tools/Test-TaskPilotAcceptancePackage.ps1:273`のFirstUse検査は、実KnownFolder配下の6つの既知のデータ・ログ・バックアップ・ロック名の存在を調べる。旧データの内容は読まない。ただし旧受入パッケージ構造・証跡と`IndependentTestModeSupported=true`を要求するため、現在の通常版へそのまま使えない。新しい通常ローカル検証の完成した入口として案内しない。調査中に実ユーザーの領域へこの検査を実行していない。
 
 ## 起動前に残る条件
 
 1. 対象ソースと一致した通常版ビルド、必要な回帰試験結果、固定依存ファイルの整合性を確認する。一般公開や別製品モードの許可を付けない。
-2. 開発者のクリーンVMと合成データだけであることを確認する。旧データがあれば削除や名前変更で検査を通さず、その環境を使用しない。
-3. 対象VMの既存ポリシーを変更せず確認し、通常EXEと同じ固定コンパイラーによる無害なホスト試験で外部スクリプト・モジュールの動作を確認する。取得元による拒否やOSの警告があれば停止する。
+2. 専用標準Windowsユーザーを採用できるか、架空データだけを扱う環境か確認する。旧データがあれば削除や名前変更で検査を通さず、その環境を使用しない。
+3. 対象PCの既存ポリシーを変更せず確認し、通常EXEと同じ固定コンパイラーによる無害なホスト試験で外部スクリプト・モジュールの動作を確認する。取得元による拒否やOSの警告があれば停止する。
 4. 条件を満たしてから通常版を引数なしで起動し、Windows 10/11のGUI・通知・Excel・保存・復元を確認する。現時点でこの実機検証は未実施であり、起動許可を出していない。
 
 参考: [Windows PowerShell 5.1の実行ポリシー](https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_execution_policies?view=powershell-5.1)、[標準認証マネージャーのAPI](https://learn.microsoft.com/en-us/dotnet/api/system.management.automation.runspaces.initialsessionstate.authorizationmanager?view=powershellsdk-1.1.0)。

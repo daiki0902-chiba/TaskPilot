@@ -10,7 +10,7 @@ PowerShell 5.1とWindows Formsを維持し、既存GUIの保存処理をSQLite�
 
 [通常版CI 45184776656](https://github.com/daiki0902-chiba/TaskPilot/actions/runs/45184776656)は成功しました。通常8群、追加保存8件、共通コード27件、公開停止12項目が合格し、通常群内のテスト専用プロバイダー向け1項目はSKIPとして記録しています。[差分と検証結果](docs/verification/normal-development-20261123.json)を参照してください。
 
-Windows 10/11の実機開始は**NOT_READY**です。[通常EXEのホスト・保存先の調査](docs/development/NORMAL-HOST-COMPATIBILITY-ja.md)と、クリーンVMでの事前確認が残ります。既存データのあるユーザーでの起動は案内しません。OSの保護設定や実行ポリシーを変更して起動させません。
+最新方針では**VMを必須にしません**。[同じPCでの検証方法と保存経路の調査](docs/development/NO-VM-LOCAL-TESTING-ja.md)を追加しました。保存先の変更だけでは同じWindowsユーザー内の完全隔離を保証できないため、その引数は追加していません。代替として専用の標準Windowsユーザーで同一の通常版を使う方式を提案しています。Windows 10/11の実機開始は**NOT_READY**で、採用する環境と通常版用の起動前検査・ホスト互換性の確認が残ります。OSの保護設定や実行ポリシーを変更して起動させません。
 
 [独立モードの修正記録](docs/11-isolation-safety-fix.md)、[受入専用の実装](docs/12-desktop-acceptance-build.md)、[受入残課題](docs/desktop-acceptance/REMAINING-WORK-ja.md)、[ローカル専用版の実装](docs/local-validation/IMPLEMENTATION-ja.md)は過去の設計・検証資料です。専用版を完成させることを、通常版のローカル検証の前提にしません。過去のZIPや起動引数で代用しないでください。
 
