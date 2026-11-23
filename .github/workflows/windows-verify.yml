@@ -29,6 +29,7 @@ on:
       - 'tools/Test-TaskPilotAcceptancePackage.ps1'
       - 'tools/Collect-TaskPilotAcceptanceLogs.ps1'
       - 'tests/**'
+      - '!tests/DeveloperConfinement/**'
       - 'reference/**'
       - 'docs/user/README.md'
       - 'docs/build/THIRD-PARTY-NOTICES.md'
