@@ -20,7 +20,7 @@ try{
         $tokens=$null;$parseErrors=$null
         $ast=[Management.Automation.Language.Parser]::ParseFile($test.FullName,[ref]$tokens,[ref]$parseErrors)
         if($parseErrors.Count-gt0){$results.Add([pscustomobject]@{Test=$test.Name;Passed=$false;ExitCode=-1;Message=($parseErrors|Out-String)});continue}
-        $nativeArguments=@('-NoProfile','-NonInteractive','-ExecutionPolicy','Bypass','-File',$test.FullName)
+        $nativeArguments=@('-NoProfile','-NonInteractive','-File',$test.FullName)
         if($resolvedAdapter-and $null-ne$ast.ParamBlock){
             $parameterNames=@($ast.ParamBlock.Parameters | ForEach-Object {$_.Name.VariablePath.UserPath})
             if($parameterNames-contains'TestProviderAssembly'){$nativeArguments+=@('-TestProviderAssembly',$resolvedAdapter)}

@@ -1,24 +1,36 @@
-name: Windows native development verification
+name: Windows normal-product verification
 
 on:
   push:
     branches:
       - 'development/**'
     paths:
-      - '**/*.ps1'
-      - '**/*.psm1'
-      - '**/*.psd1'
-      - '**/*.cs'
+      - 'TaskPilot.ps1'
+      - 'Test-TaskPilotCommercial.ps1'
+      - 'Test-TaskPilotStep4B.ps1'
+      - 'Test-TaskPilotStep4C.ps1'
+      - 'Inspect-TaskPilotLegacyData.ps1'
+      - 'Import-TaskPilotLegacyData.ps1'
+      - 'Migration-CliSupport.ps1'
       - 'Modules/**'
       - 'Adapters/**'
       - 'Codec/**'
       - 'Runtime/**'
       - 'schema/**'
-      - 'tests/**'
-      - 'build/**'
+      - 'build/dependencies.lock.json'
+      - 'build/runtime-files.json'
       - 'Assets/**'
+      - 'tools/Build-TaskPilot.ps1'
+      - 'tools/Build-TaskPilotRuntime.ps1'
+      - 'tools/Get-TaskPilotBuildDependencies.ps1'
+      - 'tools/TaskPilot.BuildSupport.ps1'
+      - 'tools/Integrate-TaskPilotGui.ps1'
+      - 'tools/Invoke-TaskPilotWindowsVerification.ps1'
+      - 'tools/Test-TaskPilotAcceptancePackage.ps1'
+      - 'tools/Collect-TaskPilotAcceptanceLogs.ps1'
+      - 'tests/**'
+      - 'reference/**'
       - 'docs/user/README.md'
-      - 'docs/acceptance/**'
       - 'docs/build/THIRD-PARTY-NOTICES.md'
       - '.github/workflows/windows-verify.yml'
   workflow_dispatch:
@@ -32,129 +44,52 @@ concurrency:
 
 jobs:
   native-verification:
-    # This runner is Windows Server 2022. It cannot establish Windows 10/11
-    # acceptance, interactive WinForms behavior, or notification delivery.
+    # Server automation does not establish Windows 10/11 GUI acceptance.
     if: startsWith(github.ref, 'refs/heads/development/')
     runs-on: windows-2022
-    timeout-minutes: 30
+    timeout-minutes: 25
     defaults:
       run:
         shell: powershell
     steps:
       - name: Check out development source
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4, official ref verified 2026-11-19
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           persist-credentials: false
 
       - name: Require native 64-bit Windows PowerShell 5.1
         run: |
           if ($PSVersionTable.PSEdition -ne 'Desktop' -or $PSVersionTable.PSVersion.Major -ne 5 -or $PSVersionTable.PSVersion.Minor -ne 1 -or -not [Environment]::Is64BitProcess) {
-            throw 'This workflow requires native 64-bit Windows PowerShell Desktop 5.1.'
+            throw 'Native Windows PowerShell Desktop 5.1 x64 is required.'
           }
 
       - name: Run preserved legacy storage regression
         run: |
           & .\reference\Test-Storage.ps1
 
-      - name: Test native SQLite and independent mode before publishing a candidate
+      - name: Verify one normal build and common-code protection regressions
         run: |
           $verificationRoot = Join-Path $env:RUNNER_TEMP ('TaskPilot-native-' + $env:GITHUB_RUN_ID + '-' + $env:GITHUB_RUN_ATTEMPT)
           & .\tools\Invoke-TaskPilotWindowsVerification.ps1 -VerificationRoot $verificationRoot
 
-      - name: Prepare client acceptance kit without launching the application
-        if: env.TASKPILOT_PUBLISH_CANDIDATE == 'true'
-        run: |
-          $verificationRoot = Join-Path $env:RUNNER_TEMP ('TaskPilot-native-' + $env:GITHUB_RUN_ID + '-' + $env:GITHUB_RUN_ATTEMPT)
-          & .\tools\Invoke-TaskPilotAcceptancePreparation.ps1 -VerificationRoot $verificationRoot
-
-      - name: Verify dedicated acceptance host without authorizing desktop launch
-        run: |
-          $verificationRoot = Join-Path $env:RUNNER_TEMP ('TaskPilot-native-' + $env:GITHUB_RUN_ID + '-' + $env:GITHUB_RUN_ATTEMPT)
-          & .\tools\Invoke-TaskPilotDesktopAcceptanceVerification.ps1 -VerificationRoot $verificationRoot
-
-      - name: Verify remaining developer-automatable acceptance work
-        run: |
-          $verificationRoot = Join-Path $env:RUNNER_TEMP ('TaskPilot-native-' + $env:GITHUB_RUN_ID + '-' + $env:GITHUB_RUN_ATTEMPT)
-          & .\tools\Invoke-TaskPilotAcceptanceFollowupVerification.ps1 -VerificationRoot $verificationRoot
-
-      - name: Verify isolated local-developer preparation without opening a GUI
-        run: |
-          $verificationRoot = Join-Path $env:RUNNER_TEMP ('TaskPilot-native-' + $env:GITHUB_RUN_ID + '-' + $env:GITHUB_RUN_ATTEMPT)
-          & .\tools\Invoke-TaskPilotLocalValidationVerification.ps1 -VerificationRoot $verificationRoot
-
-      - name: Upload test reports
-        # App artifacts stay blocked; local preparation adds reports only.
+      # No application upload step exists, including on workflow_dispatch.
+      # Frozen acceptance/local builders and their duplicate regressions are
+      # deliberately not part of the normal development cycle.
+      - name: Upload normal-product test reports only
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4, official ref verified 2026-11-19
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: TaskPilot-Windows-Server-native-test-reports-${{ github.run_id }}-${{ github.run_attempt }}
+          name: TaskPilot-Normal-Server-test-reports-${{ github.run_id }}-${{ github.run_attempt }}
           path: |
             TestResults/Commercial_*.json
             TestResults/HandleSmoke_*.json
             TestResults/Isolated_*.json
             TestResults/IsolatedReleaseGate_*.json
             TestResults/IsolatedMemory_*.json
-            TestResults/IsolatedVerification_*.json
+            TestResults/NormalVerification_*.json
             TestResults/IsolatedMode_*/IsolatedTestModeResult.json
             TestResults/IsolatedMode_*/NormalFixtureBefore.txt
             TestResults/IsolatedMode_*/NormalFixtureAfter.txt
             TestResults/IsolatedFileBoundary_*/IsolatedFileBoundaryResult.json
-            TestResults/AcceptanceAuthority_*.json
-            TestResults/AcceptanceEntry_*.json
-            TestResults/AcceptanceSandbox_*.json
-            TestResults/AcceptancePackageBoundary_*.json
-            TestResults/DesktopAcceptance*.json
-            TestResults/LocalValidation*.json
-            TestResults/DesktopAcceptanceBinding_*/IsolatedMemory_*.json
-            TestResults/DesktopAcceptanceBinding_*/Isolated_*.json
-            TestResults/DesktopAcceptanceBinding_*/IsolatedMode_*/IsolatedTestModeResult.json
-            TestResults/DesktopAcceptanceBinding_*/IsolatedFileBoundary_*/IsolatedFileBoundaryResult.json
-            TestResults/DesktopAcceptanceBinding_*/IsolatedMode_*/NormalFixtureBefore.txt
-            TestResults/DesktopAcceptanceBinding_*/IsolatedMode_*/NormalFixtureAfter.txt
-          if-no-files-found: warn
-          retention-days: 14
-
-      - name: Upload development candidate and verification metadata
-        if: env.TASKPILOT_PUBLISH_CANDIDATE == 'true'
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4, official ref verified 2026-11-19
-        with:
-          name: TaskPilot-DEVELOPMENT-NOT-FOR-SALE-${{ github.run_id }}-${{ github.run_attempt }}
-          path: |
-            ${{ runner.temp }}/TaskPilot-native-${{ github.run_id }}-${{ github.run_attempt }}/Candidate/TaskPilot_0.4.0.2_DEVELOPMENT_NOT_FOR_SALE.zip
-            ${{ runner.temp }}/TaskPilot-native-${{ github.run_id }}-${{ github.run_attempt }}/Candidate/TaskPilot_0.4.0.2_DEVELOPMENT_NOT_FOR_SALE.zip.sha256
-            ${{ runner.temp }}/TaskPilot-native-${{ github.run_id }}-${{ github.run_attempt }}/Candidate/BuildInfo.json
-            ${{ runner.temp }}/TaskPilot-native-${{ github.run_id }}-${{ github.run_attempt }}/Candidate/SoftwareBillOfMaterials.json
-            ${{ runner.temp }}/TaskPilot-native-${{ github.run_id }}-${{ github.run_attempt }}/Candidate/FileHashes.json
-            ${{ runner.temp }}/TaskPilot-native-${{ github.run_id }}-${{ github.run_attempt }}/Candidate/WindowsVerification.json
-            ${{ runner.temp }}/TaskPilot-native-${{ github.run_id }}-${{ github.run_attempt }}/Candidate/DEVELOPMENT_NOT_FOR_SALE.txt
-          if-no-files-found: error
-          retention-days: 7
-
-      - name: Upload Windows 10 and 11 acceptance preparation kit
-        if: env.TASKPILOT_PUBLISH_CANDIDATE == 'true'
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4, official ref verified 2026-11-19
-        with:
-          name: TaskPilot-Windows10-11-ACCEPTANCE-NOT-FOR-SALE-${{ github.run_id }}-${{ github.run_attempt }}
-          path: |
-            ${{ runner.temp }}/TaskPilot-native-${{ github.run_id }}-${{ github.run_attempt }}/Acceptance/TaskPilot_Windows_Acceptance_0.4.0.2.zip
-            ${{ runner.temp }}/TaskPilot-native-${{ github.run_id }}-${{ github.run_attempt }}/Acceptance/TaskPilot_Windows_Acceptance_0.4.0.2.zip.sha256
-          if-no-files-found: error
-          retention-days: 14
-
-      - name: Upload Server preparation reports
-        if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4, official ref verified 2026-11-19
-        with:
-          name: TaskPilot-Windows-Server-acceptance-preparation-${{ github.run_id }}-${{ github.run_attempt }}
-          path: |
-            TestResults/AcceptancePreparation_${{ github.run_id }}_${{ github.run_attempt }}/PreparationSummary.json
-            TestResults/AcceptancePreparation_${{ github.run_id }}_${{ github.run_attempt }}/PackagingTests.json
-            TestResults/AcceptancePreparation_${{ github.run_id }}_${{ github.run_attempt }}/AcceptancePackage.json
-            TestResults/AcceptancePreparation_${{ github.run_id }}_${{ github.run_attempt }}/Preflight.json
-            TestResults/AcceptancePreparation_${{ github.run_id }}_${{ github.run_attempt }}/IndependentPreflight.json
-            TestResults/AcceptancePreparation_${{ github.run_id }}_${{ github.run_attempt }}/ToolsTests.json
-            TestResults/AcceptancePreparation_${{ github.run_id }}_${{ github.run_attempt }}/CollectorEnvironment.json
-            TestResults/AcceptancePreparation_${{ github.run_id }}_${{ github.run_attempt }}/CollectorCandidateFiles.json
-            TestResults/AcceptancePreparation_${{ github.run_id }}_${{ github.run_attempt }}/CollectorCollection.json
           if-no-files-found: warn
           retention-days: 14

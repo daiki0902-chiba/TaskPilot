@@ -247,7 +247,7 @@ try{
     Write-TPBuildNewText $holder $holderText $true
     $ready=Join-Path $suiteRoot 'normal-holder.ready'
     $start=[Diagnostics.ProcessStartInfo]::new();$start.FileName=Join-Path $PSHOME 'powershell.exe';$start.UseShellExecute=$false;$start.CreateNoWindow=$true;$start.RedirectStandardError=$true;$start.RedirectStandardOutput=$true
-    $holderArgs=@('-NoProfile','-NonInteractive','-ExecutionPolicy','Bypass','-File',$holder,'-ModulePath',$modulePath,'-DatabasePath',$normalDb,'-ProfilePath',$profile,'-ReadyPath',$ready,'-StopPath',$holderStop)
+    $holderArgs=@('-NoProfile','-NonInteractive','-File',$holder,'-ModulePath',$modulePath,'-DatabasePath',$normalDb,'-ProfilePath',$profile,'-ReadyPath',$ready,'-StopPath',$holderStop)
     $start.Arguments=(@($holderArgs|ForEach-Object {'"'+([string]$_).Replace('"','\"')+'"'})-join' ')
     $script:isoNormalChild=[Diagnostics.Process]::Start($start)
     $wait=[Diagnostics.Stopwatch]::StartNew()

@@ -26,14 +26,8 @@ $null=[IO.Directory]::CreateDirectory($root)
 $repo=Split-Path -Parent $PSScriptRoot
 $dependencyRoot=Join-Path $root 'Dependencies'
 $buildRoot=Join-Path $root 'Build'
-$candidateRoot=Join-Path $root 'Candidate'
 $reportRoot=Join-Path $repo 'TestResults'
 $null=[IO.Directory]::CreateDirectory($reportRoot)
-$smokeRuntime=& (Join-Path $PSScriptRoot 'Build-TaskPilotRuntime.ps1') -OutputDirectory (Join-Path $root 'HandleSmokeRuntime')
-# A separate process prevents LoadFrom reusing this compiler's assembly when
-# the later suite loads the exact DLL copied into the candidate package.
-& (Join-Path $PSHOME 'powershell.exe') -NoProfile -NonInteractive -File (Join-Path $repo 'tests/Test-SandboxHandleSmoke.ps1') -RuntimeAssembly $smokeRuntime.AssemblyPath -OutputRoot $reportRoot
-if($LASTEXITCODE-ne0){throw 'Native handle smoke failed; see its JSON report.'}
 
 # The provisioner checks the pinned dependency lock and creates no system modules.
 $prepared=& (Join-Path $PSScriptRoot 'Get-TaskPilotBuildDependencies.ps1') -DestinationRoot $dependencyRoot
@@ -55,7 +49,7 @@ if($LASTEXITCODE-ne0){throw ('Native commercial test runner failed with exit cod
 $newReports=@(Get-ChildItem -LiteralPath $reportRoot -Filter 'Commercial_*.json' -File | Where-Object {-not$oldReports.Contains($_.FullName)})
 if($newReports.Count-ne1){throw 'Expected exactly one new commercial test report.'}
 $report=Get-Content -LiteralPath $newReports[0].FullName -Raw -Encoding UTF8 | ConvertFrom-Json
-if($report.Failed-ne0 -or $report.Passed-ne8 -or $report.TestOnlyProvider -or
+if($report.Failed-ne0 -or $report.Passed-ne8 -or -not$report.AllEightGroupsExecuted -or @($report.UnselectedSuites).Count-ne0 -or $report.TestOnlyProvider -or
    -not$report.PinnedBuildDependenciesSupplied -or $report.ProcessBits-ne64 -or $report.PowerShell-notlike'5.1.*'){
     throw 'Native test report did not confirm all eight groups with Windows PowerShell 5.1 and pinned dependencies.'
 }
@@ -75,8 +69,8 @@ if(-not(Test-TPBuildBelow $zip $buildRoot) -or -not(Test-TPBuildBelow $release $
    -not[IO.File]::Exists($zip) -or (Get-TPBuildSha $zip)-cne$build.Sha256){
     throw 'Builder artifact paths or ZIP hash did not match the candidate build.'
 }
-# The new executable is not published until its isolation boundary has been
-# exercised against an entirely synthetic ordinary profile. The suite starts
+# Shared boundary regressions use an entirely synthetic ordinary profile.
+# The executable remains unpublished after these checks. The suite starts
 # only its synthetic normal-lock holder, never TaskPilot/Application.Run.
 $runtimeAssembly=Join-Path (Join-Path $release 'TaskPilot') 'Runtime/TaskPilot.TestSandbox.dll'
 Assert-TPBuildNoLinks $runtimeAssembly
@@ -84,6 +78,10 @@ if(-not[IO.File]::Exists($runtimeAssembly)){throw 'The precompiled independent-m
 $nativeBuildInfo=Get-Content -LiteralPath (Join-Path (Join-Path $release 'TaskPilot') 'BuildInfo.json') -Raw -Encoding UTF8|ConvertFrom-Json
 if(-not$nativeBuildInfo.IndependentTestModeImplemented-or$nativeBuildInfo.Version-cne'0.4.0.2'-or
    $nativeBuildInfo.RuntimeGuardSha256-cne(Get-TPBuildSha $runtimeAssembly)){throw 'The compiled runtime does not match the candidate build metadata.'}
+# One ordinary build is the source of the shared-code runtime under test.
+# A separate smoke process avoids LoadFrom reuse; no second DLL is compiled.
+& (Join-Path $PSHOME 'powershell.exe') -NoProfile -NonInteractive -File (Join-Path $repo 'tests/Test-SandboxHandleSmoke.ps1') -RuntimeAssembly $runtimeAssembly -OutputRoot $reportRoot
+if($LASTEXITCODE-ne0){throw 'Native handle smoke failed; see its JSON report.'}
 $memory=& (Join-Path $repo 'tests/Test-IsolatedMemoryStore.ps1') -RuntimeAssembly $runtimeAssembly -OutputRoot $reportRoot
 $memoryPassed=$null-ne$memory-and$memory.Passed-is[bool]-and$memory.Passed-and$memory.FailedCases-eq0-and@($memory.Cases).Count-eq8-and$memory.NormalFixtureUnchanged-is[bool]-and$memory.NormalFixtureUnchanged-and$memory.ProductionProfileAccessed-is[bool]-and-not$memory.ProductionProfileAccessed-and@($memory.SkippedDetails).Count-eq0-and$memory.RuntimeAssemblySha256-ceq$nativeBuildInfo.RuntimeGuardSha256
 if($memoryPassed){
@@ -125,48 +123,23 @@ $isolated|Add-Member -NotePropertyName SourceCommit -NotePropertyValue $env:GITH
 $isolated|Add-Member -NotePropertyName RunnerImage -NotePropertyValue $env:ImageOS -Force
 $isolatedName='Isolated_'+[guid]::NewGuid().ToString('N')+'.json'
 Write-TPBuildNewText (Join-Path $reportRoot $isolatedName) (ConvertTo-Json -InputObject $isolated -Depth 16)
-if(-not$nativeBuildInfo.IndependentTestModeSupported-or$nativeBuildInfo.IndependentTestModeReleaseBlocked){
-    $validation=[pscustomobject]@{Status='AUTOMATED_TESTS_PASSED_RELEASE_BLOCKED';SourceCommit=$env:GITHUB_SHA;NativeNormalGroupsPassed=8;PublicReleaseGateChecks=$releaseGate.Checks;MemoryCasesPassed=@($memory.Cases).Count;IndependentCasesPassed=@($isolated.Cases).Count;NormalFixtureUnchanged=$isolated.NormalFixtureUnchanged;ActualExcelFilesGenerated=$isolated.ActualExcelFilesGenerated;RuntimeAssemblySha256=$nativeBuildInfo.RuntimeGuardSha256;IsolatedReport=$isolatedName;Windows10And11AcceptanceVerified=$false;ApplicationLaunched=$false;ExecutablePublished=$false;AcceptanceZipPublished=$false;Reason='Public mode remains disabled pending code review and Windows 10/11 desktop acceptance. No executable or acceptance ZIP is uploaded.'}
-    Write-TPBuildNewText (Join-Path $reportRoot ('IsolatedVerification_'+[guid]::NewGuid().ToString('N')+'.json')) (ConvertTo-Json -InputObject $validation -Depth 10)
-    Write-Host $validation.Reason
-    if($env:GITHUB_STEP_SUMMARY){[IO.File]::AppendAllText($env:GITHUB_STEP_SUMMARY,('All automated suites passed. PUBLIC RELEASE REMAINS BLOCKED. '+$validation.Reason+[Environment]::NewLine),[Text.UTF8Encoding]::new($false))}
-    return
+# The ordinary product is the only build. Shared boundary tests are test
+# harnesses over its common modules, not additional supported application modes.
+# Publication cannot be re-enabled by changing build metadata or environment.
+$validation=[pscustomobject][ordered]@{
+    Status='NORMAL_PRODUCT_TESTS_PASSED_DISTRIBUTION_BLOCKED';SourceCommit=$env:GITHUB_SHA
+    ProductEntry='TaskPilot.exe';ProductBuilds=1;SpecialFlavorBuilds=0
+    NativeNormalGroupsPassed=8;PublicReleaseGateChecks=$releaseGate.Checks
+    NormalSkippedDetails=@($report.SkippedDetails)
+    MemoryCasesPassed=@($memory.Cases).Count;SharedBoundaryCasesPassed=@($isolated.Cases).Count
+    NormalFixtureUnchanged=$isolated.NormalFixtureUnchanged;ActualExcelFilesGenerated=$isolated.ActualExcelFilesGenerated
+    RuntimeAssemblySha256=$nativeBuildInfo.RuntimeGuardSha256;SharedBoundaryReport=$isolatedName
+    Windows10And11AcceptanceVerified=$false;ApplicationLaunched=$false;ProductionProfileAccessed=$false
+    ExecutableGenerated=$true;ExecutablePublished=$false;DistributionZipPublished=$false
+    GeneralDistributionBlocked=$true;IndependentModeBlocked=$true;FormalAcceptanceBlocked=$true
+    FrozenFlavorSources=@('acceptance/','local-validation/')
+    Reason='Normal product and common-code regressions passed on Windows Server. No GUI launch or application artifact publication is authorized.'
 }
-if($env:GITHUB_ENV){[IO.File]::AppendAllText($env:GITHUB_ENV,('TASKPILOT_PUBLISH_CANDIDATE=true'+[Environment]::NewLine),[Text.UTF8Encoding]::new($false))}
-$null=[IO.Directory]::CreateDirectory($candidateRoot)
-$candidateName='TaskPilot_0.4.0.2_DEVELOPMENT_NOT_FOR_SALE.zip'
-Copy-TPBuildNewFile $zip (Join-Path $candidateRoot $candidateName) $build.Sha256
-Write-TPBuildNewText (Join-Path $candidateRoot ($candidateName+'.sha256')) ($build.Sha256+'  '+$candidateName+"`n")
-foreach($name in @('BuildInfo.json','SoftwareBillOfMaterials.json','FileHashes.json')){
-    $source=Join-Path (Join-Path $release 'TaskPilot') $name
-    Copy-TPBuildNewFile $source (Join-Path $candidateRoot $name) (Get-TPBuildSha $source)
-}
-$verification=[ordered]@{
-    Status='DEVELOPMENT CANDIDATE - NOT FOR SALE'
-    CapturedAtUtc=[datetime]::UtcNow.ToString('o')
-    Commit=$env:GITHUB_SHA
-    RunnerOS=[Environment]::OSVersion.ToString()
-    RunnerImage=$env:ImageOS
-    PowerShellEdition=$PSVersionTable.PSEdition
-    PowerShellVersion=$PSVersionTable.PSVersion.ToString()
-    NativeWindowsAutomatedGroupsPassed=$report.Passed
-    TestReport=$newReports[0].Name
-    IsolatedModeTestReport=$isolatedName
-    IsolatedModeAutomatedTestsPassed=$true
-    SyntheticNormalFixtureUnchanged=$true
-    ActualExcelFilesGeneratedBySyntheticSuite=$true
-    SkippedDetails=@($report.SkippedDetails)
-    ExecutableGenerated=$build.ExecutableGenerated
-    CandidateSha256=$build.Sha256
-    SignatureStatus=$build.SignatureStatus
-    Windows10And11AcceptanceVerified=$false
-    InteractiveWinFormsVerified=$false
-    NotificationDeliveryVerified=$false
-    RuntimeAcceptance=$build.RuntimeAcceptance
-}
-Write-TPBuildNewText (Join-Path $candidateRoot 'WindowsVerification.json') (ConvertTo-Json -InputObject $verification -Depth 8)
-$notice='DEVELOPMENT CANDIDATE - NOT FOR SALE. Unsigned. Native storage regressions and independent-mode filesystem/Excel tests passed using synthetic profiles on Windows Server 2022. Windows 10/11 acceptance, generated-EXE startup, interactive WinForms behavior, external Excel viewing and notification delivery remain unverified.'
-Write-TPBuildNewText (Join-Path $candidateRoot 'DEVELOPMENT_NOT_FOR_SALE.txt') ($notice+"`n")
-if($env:GITHUB_STEP_SUMMARY){[IO.File]::AppendAllText($env:GITHUB_STEP_SUMMARY,('Native automated test groups passed: '+$report.Passed+".`n`n"+$notice+"`n"),[Text.UTF8Encoding]::new($false))}
-Write-Host $notice
-Write-Host ('Candidate artifacts: '+$candidateRoot)
+Write-TPBuildNewText (Join-Path $reportRoot ('NormalVerification_'+[guid]::NewGuid().ToString('N')+'.json')) (ConvertTo-Json -InputObject $validation -Depth 10)
+if($env:GITHUB_STEP_SUMMARY){[IO.File]::AppendAllText($env:GITHUB_STEP_SUMMARY,('One normal product build; eight normal groups and shared protection regressions passed once. DISTRIBUTION REMAINS BLOCKED.'+[Environment]::NewLine),[Text.UTF8Encoding]::new($false))}
+$validation
