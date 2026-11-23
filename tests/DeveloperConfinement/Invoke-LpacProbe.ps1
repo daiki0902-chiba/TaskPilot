@@ -1,6 +1,6 @@
 ﻿#requires -Version 5.1
 [CmdletBinding()]
-param([Parameter(Mandatory=$true)][string]$OutputRoot,[ValidateSet('None','RegistryRead')][string]$CapabilityProfile='None')
+param([Parameter(Mandatory=$true)][string]$OutputRoot,[ValidateSet('None','RegistryRead','RegistryReadInstrumentation')][string]$CapabilityProfile='None')
 $ErrorActionPreference='Stop'
 Set-StrictMode -Version 2.0
 if([Environment]::OSVersion.Platform-ne[PlatformID]::Win32NT-or$PSVersionTable.PSEdition-ne'Desktop'-or$PSVersionTable.PSVersion.Major-ne5-or$PSVersionTable.PSVersion.Minor-ne1-or-not[Environment]::Is64BitProcess){throw 'This experiment requires Windows PowerShell Desktop 5.1 x64.'}
@@ -34,7 +34,7 @@ $null=@(& $exe $invalid 2>&1)
 if($LASTEXITCODE-eq0-or[IO.File]::Exists($invalid)-or[IO.Directory]::Exists($invalid)){throw 'Direct parent entry did not refuse its invalid root without I/O.'}
 $entries=@([IO.Directory]::GetFileSystemEntries($root))
 if($entries.Count-ne1-or$entries[0]-ine$exe){throw 'Rejected raw parent entry performed scratch I/O.'}
-if($CapabilityProfile-eq'RegistryRead'){& $exe --registry-read $root}else{& $exe $root}
+if($CapabilityProfile-eq'RegistryReadInstrumentation'){& $exe --registry-read-instrumentation $root}elseif($CapabilityProfile-eq'RegistryRead'){& $exe --registry-read $root}else{& $exe $root}
 $exit=$LASTEXITCODE
 $raw=Join-Path $root 'ParentSummary.json'
 if(-not[IO.File]::Exists($raw)){throw 'The experiment did not produce its required evidence.'}

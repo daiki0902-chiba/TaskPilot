@@ -72,6 +72,9 @@ internal static class LpacProbe
     [DllImport("advapi32.dll", SetLastError=true)] private static extern bool AccessCheck(IntPtr descriptor, IntPtr token, uint desiredAccess, ref GenericMapping mapping, IntPtr privileges, ref uint privilegesLength, out uint grantedAccess, out bool accessStatus);
     [DllImport("ntdll.dll")] private static extern int NtQueryInformationToken(IntPtr token, int informationClass, IntPtr buffer, int length, out int returned);
     [DllImport("kernelbase.dll", CharSet=CharSet.Unicode, SetLastError=true)] private static extern bool DeriveCapabilitySidsFromName(string name, out IntPtr groups, out uint groupCount, out IntPtr capabilities, out uint capabilityCount);
+    [DllImport("amsi.dll", CharSet=CharSet.Unicode)] private static extern int AmsiInitialize(string name, out IntPtr context);
+    [DllImport("amsi.dll", CharSet=CharSet.Unicode)] private static extern int AmsiScanString(IntPtr context, string content, string name, IntPtr session, out uint result);
+    [DllImport("amsi.dll")] private static extern void AmsiUninitialize(IntPtr context);
     [DllImport("kernel32.dll", CharSet=CharSet.Unicode, SetLastError=true)] private static extern bool CreateSymbolicLink(string link, string target, uint flags);
     [DllImport("kernel32.dll", CharSet=CharSet.Unicode, SetLastError=true)] private static extern bool DeleteFile(string file);
     [DllImport("kernel32.dll", CharSet=CharSet.Unicode, SetLastError=true)] private static extern bool MoveFileEx(string source, string destination, uint flags);
@@ -210,13 +213,13 @@ internal static class LpacProbe
             if (descriptor != IntPtr.Zero) LocalFree(descriptor);
         }
     }
-    private static SecurityIdentifier RegistryReadCapabilitySid()
+    private static SecurityIdentifier KnownCapabilitySid(string name)
     {
         IntPtr groups = IntPtr.Zero, capabilities = IntPtr.Zero; uint groupCount = 0, capabilityCount = 0;
         try
         {
-            if (!DeriveCapabilitySidsFromName("registryRead", out groups, out groupCount, out capabilities, out capabilityCount)) throw new Win32Exception(Marshal.GetLastWin32Error());
-            Check(capabilityCount == 1, "Only the documented registryRead capability is used in this synthetic comparison.");
+            if (!DeriveCapabilitySidsFromName(name, out groups, out groupCount, out capabilities, out capabilityCount)) throw new Win32Exception(Marshal.GetLastWin32Error());
+            Check(capabilityCount == 1, "The selected synthetic capability must resolve to one SID.");
             return new SecurityIdentifier(Marshal.ReadIntPtr(capabilities));
         }
         finally
@@ -225,18 +228,26 @@ internal static class LpacProbe
             if (capabilities != IntPtr.Zero) { for (uint i = 0; i < capabilityCount; i++) LocalFree(Marshal.ReadIntPtr(capabilities, checked((int)i * IntPtr.Size))); LocalFree(capabilities); }
         }
     }
-    private static bool CapabilitiesMatch(IntPtr token, bool registryRead)
+    private static bool CapabilitiesMatch(IntPtr token, bool registryRead, bool instrumentation = false)
     {
         int count = TokenCapabilitiesCount(token);
         if (!registryRead) return count == 0;
-        if (count != 1) return false;
+        if (count != (instrumentation ? 2 : 1)) return false;
         int length; GetTokenInformation(token, 30, IntPtr.Zero, 0, out length);
         IntPtr value = Marshal.AllocHGlobal(length);
         try
         {
             if (!GetTokenInformation(token, 30, value, length, out length)) throw new Win32Exception(Marshal.GetLastWin32Error());
-            IntPtr sid = Marshal.ReadIntPtr(value, IntPtr.Size == 8 ? 8 : 4);
-            return new SecurityIdentifier(sid).Value == RegistryReadCapabilitySid().Value;
+            HashSet<string> expected = new HashSet<string>(StringComparer.Ordinal);
+            expected.Add(KnownCapabilitySid("registryRead").Value);
+            if (instrumentation) expected.Add(KnownCapabilitySid("lpacInstrumentation").Value);
+            for (int i = 0; i < count; i++)
+            {
+                int offset = (IntPtr.Size == 8 ? 8 : 4) + i * Marshal.SizeOf(typeof(SidAndAttributes));
+                IntPtr sid = Marshal.ReadIntPtr(value, offset); uint attributes = unchecked((uint)Marshal.ReadInt32(value, offset + IntPtr.Size));
+                if ((attributes & 4) == 0 || (attributes & 0x10) != 0 || !expected.Remove(new SecurityIdentifier(sid).Value)) return false;
+            }
+            return expected.Count == 0;
         }
         finally { Marshal.FreeHGlobal(value); }
     }
@@ -299,6 +310,24 @@ internal static class LpacProbe
             }
         }
     }
+    private static void AmsiProbe(Dictionary<string, object> result)
+    {
+        IntPtr context = IntPtr.Zero; result["AmsiSampleIsBenign"] = true;
+        result["AmsiDetectionOfMalwareVerified"] = false;
+        try
+        {
+            int initialized = AmsiInitialize("TaskPilotSyntheticConfinementProbe", out context);
+            result["AmsiInitializeHresult"] = "0x" + unchecked((uint)initialized).ToString("x8", CultureInfo.InvariantCulture);
+            result["AmsiInitialized"] = initialized >= 0 && context != IntPtr.Zero;
+            if (initialized >= 0 && context != IntPtr.Zero)
+            {
+                uint scanResult; int status = AmsiScanString(context, "TaskPilot synthetic diagnostic only", "synthetic-only", IntPtr.Zero, out scanResult);
+                result["AmsiScanHresult"] = "0x" + unchecked((uint)status).ToString("x8", CultureInfo.InvariantCulture);
+                result["AmsiScanResult"] = scanResult; result["AmsiBenignScanCallSucceeded"] = status >= 0;
+            }
+        }
+        finally { if (context != IntPtr.Zero) AmsiUninitialize(context); }
+    }
     private static void FormsProbe(Dictionary<string, object> result)
     {
         System.Windows.Forms.Application.EnableVisualStyles();
@@ -338,7 +367,7 @@ internal static class LpacProbe
                 result["LpacVerificationMethod"] = "AccessCheck: AAP bit absent; ARAP bit present";
                 result["IsLessPrivilegedAppContainer"] = mask == 2;
                 result["CapabilityCount"] = TokenCapabilitiesCount(token);
-                result["CapabilitiesMatchBoundedExperiment"] = CapabilitiesMatch(token, (int)result["CapabilityCount"] == 1);
+                result["CapabilitiesMatchBoundedExperiment"] = CapabilitiesMatch(token, (int)result["CapabilityCount"] > 0, (int)result["CapabilityCount"] == 2);
             }
             finally { CloseHandle(token); }
             Check((bool)result["IsAppContainer"] && (bool)result["IsLessPrivilegedAppContainer"] && (bool)result["CapabilitiesMatchBoundedExperiment"], "Kernel token does not satisfy LPAC experiment conditions.");
@@ -383,6 +412,7 @@ internal static class LpacProbe
             if ((bool)plan["SyntheticFileSymlinkCreated"]) { bool deniedRead = DeniedRead(link), deniedWrite = DeniedWrite(link); result["LinkEscapeReadDenied"] = deniedRead; result["LinkEscapeWriteDenied"] = deniedWrite; if (!deniedRead || !deniedWrite) securityFailure = true; }
             else result["LinkEscapeChildObservation"] = "NOT_AVAILABLE";
             result["CurrentStage"] = "PowerShell";
+            try { AmsiProbe(result); } catch (Exception e) { result["AmsiDiagnosticFailure"] = SafeError(e); }
             try { HostProbe(root, result); } catch (Exception e) { result["PowerShellExternalScriptAndModulePassed"] = false; result["PowerShellFailure"] = SafeError(e); result["PowerShellFailureChain"] = SafeErrorChain(e); }
             result["CurrentStage"] = "WinForms";
             try { FormsProbe(result); } catch (Exception e) { result["WinFormsConstructDisposePassed"] = false; result["WinFormsFailure"] = SafeError(e); result["WinFormsFailureChain"] = SafeErrorChain(e); }
@@ -405,12 +435,13 @@ internal static class LpacProbe
         finally { Marshal.FreeHGlobal(bytes); }
         return job;
     }
-    private static int Parent(string root, bool registryRead)
+    private static int Parent(string root, bool registryRead, bool instrumentation = false)
     {
         Dictionary<string, object> report = Record(); report["Status"] = "NOT_READY"; report["NoGuiAuthorization"] = true;
         report["ActualTaskPilotLaunched"] = false; report["RealPersonalPathsOpenedByProbe"] = false;
-        report["OsPolicyOrTrustChanged"] = false; report["RequestedCapabilities"] = registryRead ? 1 : 0;
-        report["RequestedCapabilityNames"] = registryRead ? new string[] { "registryRead" } : new string[0];
+        string[] capabilityNames = instrumentation ? new string[] { "registryRead", "lpacInstrumentation" } : registryRead ? new string[] { "registryRead" } : new string[0];
+        report["OsPolicyOrTrustChanged"] = false; report["RequestedCapabilities"] = capabilityNames.Length;
+        report["RequestedCapabilityNames"] = capabilityNames;
         report["RegistryIsolationVerified"] = false; report["RealUserCapabilitySafetyAudited"] = false;
         report["NetworkAccessVerified"] = false; report["WinFormsInteractiveGuiVerified"] = false;
         report["ExperimentOutcome"] = "NOT_RUN"; report["SyntheticProfileCreated"] = false;
@@ -419,7 +450,8 @@ internal static class LpacProbe
         report["AllApplicationPackagesOptOutRequested"] = true; report["HarnessError"] = false;
         report["UnexpectedOutsideAccess"] = false; report["ProfileCleanupSucceeded"] = true;
         string profileName = "TaskPilotSyntheticProbe." + Guid.NewGuid().ToString("N");
-        bool profileCreated = false, attributesInitialized = false, scratchValidated = false; IntPtr sid = IntPtr.Zero, attributes = IntPtr.Zero, capsMemory = IntPtr.Zero, optOutMemory = IntPtr.Zero, job = IntPtr.Zero, environment = IntPtr.Zero, capabilitySid = IntPtr.Zero, capabilityArray = IntPtr.Zero;
+        bool profileCreated = false, attributesInitialized = false, scratchValidated = false; IntPtr sid = IntPtr.Zero, attributes = IntPtr.Zero, capsMemory = IntPtr.Zero, optOutMemory = IntPtr.Zero, job = IntPtr.Zero, environment = IntPtr.Zero, capabilityArray = IntPtr.Zero;
+        List<IntPtr> capabilitySids = new List<IntPtr>();
         ProcessInformation child = new ProcessInformation(); bool childCreated = false;
         Dictionary<string, byte[]> canaries = new Dictionary<string, byte[]>();
         Dictionary<string, string[]> expectedNames = new Dictionary<string, string[]>();
@@ -484,12 +516,16 @@ internal static class LpacProbe
             SecurityCapabilities caps = new SecurityCapabilities(); caps.AppContainerSid = sid;
             if (registryRead)
             {
-                SecurityIdentifier capability = RegistryReadCapabilitySid();
-                byte[] bytes = new byte[capability.BinaryLength]; capability.GetBinaryForm(bytes, 0);
-                capabilitySid = Marshal.AllocHGlobal(bytes.Length); Marshal.Copy(bytes, 0, capabilitySid, bytes.Length);
-                SidAndAttributes item = new SidAndAttributes(); item.Sid = capabilitySid; item.Attributes = 4;
-                capabilityArray = Marshal.AllocHGlobal(Marshal.SizeOf(typeof(SidAndAttributes))); Marshal.StructureToPtr(item, capabilityArray, false);
-                caps.Capabilities = capabilityArray; caps.CapabilityCount = 1;
+                int itemSize = Marshal.SizeOf(typeof(SidAndAttributes)); capabilityArray = Marshal.AllocHGlobal(itemSize * capabilityNames.Length);
+                for (int i = 0; i < capabilityNames.Length; i++)
+                {
+                    SecurityIdentifier capability = KnownCapabilitySid(capabilityNames[i]);
+                    byte[] bytes = new byte[capability.BinaryLength]; capability.GetBinaryForm(bytes, 0);
+                    IntPtr capabilitySid = Marshal.AllocHGlobal(bytes.Length); capabilitySids.Add(capabilitySid); Marshal.Copy(bytes, 0, capabilitySid, bytes.Length);
+                    SidAndAttributes item = new SidAndAttributes(); item.Sid = capabilitySid; item.Attributes = 4;
+                    Marshal.StructureToPtr(item, IntPtr.Add(capabilityArray, itemSize * i), false);
+                }
+                caps.Capabilities = capabilityArray; caps.CapabilityCount = (uint)capabilityNames.Length;
             }
             capsMemory = Marshal.AllocHGlobal(Marshal.SizeOf(typeof(SecurityCapabilities))); Marshal.StructureToPtr(caps, capsMemory, false);
             if (!UpdateProcThreadAttribute(attributes, 0, new IntPtr(SecurityCapabilitiesAttribute), capsMemory, new IntPtr(Marshal.SizeOf(typeof(SecurityCapabilities))), IntPtr.Zero, IntPtr.Zero)) throw new Win32Exception(Marshal.GetLastWin32Error());
@@ -534,7 +570,7 @@ internal static class LpacProbe
                 report["LpacVerificationMethod"] = "AccessCheck: AAP bit absent; ARAP bit present; suspended ordinary-AC control";
                 report["ChildKernelAppContainerSidMatchesUniqueProfile"] = TokenAppSid(childToken) == appSid.Value;
                 report["ChildKernelCapabilityCount"] = TokenCapabilitiesCount(childToken);
-                bool exactCapabilities = CapabilitiesMatch(childToken, registryRead); report["ChildKernelExactCapabilitiesMatch"] = exactCapabilities;
+                bool exactCapabilities = CapabilitiesMatch(childToken, registryRead, instrumentation); report["ChildKernelExactCapabilitiesMatch"] = exactCapabilities;
                 Check((bool)report["ChildSameOrdinaryUserSid"] && (bool)report["ChildKernelIsAppContainer"] && (bool)report["ChildKernelIsLpac"] && (bool)report["ChildKernelAppContainerSidMatchesUniqueProfile"] && exactCapabilities, "Kernel token did not match requested LPAC conditions.");
             }
             finally { CloseHandle(childToken); }
@@ -556,7 +592,7 @@ internal static class LpacProbe
                 IntPtr controlToken; if (!OpenProcessToken(control.Process, TokenQuery, out controlToken)) throw new Win32Exception(Marshal.GetLastWin32Error());
                 try
                 {
-                    Check(TokenInt(controlToken, 29) != 0 && TokenAppSid(controlToken) == appSid.Value && CapabilitiesMatch(controlToken, registryRead), "The suspended control token did not match the same AppContainer identity.");
+                    Check(TokenInt(controlToken, 29) != 0 && TokenAppSid(controlToken) == appSid.Value && CapabilitiesMatch(controlToken, registryRead, instrumentation), "The suspended control token did not match the same AppContainer identity.");
                     uint mask = LpacAccessMask(controlToken);
                     report["SuspendedOrdinaryAppContainerAccessMask"] = mask;
                     Check(mask == 3, "The ordinary AppContainer control must grant both synthetic AAP/ARAP rights.");
@@ -603,7 +639,7 @@ internal static class LpacProbe
             if (attributes != IntPtr.Zero) { if (attributesInitialized) DeleteProcThreadAttributeList(attributes); Marshal.FreeHGlobal(attributes); }
             if (capsMemory != IntPtr.Zero) Marshal.FreeHGlobal(capsMemory);
             if (capabilityArray != IntPtr.Zero) Marshal.FreeHGlobal(capabilityArray);
-            if (capabilitySid != IntPtr.Zero) Marshal.FreeHGlobal(capabilitySid);
+            foreach (IntPtr capabilitySid in capabilitySids) Marshal.FreeHGlobal(capabilitySid);
             if (optOutMemory != IntPtr.Zero) Marshal.FreeHGlobal(optOutMemory);
             if (environment != IntPtr.Zero) Marshal.FreeHGlobal(environment);
             bool unchanged = true;
@@ -641,6 +677,7 @@ internal static class LpacProbe
     {
         if (args.Length == 2 && args[0] == "--child") return Child(Path.GetFullPath(args[1]));
         if (args.Length == 2 && args[0] == "--registry-read") return Parent(Path.GetFullPath(args[1]), true);
+        if (args.Length == 2 && args[0] == "--registry-read-instrumentation") return Parent(Path.GetFullPath(args[1]), true, true);
         if (args.Length != 1) return 2;
         return Parent(Path.GetFullPath(args[0]), false);
     }
