@@ -63,10 +63,12 @@ else{
     $originFile=Join-Path $fixture 'synthetic-origin.txt';Write-TPBuildNewText $originFile 'SYNTHETIC SOURCE WITH ORIGIN'
     Assert-TPLocalBuildInputOrigin $originFile;$checks++
     $originText="[ZoneTransfer]`r`nZoneId=3`r`n"
-    [IO.File]::WriteAllText($originFile+':Zone.Identifier',$originText)
+    # .NET Framework File.WriteAllText rejects the colon in an ADS path.
+    # Use the Windows provider on this new synthetic file; never clear origin.
+    Set-Content -LiteralPath $originFile -Stream Zone.Identifier -Value $originText -NoNewline -Encoding ASCII -ErrorAction Stop
     $originBefore=Get-TPBuildSha $originFile
     Reject-LocalBuild {Assert-TPLocalBuildInputOrigin $originFile} 'download-origin metadata'
-    Assert-LocalBuild ((Get-TPBuildSha $originFile)-ceq$originBefore-and[IO.File]::ReadAllText($originFile+':Zone.Identifier')-ceq$originText) 'Origin refusal must preserve source bytes and the ADS.'
+    Assert-LocalBuild ((Get-TPBuildSha $originFile)-ceq$originBefore-and(Get-Content -LiteralPath $originFile -Stream Zone.Identifier -Raw -ErrorAction Stop)-ceq$originText) 'Origin refusal must preserve source bytes and the ADS.'
 }
 # Licensed upstream source is the only archive exception. The internal app may
 # not be packed into a ZIP even if it is called a local developer build.
