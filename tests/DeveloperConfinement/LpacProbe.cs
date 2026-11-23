@@ -72,6 +72,8 @@ internal static class LpacProbe
     [DllImport("ntdll.dll")] private static extern int NtQueryInformationToken(IntPtr token, int informationClass, IntPtr buffer, int length, out int returned);
     [DllImport("kernelbase.dll", CharSet=CharSet.Unicode, SetLastError=true)] private static extern bool DeriveCapabilitySidsFromName(string name, out IntPtr groups, out uint groupCount, out IntPtr capabilities, out uint capabilityCount);
     [DllImport("kernel32.dll", CharSet=CharSet.Unicode, SetLastError=true)] private static extern bool CreateSymbolicLink(string link, string target, uint flags);
+    [DllImport("kernel32.dll", CharSet=CharSet.Unicode, SetLastError=true)] private static extern bool DeleteFile(string file);
+    [DllImport("kernel32.dll", CharSet=CharSet.Unicode, SetLastError=true)] private static extern bool MoveFileEx(string source, string destination, uint flags);
 
     private static Dictionary<string, object> Record() { return new Dictionary<string, object>(); }
     private static string SafeError(Exception e)
@@ -249,11 +251,17 @@ internal static class LpacProbe
     }
     private static bool DeniedDelete(string file)
     {
-        try { File.Delete(file); return false; } catch (UnauthorizedAccessException) { return true; }
+        if (DeleteFile(file)) return false;
+        int error = Marshal.GetLastWin32Error(); if (error == 5) return true;
+        throw new Win32Exception(error);
     }
     private static bool DeniedRename(string file)
     {
-        try { File.Move(file, file + ".renamed"); return false; } catch (UnauthorizedAccessException) { return true; }
+        // File.Move first uses an existence check that masks access denial as
+        // FileNotFoundException. Ask Windows for the actual operation result.
+        if (MoveFileEx(file, file + ".renamed", 0)) return false;
+        int error = Marshal.GetLastWin32Error(); if (error == 5) return true;
+        throw new Win32Exception(error);
     }
     private static bool DeniedCreate(string directory)
     {
@@ -331,12 +339,16 @@ internal static class LpacProbe
             Check((bool)result["PrivateReadWritePassed"], "Private read/write control failed.");
             foreach (string fixture in new string[] { "normal-default", "normal-all-app-packages", "normal-everyone", "other-private" })
             {
+                result["CurrentStage"] = fixture + ":read-write";
                 string path = Path.Combine(Path.Combine(root, fixture), "canary.txt");
                 bool deniedRead = DeniedRead(path), deniedWrite = DeniedWrite(path);
                 result[fixture + "ReadDenied"] = deniedRead; result[fixture + "WriteDenied"] = deniedWrite;
                 string folder = Path.GetDirectoryName(path);
+                result["CurrentStage"] = fixture + ":delete";
                 bool deniedDelete = DeniedDelete(Path.Combine(folder, "delete-canary.txt"));
+                result["CurrentStage"] = fixture + ":rename";
                 bool deniedRename = DeniedRename(Path.Combine(folder, "rename-canary.txt"));
+                result["CurrentStage"] = fixture + ":create";
                 bool deniedCreate = DeniedCreate(folder);
                 result[fixture + "DeleteDenied"] = deniedDelete; result[fixture + "RenameDenied"] = deniedRename; result[fixture + "CreateDenied"] = deniedCreate;
                 if (!deniedRead || !deniedWrite || !deniedDelete || !deniedRename || !deniedCreate) securityFailure = true;
@@ -345,8 +357,11 @@ internal static class LpacProbe
             Dictionary<string, object> plan = Json.Deserialize<Dictionary<string, object>>(File.ReadAllText(Path.Combine(Path.Combine(root, "payload"), "ProbePlan.json")));
             if ((bool)plan["SyntheticFileSymlinkCreated"]) { bool deniedRead = DeniedRead(link), deniedWrite = DeniedWrite(link); result["LinkEscapeReadDenied"] = deniedRead; result["LinkEscapeWriteDenied"] = deniedWrite; if (!deniedRead || !deniedWrite) securityFailure = true; }
             else result["LinkEscapeChildObservation"] = "NOT_AVAILABLE";
+            result["CurrentStage"] = "PowerShell";
             try { HostProbe(root, result); } catch (Exception e) { result["PowerShellExternalScriptAndModulePassed"] = false; result["PowerShellFailure"] = SafeError(e); }
+            result["CurrentStage"] = "WinForms";
             try { FormsProbe(result); } catch (Exception e) { result["WinFormsConstructDisposePassed"] = false; result["WinFormsFailure"] = SafeError(e); }
+            result["CurrentStage"] = "Completed";
             result["UnexpectedOutsideAccess"] = securityFailure;
             result["ExperimentCompleted"] = true;
         }
