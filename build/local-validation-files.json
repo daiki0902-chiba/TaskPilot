@@ -1,0 +1,12 @@
+{
+  "FormatVersion": 1,
+  "Purpose": "LocalDeveloperValidationSyntheticOnly",
+  "Description": "Blocked developer-local preparation payload only. Never customer or formal acceptance packaging.",
+  "Files": [
+    "local-validation/TaskPilot.LocalValidation.ps1",
+    "local-validation/TaskPilot.LocalValidation.Runtime.ps1",
+    "local-validation/TaskPilot.LocalValidation.Gui.ps1",
+    "local-validation/TaskPilot.LocalValidation.Diagnostics.ps1",
+    "tools/Test-TaskPilotLocalValidation.ps1"
+  ]
+}

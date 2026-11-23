@@ -77,7 +77,13 @@ jobs:
           $verificationRoot = Join-Path $env:RUNNER_TEMP ('TaskPilot-native-' + $env:GITHUB_RUN_ID + '-' + $env:GITHUB_RUN_ATTEMPT)
           & .\tools\Invoke-TaskPilotAcceptanceFollowupVerification.ps1 -VerificationRoot $verificationRoot
 
+      - name: Verify isolated local-developer preparation without opening a GUI
+        run: |
+          $verificationRoot = Join-Path $env:RUNNER_TEMP ('TaskPilot-native-' + $env:GITHUB_RUN_ID + '-' + $env:GITHUB_RUN_ATTEMPT)
+          & .\tools\Invoke-TaskPilotLocalValidationVerification.ps1 -VerificationRoot $verificationRoot
+
       - name: Upload test reports
+        # App artifacts stay blocked; local preparation adds reports only.
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4, official ref verified 2026-11-19
         with:
@@ -98,6 +104,7 @@ jobs:
             TestResults/AcceptanceSandbox_*.json
             TestResults/AcceptancePackageBoundary_*.json
             TestResults/DesktopAcceptance*.json
+            TestResults/LocalValidation*.json
             TestResults/DesktopAcceptanceBinding_*/IsolatedMemory_*.json
             TestResults/DesktopAcceptanceBinding_*/Isolated_*.json
             TestResults/DesktopAcceptanceBinding_*/IsolatedMode_*/IsolatedTestModeResult.json

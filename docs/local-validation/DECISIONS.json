@@ -1,0 +1,16 @@
+{
+  "purpose": "DeveloperPlanningOnly",
+  "capturedDateUtc": "2026-11-23",
+  "sellerCategory": "individual",
+  "futureLimitedDelivery": "new_private_github_repository",
+  "paidSigningCertificatePurchase": "not_now",
+  "generalDistributionBlocked": true,
+  "formalAcceptanceDistributionBlocked": true,
+  "localValidationReadiness": "NOT_READY",
+  "localValidationLaunchAuthorized": false,
+  "privateRepositoryCreated": false,
+  "cleanWindowsVmProvided": false,
+  "osTrustOrPolicyChangesAuthorized": false,
+  "businessDataAccessAuthorized": false,
+  "note": "Planning record only. This file is neither runtime trust configuration nor a signed local receipt."
+}
