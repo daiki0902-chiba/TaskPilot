@@ -102,7 +102,7 @@ internal static class LpacProbe
         }
         finally { LocalFree(descriptor); }
     }
-    private static IntPtr ChildEnvironment(string data, out bool processPolicyPreserved)
+    private static IntPtr ChildEnvironment(string data, int profileEnvironmentVariant, out bool processPolicyPreserved)
     {
         SortedDictionary<string, string> values = new SortedDictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         foreach (string key in new string[] { "SystemRoot", "WINDIR", "SystemDrive", "ComSpec" })
@@ -112,6 +112,15 @@ internal static class LpacProbe
         values["PATH"] = Path.Combine(windows, "System32");
         values["PSModulePath"] = Path.Combine(windows, "System32\\WindowsPowerShell\\v1.0\\Modules");
         values["TEMP"] = Path.Combine(data, "Temp"); values["TMP"] = values["TEMP"]; values["PSModuleAnalysisCachePath"] = "NUL";
+        // Diagnose ERROR_ENVVAR_NOT_FOUND without inheriting personal paths or
+        // credentials. Every added path is a fresh synthetic directory.
+        string privateProfile = Path.Combine(data, "Profile");
+        if (profileEnvironmentVariant >= 1) values["USERPROFILE"] = privateProfile;
+        if (profileEnvironmentVariant >= 2)
+        {
+            values["LOCALAPPDATA"] = Path.Combine(privateProfile, "AppData\\Local");
+            values["APPDATA"] = Path.Combine(privateProfile, "AppData\\Roaming");
+        }
         string policy = Environment.GetEnvironmentVariable("PSExecutionPolicyPreference");
         processPolicyPreserved = policy != null;
         if (policy != null) values["PSExecutionPolicyPreference"] = policy;
@@ -314,6 +323,8 @@ internal static class LpacProbe
             Directory.CreateDirectory(data); SetAcl(data, appSid, FileSystemRights.Modify, 0);
             SetPrivateLowIntegrityLabel(data); report["OwnSyntheticPrivateDataLowIntegrityLabelSet"] = true;
             Directory.CreateDirectory(Path.Combine(data, "Temp"));
+            Directory.CreateDirectory(Path.Combine(data, "Profile\\AppData\\Local"));
+            Directory.CreateDirectory(Path.Combine(data, "Profile\\AppData\\Roaming"));
             string image = Path.Combine(payload, "LpacProbe.exe"); File.Copy(Process.GetCurrentProcess().MainModule.FileName, image, false);
             File.WriteAllText(Path.Combine(payload, "external.ps1"), "$script:TaskPilotSyntheticExternalFlag=$true\r\n", new UTF8Encoding(true));
             File.WriteAllText(Path.Combine(payload, "synthetic.psm1"), "function Get-TaskPilotSyntheticValue { 'SYNTHETIC_ONLY' }; Export-ModuleMember -Function Get-TaskPilotSyntheticValue\r\n", new UTF8Encoding(true));
@@ -343,11 +354,28 @@ internal static class LpacProbe
             StartupInfoEx startup = new StartupInfoEx(); startup.StartupInfo.cb = Marshal.SizeOf(typeof(StartupInfoEx)); startup.AttributeList = attributes;
             StringBuilder command = new StringBuilder("\"" + image + "\" --child \"" + root + "\"");
             job = MakeJob();
-            bool processPolicyPreserved; environment = ChildEnvironment(data, out processPolicyPreserved);
-            report["ParentProcessPolicyHintPreserved"] = processPolicyPreserved; report["ChildEnvironmentUsesAllowlist"] = true; report["ChildInheritedCiCredentials"] = false;
-            if (!CreateProcess(image, command, IntPtr.Zero, IntPtr.Zero, false, ExtendedStartupInfoPresent | CreateSuspended | CreateNoWindow | CreateUnicodeEnvironment, environment, data, ref startup, out child))
-            { report["MeasuredBlocker"] = "LPAC_CREATE_PROCESS_FAILED"; report["CreateProcessWin32Error"] = Marshal.GetLastWin32Error(); report["ExperimentOutcome"] = "BLOCKED_BEFORE_CHILD_CREATION"; return 0; }
-            childCreated = true; report["ChildCreated"] = true;
+            List<object> environmentAttempts = new List<object>();
+            report["EnvironmentAttempts"] = environmentAttempts;
+            for (int variant = 0; variant < 3; variant++)
+            {
+                if (environment != IntPtr.Zero) { Marshal.FreeHGlobal(environment); environment = IntPtr.Zero; }
+                bool processPolicyPreserved; environment = ChildEnvironment(data, variant, out processPolicyPreserved);
+                report["ParentProcessPolicyHintPreserved"] = processPolicyPreserved; report["ChildEnvironmentUsesAllowlist"] = true; report["ChildInheritedCiCredentials"] = false;
+                Dictionary<string, object> attempt = Record(); attempt["Variant"] = variant;
+                attempt["AddedPrivateEnvironmentKeys"] = variant == 0 ? new string[0] : variant == 1 ? new string[] { "USERPROFILE" } : new string[] { "USERPROFILE", "LOCALAPPDATA", "APPDATA" };
+                // Token restrictions and all handles stay identical. Only
+                // private environment paths differ; no ordinary fallback.
+                child = new ProcessInformation();
+                bool created = CreateProcess(image, new StringBuilder(command.ToString()), IntPtr.Zero, IntPtr.Zero, false, ExtendedStartupInfoPresent | CreateSuspended | CreateNoWindow | CreateUnicodeEnvironment, environment, data, ref startup, out child);
+                int error = created ? 0 : Marshal.GetLastWin32Error();
+                attempt["ProcessCreated"] = created; attempt["Win32Error"] = error;
+                environmentAttempts.Add(attempt);
+                if (created) { childCreated = true; report["SuccessfulEnvironmentVariant"] = variant; break; }
+                report["CreateProcessWin32Error"] = error;
+                if (error != 203) break;
+            }
+            if (!childCreated) { report["MeasuredBlocker"] = "LPAC_CREATE_PROCESS_FAILED"; report["ExperimentOutcome"] = "BLOCKED_BEFORE_CHILD_CREATION"; return 0; }
+            report["ChildCreated"] = true;
             if (!AssignProcessToJobObject(job, child.Process)) throw new Win32Exception(Marshal.GetLastWin32Error());
             report["KillOnJobCloseEnabled"] = true;
             IntPtr childToken; if (!OpenProcessToken(child.Process, TokenQuery, out childToken)) throw new Win32Exception(Marshal.GetLastWin32Error());
