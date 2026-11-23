@@ -48,6 +48,7 @@ internal static class LpacProbe
     }
     [DllImport("userenv.dll", CharSet=CharSet.Unicode)] private static extern int CreateAppContainerProfile(string name, string displayName, string description, IntPtr capabilities, uint capabilityCount, out IntPtr sid);
     [DllImport("userenv.dll", CharSet=CharSet.Unicode)] private static extern int DeleteAppContainerProfile(string name);
+    [DllImport("userenv.dll", CharSet=CharSet.Unicode)] private static extern int GetAppContainerFolderPath(string sid, out IntPtr folder);
     [DllImport("advapi32.dll")] private static extern IntPtr FreeSid(IntPtr sid);
     [DllImport("advapi32.dll", CharSet=CharSet.Unicode, SetLastError=true)] private static extern bool ConvertStringSecurityDescriptorToSecurityDescriptor(string text, uint revision, out IntPtr descriptor, out uint size);
     [DllImport("advapi32.dll", SetLastError=true)] private static extern bool GetSecurityDescriptorSacl(IntPtr descriptor, out bool present, out IntPtr sacl, out bool defaulted);
@@ -80,6 +81,20 @@ internal static class LpacProbe
     {
         Win32Exception w = e as Win32Exception;
         return e.GetType().Name + (w == null ? ":0x" + e.HResult.ToString("x8", CultureInfo.InvariantCulture) : ":Win32=" + w.NativeErrorCode.ToString(CultureInfo.InvariantCulture));
+    }
+    private static object SafeErrorChain(Exception error)
+    {
+        List<object> chain = new List<object>();
+        for (int depth = 0; error != null && depth < 8; depth++, error = error.InnerException)
+        {
+            Dictionary<string, object> item = Record(); item["Error"] = SafeError(error);
+            TypeInitializationException initializer = error as TypeInitializationException;
+            if (initializer != null) item["InitializerType"] = initializer.TypeName;
+            if (error.TargetSite != null) item["Method"] = (error.TargetSite.DeclaringType == null ? "" : error.TargetSite.DeclaringType.FullName + ".") + error.TargetSite.Name;
+            // No Message, stack trace, input, file path or registry value.
+            chain.Add(item);
+        }
+        return chain;
     }
     private static void Check(bool condition, string message) { if (!condition) throw new InvalidOperationException(message); }
     private static void WriteJson(string file, object value) { File.WriteAllText(file, Json.Serialize(value), new UTF8Encoding(false, true)); }
@@ -337,6 +352,17 @@ internal static class LpacProbe
             File.WriteAllText(own, "SYNTHETIC_ONLY", new UTF8Encoding(false));
             result["PrivateReadWritePassed"] = File.ReadAllText(own) == "SYNTHETIC_ONLY";
             Check((bool)result["PrivateReadWritePassed"], "Private read/write control failed.");
+            Dictionary<string, object> plan = Json.Deserialize<Dictionary<string, object>>(File.ReadAllText(Path.Combine(Path.Combine(root, "payload"), "ProbePlan.json")));
+            result["KnownFolderPathsCaptured"] = false;
+            try
+            {
+                string known = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+                string expected = plan.ContainsKey("CreatedAppContainerProfilePath") ? (string)plan["CreatedAppContainerProfilePath"] : null;
+                result["KnownLocalAppDataAvailable"] = !String.IsNullOrEmpty(known);
+                result["KnownLocalAppDataWithinCreatedAppContainerProfile"] = !String.IsNullOrEmpty(known) && !String.IsNullOrEmpty(expected) && (String.Equals(known, expected, StringComparison.OrdinalIgnoreCase) || known.StartsWith(expected.TrimEnd('\\') + "\\", StringComparison.OrdinalIgnoreCase));
+                result["TempWithinOwnFixture"] = Path.GetTempPath().StartsWith(data.TrimEnd('\\') + "\\", StringComparison.OrdinalIgnoreCase);
+            }
+            catch (Exception e) { result["KnownFolderDiagnosticFailure"] = SafeError(e); }
             foreach (string fixture in new string[] { "normal-default", "normal-all-app-packages", "normal-everyone", "other-private" })
             {
                 result["CurrentStage"] = fixture + ":read-write";
@@ -354,13 +380,12 @@ internal static class LpacProbe
                 if (!deniedRead || !deniedWrite || !deniedDelete || !deniedRename || !deniedCreate) securityFailure = true;
             }
             string link = Path.Combine(data, "escape-link.txt");
-            Dictionary<string, object> plan = Json.Deserialize<Dictionary<string, object>>(File.ReadAllText(Path.Combine(Path.Combine(root, "payload"), "ProbePlan.json")));
             if ((bool)plan["SyntheticFileSymlinkCreated"]) { bool deniedRead = DeniedRead(link), deniedWrite = DeniedWrite(link); result["LinkEscapeReadDenied"] = deniedRead; result["LinkEscapeWriteDenied"] = deniedWrite; if (!deniedRead || !deniedWrite) securityFailure = true; }
             else result["LinkEscapeChildObservation"] = "NOT_AVAILABLE";
             result["CurrentStage"] = "PowerShell";
-            try { HostProbe(root, result); } catch (Exception e) { result["PowerShellExternalScriptAndModulePassed"] = false; result["PowerShellFailure"] = SafeError(e); }
+            try { HostProbe(root, result); } catch (Exception e) { result["PowerShellExternalScriptAndModulePassed"] = false; result["PowerShellFailure"] = SafeError(e); result["PowerShellFailureChain"] = SafeErrorChain(e); }
             result["CurrentStage"] = "WinForms";
-            try { FormsProbe(result); } catch (Exception e) { result["WinFormsConstructDisposePassed"] = false; result["WinFormsFailure"] = SafeError(e); }
+            try { FormsProbe(result); } catch (Exception e) { result["WinFormsConstructDisposePassed"] = false; result["WinFormsFailure"] = SafeError(e); result["WinFormsFailureChain"] = SafeErrorChain(e); }
             result["CurrentStage"] = "Completed";
             result["UnexpectedOutsideAccess"] = securityFailure;
             result["ExperimentCompleted"] = true;
@@ -444,7 +469,15 @@ internal static class LpacProbe
             bool linkCreated = CreateSymbolicLink(Path.Combine(data, "escape-link.txt"), Path.Combine(Path.Combine(root, "normal-default"), "canary.txt"), 0);
             report["SyntheticFileSymlinkCreated"] = linkCreated;
             if (!linkCreated) report["SymlinkCreationWin32Error"] = Marshal.GetLastWin32Error();
-            Dictionary<string, object> plan = Record(); plan["SyntheticFileSymlinkCreated"] = linkCreated; WriteJson(Path.Combine(payload, "ProbePlan.json"), plan);
+            Dictionary<string, object> plan = Record(); plan["SyntheticFileSymlinkCreated"] = linkCreated;
+            IntPtr profileFolder = IntPtr.Zero;
+            try
+            {
+                int folderResult = GetAppContainerFolderPath(appSid.Value, out profileFolder); report["NewSyntheticProfileFolderQueryHresult"] = folderResult;
+                if (folderResult >= 0 && profileFolder != IntPtr.Zero) plan["CreatedAppContainerProfilePath"] = Marshal.PtrToStringUni(profileFolder);
+            }
+            finally { if (profileFolder != IntPtr.Zero) Marshal.FreeCoTaskMem(profileFolder); }
+            WriteJson(Path.Combine(payload, "ProbePlan.json"), plan);
             foreach (string file in Directory.GetFiles(payload)) PinnedPayload.Add(File.Open(file, FileMode.Open, FileAccess.Read, FileShare.Read));
             IntPtr listSize = IntPtr.Zero; InitializeProcThreadAttributeList(IntPtr.Zero, 2, 0, ref listSize);
             attributes = Marshal.AllocHGlobal(listSize); if (!InitializeProcThreadAttributeList(attributes, 2, 0, ref listSize)) throw new Win32Exception(Marshal.GetLastWin32Error()); attributesInitialized = true;
