@@ -1,0 +1,21 @@
+{
+    "Status":  "DEVELOPMENT CANDIDATE - NOT FOR SALE",
+    "CapturedAtUtc":  "2026-11-19T23:48:59.0397553Z",
+    "Commit":  "9c7ad91674f7c47784b51305c080405f7c534d80",
+    "RunnerOS":  "Microsoft Windows NT 10.0.20348.0",
+    "RunnerImage":  "win22",
+    "PowerShellEdition":  "Desktop",
+    "PowerShellVersion":  "5.1.20348.5773",
+    "NativeWindowsAutomatedGroupsPassed":  8,
+    "TestReport":  "Commercial_f37be2c819cb4cd7858942b31cf7e1ee.json",
+    "SkippedDetails":  [
+                           "Test-TaskPilotStep4C.ps1: SKIP: synthetic in-transaction tampering hooks are restricted to an explicitly selected test provider."
+                       ],
+    "ExecutableGenerated":  true,
+    "CandidateSha256":  "e977b31a8f6eb25c66b8d6d0658b421db13b2db1849b00c33a3234d5d1b70795",
+    "SignatureStatus":  "NotSigned",
+    "Windows10And11AcceptanceVerified":  false,
+    "InteractiveWinFormsVerified":  false,
+    "NotificationDeliveryVerified":  false,
+    "RuntimeAcceptance":  "Not run: complete Windows checklist before sales distribution."
+}

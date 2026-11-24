@@ -1,0 +1,85 @@
+{
+  "sourceCommit": "07e785425be235b300d3cfcfb75ce15ad5e4579a",
+  "runId": 45034590808,
+  "runUrl": "https://github.com/daiki0902-chiba/TaskPilot/actions/runs/45034590808",
+  "conclusion": "success",
+  "platform": "Windows Server 2022 / Windows PowerShell Desktop 5.1 x64",
+  "reportArtifact": {
+    "id": 14758673734,
+    "name": "TaskPilot-Windows-Server-native-test-reports-45034590808-1",
+    "sha256": "aba934196f5e68a1721f35d931c82b3730277551d9fed008742e24779a77609d",
+    "expiresAt": "2026-12-06T14:48:48Z",
+    "reportsOnly": true
+  },
+  "dedicatedSuites": 6,
+  "dedicatedAssertions": 690,
+  "distributionZipUploaded": false,
+  "executableUploaded": false,
+  "mainUnchanged": "a761e76fbe4c4335a1847dbfc4417516d205316f",
+  "realUserDataAccessed": false,
+  "windows10GuiVerified": false,
+  "windows11GuiVerified": false,
+  "initialFailure": {
+    "sourceCommit": "a7ef7b51dec490901ad021ac1738f17161cadc30",
+    "runId": 45033773922,
+    "artifactId": 14758718909,
+    "artifactSha256": "9135a6e35cd326c1b29c78ab428c65fe5583c521979ea475d14bcc22d56754c0",
+    "report": "docs/verification/acceptance-host-initial-failure-20261122.json",
+    "reportSha256": "e2a23b1aa758176775f49eedddafdb1645ecc2a5066b974dec9097e810f38160",
+    "cause": "PowerShell dynamic-scope case parameter Id shadowed the fixture environment ID. Renamed CaseId; production storage logic unchanged by this fix."
+  },
+  "secondFailure": {
+    "sourceCommit": "6c0341865f37955d0d55d75674f28efbddba4714",
+    "runId": 45034165473,
+    "artifactId": 14758947507,
+    "artifactSha256": "f0fa63888bd75361ffbe3b5d34e44b7d536ca56d87dbce1cba426bab7410f680",
+    "cause": "Required pinned EPPlus corresponding-source archive was misclassified as a distribution ZIP; now only that exact source path/hash is allowed, with exact inventory and negative archive tests."
+  },
+  "files": [
+    {
+      "path": "docs/verification/acceptance-host-server-20261122.json",
+      "artifactPath": "DesktopAcceptanceVerification_45034590808_1.json",
+      "sha256": "e3995263a4857a7cfd6e94fc0b4c0df5a5c555505968eb1e2b45250176ab4ebe"
+    },
+    {
+      "path": "docs/verification/acceptance-host-regressions-20261122.json",
+      "artifactPath": "IsolatedVerification_57058c9dace042379608a1f97d1731e5.json",
+      "sha256": "47134c611d7a5636c9e8fbe848a2bbd79b578e1909678232f70348ddc53a9366"
+    },
+    {
+      "path": "docs/verification/acceptance-host-normal-20261122.json",
+      "artifactPath": "Commercial_6df72b42f900472384754dd0f4cbf9de.json",
+      "sha256": "76e2b1b80802c9c745ddcc4593268a218aabd206673bd4546bb1a48b452a83aa"
+    },
+    {
+      "path": "docs/verification/acceptance-host-isolation-20261122.json",
+      "artifactPath": "Isolated_e100746c3f2d427bb106293521d0da56.json",
+      "sha256": "9ce7501b7c1b9e70167045674c68aef2160c1444154446f911221af132924cce"
+    },
+    {
+      "path": "docs/verification/acceptance-host-memory-20261122.json",
+      "artifactPath": "IsolatedMemory_221bfec5d9834c2187a3e3abaa2f118a.json",
+      "sha256": "6b13fb9a058c6d09c724eba6178fd8e168bf132b3f1ea3f84a6f75e7df84aa08"
+    },
+    {
+      "path": "docs/verification/acceptance-host-boundary-20261122.json",
+      "artifactPath": "IsolatedFileBoundary_1e69d49dc0164766a740c40ab3eff09c/IsolatedFileBoundaryResult.json",
+      "sha256": "7eed068e577ca582da4d8f33466498ca2367773322bef1a28b15eb90400cfc1b"
+    },
+    {
+      "path": "docs/verification/acceptance-host-release-gate-20261122.json",
+      "artifactPath": "IsolatedReleaseGate_6dd4490074474a16a1470f148c22d60d.json",
+      "sha256": "5eab80608270695ca12fd9b9150ae00813dfcdea193142bcb516c373679b7ebf"
+    },
+    {
+      "path": "docs/verification/acceptance-host-normal-before-20261122.txt",
+      "artifactPath": "IsolatedMode_e5e06f6f3e8e44deb42eb9a8a0d9356c/NormalFixtureBefore.txt",
+      "sha256": "17865f8d61783112b23a2de9cfd4b0ee711f252a58defabc828609cac3d5cf83"
+    },
+    {
+      "path": "docs/verification/acceptance-host-normal-after-20261122.txt",
+      "artifactPath": "IsolatedMode_e5e06f6f3e8e44deb42eb9a8a0d9356c/NormalFixtureAfter.txt",
+      "sha256": "17865f8d61783112b23a2de9cfd4b0ee711f252a58defabc828609cac3d5cf83"
+    }
+  ]
+}

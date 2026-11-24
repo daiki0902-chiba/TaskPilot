@@ -1,0 +1,66 @@
+{
+    "Stage":  "Native memory-only SQLite persistence",
+    "Passed":  true,
+    "Checks":  47,
+    "Cases":  [
+                  {
+                      "Id":  "M01",
+                      "Name":  "SQLite receives only an in-memory main database",
+                      "Passed":  true,
+                      "Error":  null
+                  },
+                  {
+                      "Id":  "M02",
+                      "Name":  "Committed CRUD survives a full close and reopen",
+                      "Passed":  true,
+                      "Error":  null
+                  },
+                  {
+                      "Id":  "M03",
+                      "Name":  "One writer owns the image and read-only connections remain immutable snapshots",
+                      "Passed":  true,
+                      "Error":  null
+                  },
+                  {
+                      "Id":  "M04",
+                      "Name":  "Native authorizer refuses all filesystem database and extension paths",
+                      "Passed":  true,
+                      "Error":  null
+                  },
+                  {
+                      "Id":  "M05",
+                      "Name":  "A deferred foreign-key failure cannot publish an uncommitted snapshot",
+                      "Passed":  true,
+                      "Error":  null
+                  },
+                  {
+                      "Id":  "M06",
+                      "Name":  "A simulated broker failure restores memory and leaves durable data unchanged",
+                      "Passed":  true,
+                      "Error":  null
+                  },
+                  {
+                      "Id":  "M07",
+                      "Name":  "Memory backup and new-file restore preserve the complete image",
+                      "Passed":  true,
+                      "Error":  null
+                  },
+                  {
+                      "Id":  "M08",
+                      "Name":  "An interrupted broker checkpoint is preserved and blocks startup without recovery",
+                      "Passed":  true,
+                      "Error":  null
+                  }
+              ],
+    "FailedCases":  0,
+    "NormalFixtureUnchanged":  true,
+    "ProductionProfileAccessed":  false,
+    "ApplicationLaunched":  false,
+    "Windows10And11Verified":  false,
+    "SkippedDetails":  [
+
+                       ],
+    "TestRoot":  "D:\\a\\TaskPilot\\TaskPilot\\TestResults\\IsolatedMemory_fa25fe9d413d4ee6aa9c5cc093732bb8",
+    "FaultInjection":  "M06 replaces only the module persistence call with a throwing test function before broker publication; all security checks remain active.",
+    "RuntimeAssemblySha256":  "f747951c0c464e40133347ec57aca139721e1d62e48b3f0b2b53cd220c67196b"
+}

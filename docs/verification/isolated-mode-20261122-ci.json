@@ -1,0 +1,67 @@
+{
+  "Status": "BLOCKED - NOT FOR SALE - NO EXECUTABLE OR ACCEPTANCE ZIP PUBLISHED",
+  "SourceCommit": "25211b4df0b2f55ee577b700141a3a752e3e11ec",
+  "RunUrl": "https://github.com/daiki0902-chiba/TaskPilot/actions/runs/44974780921",
+  "Conclusion": "failure",
+  "Runner": "Windows Server 2022 x64 / Windows PowerShell Desktop 5.1",
+  "Artifact": {
+    "Id": 14735023340,
+    "Url": "https://github.com/daiki0902-chiba/TaskPilot/actions/runs/44974780921/artifacts/14735023340",
+    "ArchiveSha256": "88079d5d57cd0724debbc26dbe631cd4d5a548f2ebdb3deefac1e825ed237181",
+    "ReportsOnly": true,
+    "RetentionDays": 14
+  },
+  "NormalRegressionGroups": {
+    "Passed": 8,
+    "Failed": 0,
+    "Skip": "Synthetic in-transaction tampering hooks require explicitly selected test provider; native SKIP is retained."
+  },
+  "Isolation": {
+    "PassedCases": 25,
+    "FailedCases": 2,
+    "Checks": 132,
+    "NormalFixtureUnchanged": true,
+    "ActualExcelFilesGenerated": true,
+    "ProductionProfileAccessed": false
+  },
+  "PublicReleaseGate": {
+    "Passed": true,
+    "Checks": 12
+  },
+  "MainUnchanged": "a761e76fbe4c4335a1847dbfc4417516d205316f",
+  "Windows10And11AcceptanceVerified": false,
+  "ExecutablePublished": false,
+  "AcceptanceZipPublished": false,
+  "EvidenceFiles": [
+    {
+      "Path": "isolated-mode-20261122-regressions.json",
+      "Bytes": 16865,
+      "Sha256": "4fb3789605a670ec7671b82fb0057d578627e10c8989d08e81b4fef83dc2057c"
+    },
+    {
+      "Path": "isolated-mode-20261122-results.json",
+      "Bytes": 27596,
+      "Sha256": "e6e275bf1fcd7c227dd049ab859e5567e767bc1cbd5c937cfb526134b9453ba3"
+    },
+    {
+      "Path": "isolated-mode-20261122-release-gate.json",
+      "Bytes": 366,
+      "Sha256": "648ed784bcf219084c818e14041f361f1f64393eb2ca766cb6a5a44074a7bda0"
+    },
+    {
+      "Path": "isolated-mode-20261122-file-boundary.json",
+      "Bytes": 8472,
+      "Sha256": "a3829d520299f36190b78c4389485140e9f61cd3baa0e9530a0a09270e29258e"
+    },
+    {
+      "Path": "isolated-mode-20261122-normal-before.txt",
+      "Bytes": 1269,
+      "Sha256": "98c7b4d033a6aebfd38684127112a04ec9f3791bf5eba68d72eebca53aaff1d9"
+    },
+    {
+      "Path": "isolated-mode-20261122-normal-after.txt",
+      "Bytes": 1269,
+      "Sha256": "98c7b4d033a6aebfd38684127112a04ec9f3791bf5eba68d72eebca53aaff1d9"
+    }
+  ]
+}

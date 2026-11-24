@@ -1,0 +1,80 @@
+{
+  "Scope": "VM-free normal-product feasibility review; source and documentation only",
+  "CapturedDateUtc": "2026-11-23",
+  "InspectedCommit": "fa05dffa088ba9a120fd68fd80113951e0f4d5e6",
+  "ProductSourceChanged": false,
+  "DataRootArgumentAdded": false,
+  "FrozenModesReopened": false,
+  "NewApplicationBuild": false,
+  "RuntimeRegressionRerun": false,
+  "ReasonForNoImplementation": "A root-only switch leaves legacy inspection, separate locks/logs/temp, unrestricted inputs and external Excel outside the proposed data directory. Reusing the frozen broker requires extensive context/IO refactoring and still does not confine external applications. No complete same-user guarantee established.",
+  "Sources": [
+    {
+      "File": "Runtime/TaskPilot.Runtime.ps1",
+      "Lines": "49,83-87",
+      "Finding": "Actual KnownFolder, separate normal root/log/lock"
+    },
+    {
+      "File": "TaskPilot.ps1",
+      "Lines": "25,294-299",
+      "Finding": "Separate legacy path and ordinary holiday file selection"
+    },
+    {
+      "File": "Adapters/TaskPilot.GuiStartup.ps1",
+      "Lines": "181-183,188-202,209-211,254-263",
+      "Finding": "Direct normal/legacy locks, legacy data inspection before consent, backup parent, unrestricted restore selection"
+    },
+    {
+      "File": "Adapters/TaskPilot.GuiIsolation.ps1",
+      "Lines": "165-186,219-221",
+      "Finding": "External viewer process and ordinary temp path; application path guard cannot constrain external Office effects"
+    }
+  ],
+  "ProductGitObjects": {
+    "TaskPilot.ps1": "37f6c6a5c75d896a51366340983ae3581ebd48c6",
+    "Runtime": "14cbf30ad30a7b840e6e46abd13cd87ea14c59e3",
+    "Adapters": "8baac0a2c570392403796433b187b9e62db6c324",
+    "Modules": "1a05adadfd1543203f111d45cc05236cd51f05c6",
+    "Codec": "16a613eb52875357bf4e0004a88c9df79b72c828",
+    "schema": "6a26ef93f0eff5e30fe3e6b342febd49469c64f8",
+    "build": "e19269fc9179f53b86192554875d3283c7d43c69"
+  },
+  "Alternative": {
+    "Method": "Same PC, new dedicated standard local Windows user, unchanged normal product",
+    "VmRequired": false,
+    "AdditionalProductModeRequired": false,
+    "DeveloperChoice": "pending",
+    "GuaranteesOnlyKnownAutomaticProfileDataSeparation": true,
+    "UniversalOsSandbox": false,
+    "RequiresEnvironmentPermissionReview": true,
+    "ExistingPersonalDataOrAclChangesRequired": false
+  },
+  "ExistingNativeEvidence": {
+    "SourceCommit": "d6a1dedcb7b3ac539c180d5838d12b80881359d5",
+    "Url": "https://github.com/daiki0902-chiba/TaskPilot/actions/runs/45184776656",
+    "Platform": "Windows Server 2022 / Windows PowerShell Desktop 5.1 x64",
+    "NormalGroupsPassed": 8,
+    "CommonCasesPassed": 27,
+    "MemoryCasesPassed": 8,
+    "ReleaseGateChecks": 12,
+    "HandleSmokeChecks": 8,
+    "SkippedInternalProviderSpecificCase": 1,
+    "NewTestRunForThisChange": false,
+    "Windows10And11GuiVerified": false
+  },
+  "CurrentReadiness": "NOT_READY",
+  "UsualBusinessUserLaunchAuthorized": false,
+  "DedicatedUserLaunchAuthorized": false,
+  "ProductionPersonalDataRead": false,
+  "ProductionPersonalDataChanged": false,
+  "SecuritySettingsChanged": false,
+  "PublicExecutableOrDistributionZipPublished": false,
+  "MainCommitUnchanged": "a761e76fbe4c4335a1847dbfc4417516d205316f",
+  "Remaining": [
+    "Developer choice of a dedicated standard user, or revised requirements if the same user is mandatory",
+    "Environment/ACL scope review without reading business file contents",
+    "Normal-product package/identity/origin preflight and harmless normal-host compatibility measurement",
+    "Windows 10/11 interactive GUI, notification, real Excel and backup/restore acceptance"
+  ],
+  "Guide": "../development/NO-VM-LOCAL-TESTING-ja.md"
+}

@@ -1,0 +1,194 @@
+{
+    "Stage":  "Native synthetic file and ancestor reparse boundary diagnostic",
+    "CapturedAtUtc":  "2026-11-22T02:11:21.5110302Z",
+    "PowerShell":  "5.1.20348.5773",
+    "Platform":  "Microsoft Windows NT 10.0.20348.0",
+    "ProcessBits":  64,
+    "Status":  "FAIL",
+    "Passed":  false,
+    "UnsafeVectorConfirmed":  true,
+    "NormalFixtureUnchanged":  true,
+    "NativeRejectedFileReparse":  false,
+    "NativeRejectedAncestorReparse":  true,
+    "CompleteNativeCoverage":  false,
+    "Cases":  [
+                  {
+                      "Vector":  "FileSymbolicReparse",
+                      "Protected":  false,
+                      "Access":  "GenericWrite",
+                      "HandleOpened":  true,
+                      "ReparseSet":  true,
+                      "Win32Error":  0
+                  },
+                  {
+                      "Vector":  "FileSymbolicReparse",
+                      "Protected":  true,
+                      "Access":  "GenericWrite",
+                      "HandleOpened":  true,
+                      "ReparseSet":  true,
+                      "Win32Error":  0
+                  },
+                  {
+                      "Vector":  "FileSymbolicReparse",
+                      "Protected":  false,
+                      "Access":  "WriteData",
+                      "HandleOpened":  true,
+                      "ReparseSet":  true,
+                      "Win32Error":  0
+                  },
+                  {
+                      "Vector":  "FileSymbolicReparse",
+                      "Protected":  true,
+                      "Access":  "WriteData",
+                      "HandleOpened":  true,
+                      "ReparseSet":  true,
+                      "Win32Error":  0
+                  },
+                  {
+                      "Vector":  "FileSymbolicReparse",
+                      "Protected":  false,
+                      "Access":  "WriteAttributes",
+                      "HandleOpened":  true,
+                      "ReparseSet":  true,
+                      "Win32Error":  0
+                  },
+                  {
+                      "Vector":  "FileSymbolicReparse",
+                      "Protected":  true,
+                      "Access":  "WriteAttributes",
+                      "HandleOpened":  true,
+                      "ReparseSet":  true,
+                      "Win32Error":  0
+                  },
+                  {
+                      "Vector":  "FileSymbolicReparse",
+                      "Protected":  false,
+                      "Access":  "ReadAttributes",
+                      "HandleOpened":  true,
+                      "ReparseSet":  false,
+                      "Win32Error":  5
+                  },
+                  {
+                      "Vector":  "FileSymbolicReparse",
+                      "Protected":  true,
+                      "Access":  "ReadAttributes",
+                      "HandleOpened":  true,
+                      "ReparseSet":  false,
+                      "Win32Error":  5
+                  },
+                  {
+                      "Vector":  "FileSymbolicReparse",
+                      "Protected":  false,
+                      "Access":  "Zero",
+                      "HandleOpened":  true,
+                      "ReparseSet":  false,
+                      "Win32Error":  5
+                  },
+                  {
+                      "Vector":  "FileSymbolicReparse",
+                      "Protected":  true,
+                      "Access":  "Zero",
+                      "HandleOpened":  true,
+                      "ReparseSet":  false,
+                      "Win32Error":  5
+                  },
+                  {
+                      "Vector":  "NonemptyAncestorJunction",
+                      "Protected":  false,
+                      "Access":  "GenericWrite",
+                      "HandleOpened":  true,
+                      "ReparseSet":  false,
+                      "Win32Error":  145
+                  },
+                  {
+                      "Vector":  "NonemptyAncestorJunction",
+                      "Protected":  true,
+                      "Access":  "GenericWrite",
+                      "HandleOpened":  true,
+                      "ReparseSet":  false,
+                      "Win32Error":  145
+                  },
+                  {
+                      "Vector":  "NonemptyAncestorJunction",
+                      "Protected":  false,
+                      "Access":  "WriteData",
+                      "HandleOpened":  true,
+                      "ReparseSet":  false,
+                      "Win32Error":  145
+                  },
+                  {
+                      "Vector":  "NonemptyAncestorJunction",
+                      "Protected":  true,
+                      "Access":  "WriteData",
+                      "HandleOpened":  true,
+                      "ReparseSet":  false,
+                      "Win32Error":  145
+                  },
+                  {
+                      "Vector":  "NonemptyAncestorJunction",
+                      "Protected":  false,
+                      "Access":  "WriteAttributes",
+                      "HandleOpened":  true,
+                      "ReparseSet":  false,
+                      "Win32Error":  145
+                  },
+                  {
+                      "Vector":  "NonemptyAncestorJunction",
+                      "Protected":  true,
+                      "Access":  "WriteAttributes",
+                      "HandleOpened":  true,
+                      "ReparseSet":  false,
+                      "Win32Error":  145
+                  },
+                  {
+                      "Vector":  "NonemptyAncestorJunction",
+                      "Protected":  false,
+                      "Access":  "ReadAttributes",
+                      "HandleOpened":  true,
+                      "ReparseSet":  false,
+                      "Win32Error":  5
+                  },
+                  {
+                      "Vector":  "NonemptyAncestorJunction",
+                      "Protected":  true,
+                      "Access":  "ReadAttributes",
+                      "HandleOpened":  true,
+                      "ReparseSet":  false,
+                      "Win32Error":  5
+                  },
+                  {
+                      "Vector":  "NonemptyAncestorJunction",
+                      "Protected":  false,
+                      "Access":  "Zero",
+                      "HandleOpened":  true,
+                      "ReparseSet":  false,
+                      "Win32Error":  5
+                  },
+                  {
+                      "Vector":  "NonemptyAncestorJunction",
+                      "Protected":  true,
+                      "Access":  "Zero",
+                      "HandleOpened":  true,
+                      "ReparseSet":  false,
+                      "Win32Error":  5
+                  }
+              ],
+    "Errors":  [
+                   "A pinned test file became a symbolic reparse point using GenericWrite. Native pathname consumers are not proven safe.",
+                   "A pinned test file became a symbolic reparse point using WriteData. Native pathname consumers are not proven safe.",
+                   "A pinned test file became a symbolic reparse point using WriteAttributes. Native pathname consumers are not proven safe."
+               ],
+    "UnverifiedVectors":  [
+                              "NonemptyAncestorJunction has no successful unprotected native positive control on this token/filesystem (GenericWrite:145, WriteData:145, WriteAttributes:145, ReadAttributes:5, Zero:5). No privileges were enabled."
+                          ],
+    "TestRoot":  "D:\\a\\TaskPilot\\TaskPilot\\TestResults\\IsolatedFileBoundary_09bd5ed11c8f41e3b1ae1d636abdff78",
+    "RuntimeAssemblySha256":  "c3a3388a4f68cfcd7caf540f35e76a22db51790e1f38f0f6d04762ec80852422",
+    "ProductionProfileAccessed":  false,
+    "PrivilegesEnabled":  false,
+    "OSProtectionSettingsChanged":  false,
+    "Limits":  [
+                   "No existing business profile is used.",
+                   "A failed native positive control is reported as partial coverage, never as a guard pass.",
+                   "Windows 10/11 client GUI and developer-mode configurations remain unverified."
+               ]
+}

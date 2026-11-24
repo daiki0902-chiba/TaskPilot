@@ -1,0 +1,118 @@
+{
+  "sourceCommit": "b15e153d385cb81fb3b089861ee266131454d5b4",
+  "runId": 45082243912,
+  "runAttempt": 2,
+  "runUrl": "https://github.com/daiki0902-chiba/TaskPilot/actions/runs/45082243912/attempts/2",
+  "conclusion": "success",
+  "platform": "Windows Server 2022 / Windows PowerShell Desktop 5.1 x64",
+  "artifact": {
+    "id": 14778027283,
+    "name": "TaskPilot-Windows-Server-native-test-reports-45082243912-2",
+    "sha256": "b457c6397690d8d2b3fb449c8becd3427bd0503075b29404b8dba8b1b9c6ec0c",
+    "expiresAt": "2026-12-06T23:20:26Z",
+    "reportsOnly": true
+  },
+  "baseDedicatedAssertions": 693,
+  "packageBoundaryCases": 15,
+  "packageBoundaryNativeProbes": 96,
+  "packageBoundaryAssertions": 182,
+  "diagnosticNativeCases": 11,
+  "diagnosticAssertions": 42,
+  "backendCases": 6,
+  "backendOuterAssertions": 25,
+  "backendInnerAssertions": 28,
+  "msixPlanAssertions": 44,
+  "hostObservationAssertions": 10,
+  "hostObservedPolicy": "Unrestricted",
+  "policyChanged": false,
+  "normalGroupsPassed": 8,
+  "normalProviderSpecificSkippedDetails": [
+    "Test-TaskPilotStep4C.ps1: SKIP: synthetic in-transaction tampering hooks are restricted to an explicitly selected test provider."
+  ],
+  "acceptanceBinaryIndependentCases": 27,
+  "acceptanceBinaryMemoryCases": 8,
+  "runtimeSha256": "c70ea2897a5e3a313caf7da685dd70b7dc9491f1da9dc0ab35a41df387fcd288",
+  "windows10And11Verified": false,
+  "applicationLaunchAuthorized": false,
+  "mainUnchanged": "a761e76fbe4c4335a1847dbfc4417516d205316f",
+  "realUserDataAccessed": false,
+  "executableOrDistributionZipUploaded": false,
+  "history": [
+    {
+      "runId": 45080521047,
+      "outcome": "failed",
+      "cause": "Test reflection PSObject argument boxing and fixture creation after parent protection; fixed test dispatch and setup order."
+    },
+    {
+      "runId": 45081008522,
+      "outcome": "failed",
+      "artifactId": 14777590603,
+      "artifactSha256": "efda6dfea2351c4b2f3d8de2237d2b35c637cffbbd7bb95b590e343c06cc5e0a",
+      "cause": "Diagnostic test used reserved HOME; MSIX fixture was within source checkout. Renamed task variable and used isolated runner temp."
+    },
+    {
+      "runId": 45081491950,
+      "outcome": "failed",
+      "cause": "Diagnostic D10 relied on a D09-local variable; now creates an independent fixture."
+    },
+    {
+      "runId": 45081878467,
+      "outcome": "failed",
+      "cause": "All native suites passed but aggregation looked for a flat file rather than the canonical nested result. Corrected result/artifact selection."
+    },
+    {
+      "runId": 45082243912,
+      "attempt": 1,
+      "outcome": "infrastructure_failure",
+      "cause": "Pinned dependency download connection failed. Same source and fixed hashes passed on attempt2; no checks were relaxed."
+    }
+  ],
+  "files": [
+    {
+      "path": "docs/verification/acceptance-followup-server-20261122.json",
+      "artifactPath": "DesktopAcceptanceFollowup_45082243912_2.json",
+      "sha256": "52db208dae8f03c353f125eb0276e2c60b95355f5ab01fede9ecf0859a1d3567"
+    },
+    {
+      "path": "docs/verification/acceptance-followup-base-20261122.json",
+      "artifactPath": "DesktopAcceptanceVerification_45082243912_2.json",
+      "sha256": "af7b8be8880987fd84a303fc5521c5ace1ebd9b4af61bd264e3a2752b97f001f"
+    },
+    {
+      "path": "docs/verification/acceptance-followup-normal-20261122.json",
+      "artifactPath": "Commercial_195c10f3c7c94a79a91c7574ca8abb64.json",
+      "sha256": "e2f0800576b201433e671dffba1169a23f20c9adfcb89803d38674208956e95d"
+    },
+    {
+      "path": "docs/verification/acceptance-followup-regressions-20261122.json",
+      "artifactPath": "IsolatedVerification_126e3d1465a54f219ed8f19f750e7d35.json",
+      "sha256": "55bd243a5bf6b92e4160a694aa0e1ebb0abe58bb4e561df01bbf0d4248eaa60c"
+    },
+    {
+      "path": "docs/verification/acceptance-followup-memory-actual-20261122.json",
+      "artifactPath": "DesktopAcceptanceBinding_45082243912_2/IsolatedMemory_1f1d4bec4a1d439cbc1f68f0d255442e.json",
+      "sha256": "67e9811e6d339149cabbed7435df07f218b4ce23e613f55b1d677ceaae1f287b"
+    },
+    {
+      "path": "docs/verification/acceptance-followup-isolation-actual-20261122.json",
+      "artifactPath": "DesktopAcceptanceBinding_45082243912_2/IsolatedMode_ace5314592f646f1b837fdf5fa4f0cc0/IsolatedTestModeResult.json",
+      "sha256": "9bccd843e59c157c2f8bc4408816bc67fd2dfe5bd0bdec484e6f205ea78a52e0"
+    },
+    {
+      "path": "docs/verification/acceptance-followup-normal-before-20261122.txt",
+      "artifactPath": "DesktopAcceptanceBinding_45082243912_2/IsolatedMode_ace5314592f646f1b837fdf5fa4f0cc0/NormalFixtureBefore.txt",
+      "sha256": "5ac939f5430f488b4d618a8ab56735c77bf79094d41e26c4f7c7824c53c15adc"
+    },
+    {
+      "path": "docs/verification/acceptance-followup-normal-after-20261122.txt",
+      "artifactPath": "DesktopAcceptanceBinding_45082243912_2/IsolatedMode_ace5314592f646f1b837fdf5fa4f0cc0/NormalFixtureAfter.txt",
+      "sha256": "5ac939f5430f488b4d618a8ab56735c77bf79094d41e26c4f7c7824c53c15adc"
+    },
+    {
+      "path": "docs/verification/acceptance-followup-partial-failure-20261122.json",
+      "sourceRunId": 45081008522,
+      "sourceCommit": "43cbd2693ee674a83e6c37998ae63675f3a31785",
+      "sha256": "8d9b7397375b07efa0921c8fccaad9f74304321aaf02d25443605b6027b339cf"
+    }
+  ]
+}

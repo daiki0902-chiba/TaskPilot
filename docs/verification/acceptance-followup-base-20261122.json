@@ -1,0 +1,142 @@
+{
+    "FormatVersion":  1,
+    "SourceCommit":  "b15e153d385cb81fb3b089861ee266131454d5b4",
+    "Status":  "AUTOMATED_TESTS_PASSED_ACCEPTANCE_BLOCKED",
+    "Platform":  "Windows Server CI / Windows PowerShell Desktop 5.1 x64",
+    "Suites":  [
+                   {
+                       "Stage":  "Dedicated acceptance authority",
+                       "Passed":  true,
+                       "Checks":  46,
+                       "NativePackageBoundaryChecks":  9,
+                       "NativePackageBoundaryExecuted":  true,
+                       "ProductionProfileAccessed":  false,
+                       "ApplicationLaunched":  false,
+                       "PublisherConfigured":  false,
+                       "PositiveProductionAuthorizationVerified":  false,
+                       "ClientWindows10And11Verified":  false,
+                       "TestRoot":  "D:\\a\\TaskPilot\\TaskPilot\\TestResults\\AcceptanceAuthority_34fa23fb84914ae69225339c0ab58460"
+                   },
+                   {
+                       "Stage":  "Dedicated desktop acceptance entry",
+                       "Passed":  true,
+                       "Checks":  30,
+                       "ProfileAccessed":  false,
+                       "ApplicationLaunched":  false,
+                       "CompleteEntryNegativeInvoked":  true,
+                       "PublicTestModeStillBlocked":  true,
+                       "Windows10And11GuiVerified":  false,
+                       "ProductionDataAccessed":  false
+                   },
+                   {
+                       "Stage":  "Dedicated desktop acceptance preflight denial",
+                       "Passed":  true,
+                       "Checks":  30,
+                       "Windows10And11Verified":  false,
+                       "ProductionProfileAccessed":  false,
+                       "ApplicationLaunched":  false,
+                       "ClientNativeQualificationImplemented":  false
+                   },
+                   {
+                       "Suite":  "DesktopAcceptanceDiagnostics",
+                       "Passed":  true,
+                       "Checks":  13,
+                       "NativeReadonlyReopenExecuted":  false,
+                       "NativeReadonlyChecks":  0,
+                       "NativeCases":  [
+
+                                       ],
+                       "RuntimeAssemblySha256":  null,
+                       "NormalFixtureUnchanged":  true,
+                       "ProductionProfileAccessed":  false,
+                       "GuiExecuted":  false,
+                       "PositiveProductionAuthorizationVerified":  false
+                   },
+                   {
+                       "Stage":  "Separate desktop acceptance synthetic namespace",
+                       "Passed":  true,
+                       "Cases":  [
+                                     {
+                                         "Id":  "A01",
+                                         "Name":  "The same ID selects different fixed namespaces and purpose markers",
+                                         "Passed":  true
+                                     },
+                                     {
+                                         "Id":  "A02",
+                                         "Name":  "Every synthetic output stays in the acceptance namespace and lock is independent",
+                                         "Passed":  true
+                                     },
+                                     {
+                                         "Id":  "A03",
+                                         "Name":  "Neither purpose can read the other purpose or ordinary data",
+                                         "Passed":  true
+                                     },
+                                     {
+                                         "Id":  "A04",
+                                         "Name":  "Read-only reopening is purpose specific and cannot write",
+                                         "Passed":  true
+                                     },
+                                     {
+                                         "Id":  "A05",
+                                         "Name":  "A mismatched purpose marker is preserved and blocks both reopening and creation",
+                                         "Passed":  true
+                                     },
+                                     {
+                                         "Id":  "A06",
+                                         "Name":  "A previous independent ID alone is never adopted by the acceptance opener",
+                                         "Passed":  true
+                                     }
+                                 ],
+                       "FailedCases":  0,
+                       "Checks":  26,
+                       "RuntimeAssemblySha256":  "c70ea2897a5e3a313caf7da685dd70b7dc9491f1da9dc0ab35a41df387fcd288",
+                       "SnapshotIncludes":  [
+                                                "DirectoryStructure",
+                                                "FileLength",
+                                                "FileSha256",
+                                                "OwnerGroupAndDaclSddl"
+                                            ],
+                       "NormalFixtureUnchanged":  true,
+                       "PreviousIndependentFixtureUnchanged":  true,
+                       "ProductionProfileAccessed":  false,
+                       "ApplicationLaunched":  false,
+                       "Windows10And11Verified":  false,
+                       "SkippedDetails":  [
+
+                                          ]
+                   },
+                   {
+                       "Passed":  true,
+                       "Checks":  548,
+                       "Purpose":  "DesktopAcceptanceSyntheticOnly",
+                       "Status":  "BLOCKED",
+                       "GeneralDistributionBlocked":  true,
+                       "IndependentTestModeDistributionBlocked":  true,
+                       "Distributable":  false,
+                       "ProductionProfileAccessed":  false,
+                       "WindowsDesktopExecutionVerified":  false,
+                       "InternalCompileChecked":  true
+                   }
+               ],
+    "NegativeExecutableExitCode":  2,
+    "GeneralDistributionBlocked":  true,
+    "IndependentModeDistributionBlocked":  true,
+    "InternalExecutableSha256":  "6870d910acc6faaa20b4288f0b85aab19afe0be8553a49bbe1b769ea00bd52c6",
+    "RuntimeGuardSha256":  "c70ea2897a5e3a313caf7da685dd70b7dc9491f1da9dc0ab35a41df387fcd288",
+    "LauncherSourceSha256":  "05c48234cc02daf56e9c354f34ea5adcf786049d4e20b859c8d6699a36663b23",
+    "PackageGuardSourceSha256":  "7a2fa88cf87c832a9d6862ea4c3da8ddc881ac62a947c2dfe6cecabd9fd1ced2",
+    "TrustConfigurationSha256":  "aa585a72ae8e16c123e038650d6cd934fe01aa59cad83461f6e0ad4443d05fc5",
+    "DesktopAcceptanceDistributionBlocked":  true,
+    "ExecutableUploaded":  false,
+    "ZipCreated":  false,
+    "ProductionProfileAccessed":  false,
+    "Windows10GuiVerified":  false,
+    "Windows11GuiVerified":  false,
+    "MissingConditions":  [
+                              "Trusted publisher and signed purpose authorization",
+                              "Reviewed signed distribution with protected package ACL and original vendor provenance",
+                              "Safe Windows 10/11 native qualification runner",
+                              "Reviewed diagnostic reopen protocol",
+                              "Windows 10/11 interactive acceptance"
+                          ]
+}

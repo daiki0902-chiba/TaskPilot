@@ -1,0 +1,147 @@
+{
+  "FormatVersion": 1,
+  "Description": "Developer-only locked dependencies; no package installation or customer-startup downloads. Source and notices are mandatory distribution payload.",
+  "Modules": [
+    {
+      "SourceCommit": "d32d5ce21c458696e860a7533943b1466d925be9",
+      "Id": "ps2exe",
+      "License": "MS-LPL-1.1",
+      "Manifest": "ps2exe.psd1",
+      "ExtractTarget": "ps2exe/1.0.17",
+      "Version": "1.0.17",
+      "ArchiveTarget": "packages/ps2exe.1.0.17.nupkg"
+    },
+    {
+      "Id": "ImportExcel",
+      "License": "Apache-2.0",
+      "Manifest": "ImportExcel.psd1",
+      "ExtractTarget": "ImportExcel/7.8.10",
+      "Version": "7.8.10",
+      "ArchiveTarget": "packages/ImportExcel.7.8.10.nupkg"
+    }
+  ],
+  "Downloads": [
+    {
+      "Id": "ps2exe",
+      "Target": "packages/ps2exe.1.0.17.nupkg",
+      "FileName": "ps2exe.1.0.17.nupkg",
+      "Version": "1.0.17",
+      "Sha256": "d50b02f136d277a617aef270ed1ecaa6505e3d899ef3cd19cdc2c456dd1cf17b",
+      "Url": "https://cdn.powershellgallery.com/packages/ps2exe.1.0.17.nupkg"
+    },
+    {
+      "Id": "ImportExcel",
+      "Target": "packages/ImportExcel.7.8.10.nupkg",
+      "FileName": "ImportExcel.7.8.10.nupkg",
+      "Version": "7.8.10",
+      "Sha256": "d8a1d79dc8cf10c0eea30b68b70459b3fb4cac0042fb756fcb23890671857e4c",
+      "Url": "https://www.powershellgallery.com/api/v2/package/ImportExcel/7.8.10"
+    },
+    {
+      "Id": "EPPlusSource",
+      "Target": "Source/EPPlus-4.5.3.2-source-4dacf276.zip",
+      "FileName": "EPPlus-4.5.3.2-source-4dacf276.zip",
+      "Version": "4.5.3.2",
+      "Sha256": "2e4d9e97016ac4f58368b5eee99f42bc70b35468c383f4111701fd445fcdda24",
+      "Url": "https://codeload.github.com/JanKallman/EPPlus/zip/4dacf27661b24d92e8ba3d03d51dd5468845e6c1"
+    },
+    {
+      "Id": "PS2ExeLicense",
+      "Target": "Notices/PS2EXE-1.0.17-LICENSE.original",
+      "FileName": "PS2EXE-1.0.17-LICENSE.original",
+      "Version": "1.0.17",
+      "Sha256": "31cbb7c4a4ec3d46302bac50dcc509fd5fc12aec8fc47325c2739e79c5c8d3f5",
+      "Url": "https://raw.githubusercontent.com/MScholtes/PS2EXE/d32d5ce21c458696e860a7533943b1466d925be9/LICENSE"
+    },
+    {
+      "Id": "LGPL",
+      "Target": "Notices/LGPL-3.0.txt",
+      "FileName": "LGPL-3.0.txt",
+      "Version": "3.0",
+      "Sha256": "e3a994d82e644b03a792a930f574002658412f62407f5fee083f2555c5f23118",
+      "Url": "https://www.gnu.org/licenses/lgpl-3.0.txt"
+    },
+    {
+      "Id": "GPL",
+      "Target": "Notices/GPL-3.0.txt",
+      "FileName": "GPL-3.0.txt",
+      "Version": "3.0",
+      "Sha256": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986",
+      "Url": "https://www.gnu.org/licenses/gpl-3.0.txt"
+    },
+    {
+      "Id": "DotNetZipLicense",
+      "Target": "Notices/MS-PL.txt",
+      "FileName": "MS-PL.txt",
+      "Version": "MS-PL",
+      "Sha256": "7a162b1da10f1c22db4c68f07bec4a8355259f8d4aab5b00a2b2bbd423d833dd",
+      "Url": "https://raw.githubusercontent.com/spdx/license-list-data/b8d6af45ad2fcfed61bb85a8ad068aa4a77eadf9/text/MS-PL.txt"
+    }
+  ],
+  "Notices": [
+    {
+      "Sha256": "31cbb7c4a4ec3d46302bac50dcc509fd5fc12aec8fc47325c2739e79c5c8d3f5",
+      "Kind": "Download",
+      "Target": "Notices/PS2EXE-1.0.17-LICENSE.original"
+    },
+    {
+      "Sha256": "c37f4a8a1c826cb41b2e993b173daf4a2b82afd2efe5f33a444c3e5678266abb",
+      "Kind": "Windows1252ToUtf8",
+      "Source": "Notices/PS2EXE-1.0.17-LICENSE.original",
+      "Target": "Notices/PS2EXE-1.0.17-LICENSE.utf8.txt"
+    },
+    {
+      "Sha256": "ebf3b60c90c2d787c8cc4efe9381fbd9f4584c49ca711b62b7dc5ec1653ed3d7",
+      "Kind": "ArchiveCopy",
+      "Entry": "LICENSE.txt",
+      "Target": "Notices/ImportExcel-7.8.10-Apache-2.0.txt",
+      "Archive": "packages/ImportExcel.7.8.10.nupkg"
+    },
+    {
+      "Sha256": "e3a994d82e644b03a792a930f574002658412f62407f5fee083f2555c5f23118",
+      "Kind": "Download",
+      "Target": "Notices/LGPL-3.0.txt"
+    },
+    {
+      "Sha256": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986",
+      "Kind": "Download",
+      "Target": "Notices/GPL-3.0.txt"
+    },
+    {
+      "Sha256": "7a162b1da10f1c22db4c68f07bec4a8355259f8d4aab5b00a2b2bbd423d833dd",
+      "Kind": "Download",
+      "Target": "Notices/MS-PL.txt"
+    },
+    {
+      "Kind": "SourceHeader",
+      "Title": "DotNetZip notices embedded in EPPlus 4.5.3.2",
+      "Target": "Notices/EPPlus-DotNetZip-Notice.txt",
+      "SourceCommit": "4dacf27661b24d92e8ba3d03d51dd5468845e6c1",
+      "Sha256": "2267c5d231973dc514c7646b7505977ac135498d8bbd3d720ac2b2ce9de11fd0",
+      "SourceUrl": "https://codeload.github.com/JanKallman/EPPlus/zip/4dacf27661b24d92e8ba3d03d51dd5468845e6c1",
+      "Entry": "EPPlus-4dacf27661b24d92e8ba3d03d51dd5468845e6c1/EPPlus/Packaging/DotNetZip/ZipFile.cs",
+      "Archive": "Source/EPPlus-4.5.3.2-source-4dacf276.zip"
+    },
+    {
+      "Kind": "SourceHeader",
+      "Title": "Managed zlib / jzlib notices embedded in EPPlus 4.5.3.2",
+      "Target": "Notices/EPPlus-ManagedZlib-JCraft-Notice.txt",
+      "SourceCommit": "4dacf27661b24d92e8ba3d03d51dd5468845e6c1",
+      "Sha256": "019adb3c548bb5327261d01eb59e45e17f3a2dd8ebb499e0a16f7c4e28081917",
+      "SourceUrl": "https://codeload.github.com/JanKallman/EPPlus/zip/4dacf27661b24d92e8ba3d03d51dd5468845e6c1",
+      "Entry": "EPPlus-4dacf27661b24d92e8ba3d03d51dd5468845e6c1/EPPlus/Packaging/DotNetZip/Zlib/Deflate.cs",
+      "Archive": "Source/EPPlus-4.5.3.2-source-4dacf276.zip"
+    }
+  ],
+  "EPPlus": {
+    "SourceCommit": "4dacf27661b24d92e8ba3d03d51dd5468845e6c1",
+    "License": "LGPL-3.0-or-later",
+    "SourceArchive": "Source/EPPlus-4.5.3.2-source-4dacf276.zip",
+    "Version": "4.5.3.2",
+    "BinarySha256": "c32cefbd1ea051ed3af06e7fb9dd558598a612f042164140cd8be722a351bc63",
+    "Subcomponents": [
+      "DotNetZip: MS-PL",
+      "Managed zlib / JCraft: retained BSD-style notices"
+    ]
+  }
+}

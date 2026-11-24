@@ -1,0 +1,20 @@
+{
+    "Product":  "TaskPilot",
+    "Version":  "0.4.0.1",
+    "Architecture":  "x64",
+    "BuiltAtUtc":  "2026-11-19T23:48:57.6936782Z",
+    "BuildId":  "20261119T234855Z_ac5cc0c5",
+    "PowerShell":  "5.1.20348.5773",
+    "Clr":  "4.0.30319.42000",
+    "SourceSha256":  "27b9e3bfc4f8ab24ecbef55f9d6a0253f86a5e98a732b90324f73bebe6645186",
+    "DependencyLockSha256":  "b95ada9abbc9d6faa7ce8d48ced9d8afd4a46cf57e22fb6d4cdbbe8a130fe9d7",
+    "RuntimeAllowlistSha256":  "3a4d94cbf9ac506df55cb7601421f1b2906aabcd48e0594c4e936b57086cbf0d",
+    "Compiler":  "ps2exe1.0.17",
+    "ImportExcel":  "7.8.10",
+    "EPPlus":  "4.5.3.2",
+    "SQLiteProvider":  "1.0.119.0",
+    "SignatureStatus":  "NotSigned",
+    "RuntimeTestsExecutedByBuilder":  false,
+    "Windows10And11Acceptance":  "Not performed by build script",
+    "StartupDownloads":  false
+}

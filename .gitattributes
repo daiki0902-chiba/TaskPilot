@@ -1,2 +1,24 @@
 # Auto detect text files and perform LF normalization
 * text=auto
+
+# These files are verified by their exact upstream/reference byte hashes.
+reference/TaskPilot_STEP3_6F_4.ps1 -text
+reference/Test-Storage.ps1 -text
+schema/001_initial.sql -text
+Modules/TaskPilot.Storage/provider/** -text
+
+# Generated acceptance entry has a canonical BOM/CRLF byte representation.
+acceptance/TaskPilot.Acceptance.ps1 -text whitespace=cr-at-eol
+local-validation/TaskPilot.LocalValidation.ps1 -text whitespace=cr-at-eol
+
+# Preserve downloaded Windows CI evidence as captured.
+docs/verification/windows-*.json -text
+docs/verification/acceptance-*.json -text whitespace=cr-at-eol
+docs/verification/acceptance-*.tsv -text whitespace=cr-at-eol
+docs/verification/acceptance-*.txt -text whitespace=cr-at-eol
+docs/verification/local-validation-*.json -text whitespace=cr-at-eol
+docs/verification/local-validation-*.txt -text whitespace=cr-at-eol
+docs/verification/isolated-mode-*.json -text
+docs/verification/isolated-mode-*.txt -text
+docs/verification/isolation-fix-*.json -text
+docs/verification/isolation-fix-*.txt -text

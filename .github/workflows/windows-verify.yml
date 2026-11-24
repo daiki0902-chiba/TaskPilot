@@ -1,0 +1,96 @@
+name: Windows normal-product verification
+
+on:
+  push:
+    branches:
+      - 'development/**'
+    paths:
+      - 'TaskPilot.ps1'
+      - 'Test-TaskPilotCommercial.ps1'
+      - 'Test-TaskPilotStep4B.ps1'
+      - 'Test-TaskPilotStep4C.ps1'
+      - 'Inspect-TaskPilotLegacyData.ps1'
+      - 'Import-TaskPilotLegacyData.ps1'
+      - 'Migration-CliSupport.ps1'
+      - 'Modules/**'
+      - 'Adapters/**'
+      - 'Codec/**'
+      - 'Runtime/**'
+      - 'schema/**'
+      - 'build/dependencies.lock.json'
+      - 'build/runtime-files.json'
+      - 'Assets/**'
+      - 'tools/Build-TaskPilot.ps1'
+      - 'tools/Build-TaskPilotRuntime.ps1'
+      - 'tools/Get-TaskPilotBuildDependencies.ps1'
+      - 'tools/TaskPilot.BuildSupport.ps1'
+      - 'tools/Integrate-TaskPilotGui.ps1'
+      - 'tools/Invoke-TaskPilotWindowsVerification.ps1'
+      - 'tools/Test-TaskPilotAcceptancePackage.ps1'
+      - 'tools/Collect-TaskPilotAcceptanceLogs.ps1'
+      - 'tests/**'
+      - '!tests/DeveloperConfinement/**'
+      - 'reference/**'
+      - 'docs/user/README.md'
+      - 'docs/build/THIRD-PARTY-NOTICES.md'
+      - '.github/workflows/windows-verify.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: taskpilot-windows-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  native-verification:
+    # Server automation does not establish Windows 10/11 GUI acceptance.
+    if: startsWith(github.ref, 'refs/heads/development/')
+    runs-on: windows-2022
+    timeout-minutes: 25
+    defaults:
+      run:
+        shell: powershell
+    steps:
+      - name: Check out development source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+
+      - name: Require native 64-bit Windows PowerShell 5.1
+        run: |
+          if ($PSVersionTable.PSEdition -ne 'Desktop' -or $PSVersionTable.PSVersion.Major -ne 5 -or $PSVersionTable.PSVersion.Minor -ne 1 -or -not [Environment]::Is64BitProcess) {
+            throw 'Native Windows PowerShell Desktop 5.1 x64 is required.'
+          }
+
+      - name: Run preserved legacy storage regression
+        run: |
+          & .\reference\Test-Storage.ps1
+
+      - name: Verify one normal build and common-code protection regressions
+        run: |
+          $verificationRoot = Join-Path $env:RUNNER_TEMP ('TaskPilot-native-' + $env:GITHUB_RUN_ID + '-' + $env:GITHUB_RUN_ATTEMPT)
+          & .\tools\Invoke-TaskPilotWindowsVerification.ps1 -VerificationRoot $verificationRoot
+
+      # No application upload step exists, including on workflow_dispatch.
+      # Frozen acceptance/local builders and their duplicate regressions are
+      # deliberately not part of the normal development cycle.
+      - name: Upload normal-product test reports only
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: TaskPilot-Normal-Server-test-reports-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            TestResults/Commercial_*.json
+            TestResults/HandleSmoke_*.json
+            TestResults/Isolated_*.json
+            TestResults/IsolatedReleaseGate_*.json
+            TestResults/IsolatedMemory_*.json
+            TestResults/NormalVerification_*.json
+            TestResults/IsolatedMode_*/IsolatedTestModeResult.json
+            TestResults/IsolatedMode_*/NormalFixtureBefore.txt
+            TestResults/IsolatedMode_*/NormalFixtureAfter.txt
+            TestResults/IsolatedFileBoundary_*/IsolatedFileBoundaryResult.json
+          if-no-files-found: warn
+          retention-days: 14

@@ -1,0 +1,86 @@
+{
+  "Status": "SERVER_AUTOMATED_TESTS_PASSED_PUBLIC_RELEASE_BLOCKED",
+  "SourceCommit": "16711174fc285b3adcb872a5d5fd4bae1f087c73",
+  "RunUrl": "https://github.com/daiki0902-chiba/TaskPilot/actions/runs/45000222885",
+  "Conclusion": "success",
+  "Runner": "Windows Server 2022 x64 / Windows PowerShell Desktop 5.1",
+  "Artifact": {
+    "Id": 14745373186,
+    "Url": "https://github.com/daiki0902-chiba/TaskPilot/actions/runs/45000222885/artifacts/14745373186",
+    "ArchiveSha256": "b6453fccd4c3a35d0594ceae201c727b86dd37af6e9c5e8e963b70d718491d02",
+    "ReportsOnly": true,
+    "RetentionDays": 14
+  },
+  "Results": {
+    "NativeNormalGroupsPassed": 8,
+    "NativeNormalFailed": 0,
+    "NativeNormalSkippedDetails": [
+      "Test-TaskPilotStep4C.ps1: SKIP: synthetic in-transaction tampering hooks are restricted to an explicitly selected test provider."
+    ],
+    "IndependentCases": 27,
+    "IndependentAssertions": 146,
+    "IndependentFailed": 0,
+    "MemoryCases": 8,
+    "MemoryAssertions": 47,
+    "MemoryFailed": 0,
+    "ReleaseGateAssertions": 12,
+    "HandleSmokeAssertions": 8,
+    "NativeBoundaryProbes": 80,
+    "GuardMutationAssertions": 40,
+    "NormalFixtureUnchanged": true,
+    "ProductionProfileAccessed": false
+  },
+  "RuntimeAssemblySha256": "f747951c0c464e40133347ec57aca139721e1d62e48b3f0b2b53cd220c67196b",
+  "Windows10And11AcceptanceVerified": false,
+  "ExecutablePublished": false,
+  "AcceptanceZipPublished": false,
+  "MainUnchanged": "a761e76fbe4c4335a1847dbfc4417516d205316f",
+  "PriorFailureRun": "https://github.com/daiki0902-chiba/TaskPilot/actions/runs/44974780921",
+  "EvidenceFiles": [
+    {
+      "Path": "isolation-fix-20261122-normal-results.json",
+      "Bytes": 16865,
+      "Sha256": "42a5b4e5d97de26a74385c77aa34ee4f03f29a426aa680e09c3adf65ff58b632"
+    },
+    {
+      "Path": "isolation-fix-20261122-independent-results.json",
+      "Bytes": 64080,
+      "Sha256": "65119b6bfcec1c88a57b687343e8801f874d4314b9ddf1d96626c9db7c514c61"
+    },
+    {
+      "Path": "isolation-fix-20261122-memory-results.json",
+      "Bytes": 2825,
+      "Sha256": "56ccc0b98c3ea7f31d4f58ba8563c8d68b0b09d7d9e0209554424d67866efdea"
+    },
+    {
+      "Path": "isolation-fix-20261122-release-gate.json",
+      "Bytes": 366,
+      "Sha256": "44488319a7a45cb3e2e18a976c9ba3300631b51fe36065f6b58b89d8a5d1c347"
+    },
+    {
+      "Path": "isolation-fix-20261122-handle-smoke.json",
+      "Bytes": 294,
+      "Sha256": "4aa9f454761e61474c40724b1620e37adbbdaabf3bc072aba45a78ae6fdad261"
+    },
+    {
+      "Path": "isolation-fix-20261122-verification.json",
+      "Bytes": 830,
+      "Sha256": "5630783b91349485ce5e95b35295add52b500059e8806bc614358dcc7c43f68f"
+    },
+    {
+      "Path": "isolation-fix-20261122-file-boundary.json",
+      "Bytes": 27810,
+      "Sha256": "e2b799c162ef5952f3d67d0d41d252feb9c2879e7ae36679a56e2984e8ea0e62"
+    },
+    {
+      "Path": "isolation-fix-20261122-normal-before.txt",
+      "Bytes": 1269,
+      "Sha256": "f6721959aae7968f887dc5d45dce267a97df62e4eab13fe6d38856dc247ddb4f"
+    },
+    {
+      "Path": "isolation-fix-20261122-normal-after.txt",
+      "Bytes": 1269,
+      "Sha256": "f6721959aae7968f887dc5d45dce267a97df62e4eab13fe6d38856dc247ddb4f"
+    }
+  ]
+}

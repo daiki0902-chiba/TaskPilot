@@ -1,0 +1,25 @@
+System.Data.SQLite Core 1.0.119.0
+Source: https://system.data.sqlite.org/index.html/doc/trunk/www/copyright.wiki
+Retrieved: 2026-11-15 (Asia/Tokyo)
+Package license URL: https://www.sqlite.org/copyright.html
+
+The official System.Data.SQLite copyright page states:
+
+All files in the "System.Data.SQLite.Linq/SQL Generation" directory (within
+the source tree) are covered by the Microsoft Public License (MS-PL). These
+files end up being compiled into both the "System.Data.SQLite.Linq" and
+"System.Data.SQLite.EF6" assemblies.
+
+All other code and documentation in System.Data.SQLite has been dedicated
+to the public domain by the authors.
+
+Anyone is free to copy, modify, publish, use, compile, sell, or distribute
+the original System.Data.SQLite code, either in source code form or as a
+compiled binary, for any purpose, commercial or non-commercial, and by any
+means.
+
+This bundle contains the Core managed provider and native interop DLLs;
+it does not contain System.Data.SQLite.Linq or System.Data.SQLite.EF6.
+This declaration does not replace separate notices for bundled components
+such as zlib. Public-domain recognition differs between jurisdictions;
+consult the official page concerning an optional explicit license.

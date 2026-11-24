@@ -1,0 +1,268 @@
+{
+    "FormatVersion":  1,
+    "SourceCommit":  "bbbe6303c6938ef709f1737f5947f8fa71638448",
+    "Platform":  "Windows Server 2022 / Windows PowerShell Desktop 5.1 x64",
+    "Status":  "LOCAL_PREPARATION_TESTS_PASSED_NOT_READY",
+    "Passed":  true,
+    "Suites":  [
+                   {
+                       "Stage":  "Local validation pure receipt and host policy core",
+                       "Passed":  true,
+                       "Cases":  [
+                                     {
+                                         "Id":  "LP01",
+                                         "Passed":  true
+                                     },
+                                     {
+                                         "Id":  "LP02",
+                                         "Passed":  true
+                                     },
+                                     {
+                                         "Id":  "LP03",
+                                         "Passed":  true
+                                     },
+                                     {
+                                         "Id":  "LP04",
+                                         "Passed":  true
+                                     },
+                                     {
+                                         "Id":  "LP05",
+                                         "Passed":  true
+                                     },
+                                     {
+                                         "Id":  "LP06",
+                                         "Passed":  true
+                                     },
+                                     {
+                                         "Id":  "LP07",
+                                         "Passed":  true
+                                     },
+                                     {
+                                         "Id":  "LP08",
+                                         "Passed":  true
+                                     },
+                                     {
+                                         "Id":  "LP09",
+                                         "Passed":  true
+                                     },
+                                     {
+                                         "Id":  "LP10",
+                                         "Passed":  true
+                                     },
+                                     {
+                                         "Id":  "LP11",
+                                         "Passed":  true
+                                     },
+                                     {
+                                         "Id":  "LP12",
+                                         "Passed":  true
+                                     }
+                                 ],
+                       "Checks":  88,
+                       "SourceSha256":  "0a229f7a9beb35636349bb5ca27623e8b052c722eb75567ed950623c4438f1d5",
+                       "NativeWindowsRuntimeCompiled":  true,
+                       "RealHostFactsCollected":  false,
+                       "ActualCleanVmVerified":  false,
+                       "ProductionAdmissionImplemented":  false,
+                       "ApplicationLaunched":  false,
+                       "CanLaunch":  false,
+                       "CertificateStoreChanged":  false,
+                       "PrivateKeyPersisted":  false,
+                       "ProductionProfileAccessed":  false,
+                       "Windows10And11Verified":  false
+                   },
+                   {
+                       "Stage":  "Local validation GUI scaffold and denial",
+                       "Passed":  true,
+                       "Checks":  41,
+                       "CompleteEntryNegativeInvoked":  true,
+                       "ProductionProfileAccessed":  false,
+                       "ApplicationLaunched":  false,
+                       "Windows10And11GuiVerified":  false,
+                       "GeneralAndFormalAcceptanceUnchanged":  true,
+                       "LocalStartAuthorized":  false
+                   },
+                   {
+                       "Stage":  "Local developer validation planning",
+                       "Passed":  true,
+                       "Checks":  47,
+                       "Kind":  "LOCAL_VALIDATION_PLAN_ONLY",
+                       "Status":  "NOT_READY",
+                       "CanLaunch":  false,
+                       "VMCreated":  false,
+                       "OSProtectionChanged":  false,
+                       "CertificateStoreChanged":  false,
+                       "ExecutionPolicyChanged":  false,
+                       "ProductionProfileAccessed":  false,
+                       "ExecutableOrZipCreated":  false,
+                       "Windows10And11Verified":  false
+                   },
+                   {
+                       "Stage":  "Fixed local validation namespace and database purpose",
+                       "Passed":  true,
+                       "Cases":  [
+                                     {
+                                         "Id":  "L01",
+                                         "Name":  "Existing independent and acceptance factories retain exact paths markers and database tags",
+                                         "Passed":  true
+                                     },
+                                     {
+                                         "Id":  "L02",
+                                         "Name":  "Local validation has a third fixed namespace marker and purpose-bound memory database",
+                                         "Passed":  true
+                                     },
+                                     {
+                                         "Id":  "L03",
+                                         "Name":  "Task child work-log and exact hour data survive closing and readonly reopening",
+                                         "Passed":  true
+                                     },
+                                     {
+                                         "Id":  "L04",
+                                         "Name":  "A late transaction failure leaves local memory and durable bytes unchanged",
+                                         "Passed":  true
+                                     },
+                                     {
+                                         "Id":  "L05",
+                                         "Name":  "Normal independent and acceptance paths are refused before data reads",
+                                         "Passed":  true
+                                     },
+                                     {
+                                         "Id":  "L06",
+                                         "Name":  "Same-ID independent and acceptance images copied to local scope are refused without retagging",
+                                         "Passed":  true
+                                     },
+                                     {
+                                         "Id":  "L07",
+                                         "Name":  "Local images cannot be adopted by old purposes or opened as normal data",
+                                         "Passed":  true
+                                     },
+                                     {
+                                         "Id":  "L08",
+                                         "Name":  "Readonly local reopen preserves identity and a missing local environment is not created",
+                                         "Passed":  true
+                                     },
+                                     {
+                                         "Id":  "L09",
+                                         "Name":  "A wrong local purpose marker is preserved and refuses creation and reopening",
+                                         "Passed":  true
+                                     }
+                                 ],
+                       "FailedCases":  0,
+                       "Checks":  55,
+                       "RuntimeAssemblySha256":  "35e37aa26fb9e94e15d1716951977ee6c66d882c5ae8d2b1dc8a9990f93266bc",
+                       "NormalFixtureUnchanged":  true,
+                       "PreviousIndependentAndAcceptanceFixturesUnchanged":  true,
+                       "SnapshotIncludes":  [
+                                                "FileSha256",
+                                                "FileLength",
+                                                "DirectoryStructure",
+                                                "OwnerGroupAndDaclSddl"
+                                            ],
+                       "ProductionProfileAccessed":  false,
+                       "ApplicationLaunched":  false,
+                       "Windows10And11Verified":  false,
+                       "SkippedDetails":  [
+
+                                          ],
+                       "TestRoot":  "D:\\a\\TaskPilot\\TaskPilot\\TestResults\\LocalValidationScope_e5c27af049a54a4f96701ffd415e273d"
+                   },
+                   {
+                       "Stage":  "Blocked developer-local build preparation",
+                       "Passed":  true,
+                       "Checks":  333,
+                       "Status":  "BLOCKED",
+                       "Readiness":  "NOT_READY",
+                       "Purpose":  "LocalDeveloperValidationSyntheticOnly",
+                       "IsLocalValidationOnly":  true,
+                       "Distributable":  false,
+                       "ExecutionAuthorized":  false,
+                       "CertificateGenerated":  false,
+                       "SigningKeyGenerated":  false,
+                       "AuthorizationGenerated":  false,
+                       "OSProtectionSettingsChanged":  false,
+                       "ProductionProfileAccessed":  false,
+                       "ApplicationLaunched":  false,
+                       "Windows10And11Verified":  false,
+                       "InternalCompileChecked":  true
+                   },
+                   {
+                       "Stage":  "Local developer validation refusal",
+                       "Passed":  true,
+                       "Checks":  13,
+                       "NativeExecutableTested":  true,
+                       "CanLaunch":  false,
+                       "ProductionProfileAccessed":  false,
+                       "ApplicationLaunched":  false,
+                       "PolicyChanged":  false,
+                       "TrustStoreChanged":  false,
+                       "Windows10And11Verified":  false
+                   },
+                   {
+                       "Stage":  "Local validation real process termination and recovery",
+                       "Passed":  true,
+                       "Cases":  [
+                                     {
+                                         "Id":  "C01",
+                                         "Name":  "Forced termination before commit preserves the previous durable snapshot",
+                                         "Passed":  true,
+                                         "Code":  "TP-LOCAL-CRASH-C01-PASSED"
+                                     },
+                                     {
+                                         "Id":  "C02",
+                                         "Name":  "Forced termination after durable commit preserves the committed snapshot",
+                                         "Passed":  true,
+                                         "Code":  "TP-LOCAL-CRASH-C02-PASSED"
+                                     },
+                                     {
+                                         "Id":  "C03",
+                                         "Name":  "Local backup restores only into a new image and retains purpose and original bytes",
+                                         "Passed":  true,
+                                         "Code":  "TP-LOCAL-CRASH-C03-PASSED"
+                                     },
+                                     {
+                                         "Id":  "C04",
+                                         "Name":  "A synthetic interrupted broker checkpoint is preserved and blocks automatic recovery",
+                                         "Passed":  true,
+                                         "Code":  "TP-LOCAL-CRASH-C04-PASSED"
+                                     }
+                                 ],
+                       "FailedCases":  0,
+                       "Checks":  24,
+                       "RuntimeAssemblySha256":  "35e37aa26fb9e94e15d1716951977ee6c66d882c5ae8d2b1dc8a9990f93266bc",
+                       "ActualProcessTerminationPerformed":  true,
+                       "TerminatedProcesses":  2,
+                       "NormalFixtureUnchanged":  true,
+                       "PreviousIndependentAndAcceptanceFixturesUnchanged":  true,
+                       "ProductionProfileAccessed":  false,
+                       "ApplicationLaunched":  false,
+                       "Windows10And11Verified":  false,
+                       "PowerLossVerified":  false,
+                       "PartialDiskWriteFailureVerified":  false,
+                       "SyntheticCheckpointPreservationTested":  true,
+                       "PolicyChanged":  false,
+                       "CertificateStoreChanged":  false,
+                       "SkippedDetails":  [
+
+                                          ],
+                       "TestRoot":  "D:\\a\\TaskPilot\\TaskPilot\\TestResults\\LocalValidationCrash_c5dee26bb7b4447faa406533df71710d"
+                   }
+               ],
+    "FailedSuites":  [
+
+                     ],
+    "LocalRuntimeSha256":  "35e37aa26fb9e94e15d1716951977ee6c66d882c5ae8d2b1dc8a9990f93266bc",
+    "LocalExecutableSha256":  "b2f7c3697e8a0e1fc08c93385b109d43d82133a8599823ca4255440edcd439b2",
+    "CanLaunch":  false,
+    "ProtectedParentProtocolImplemented":  false,
+    "ActualCleanVMVerified":  false,
+    "PaidCertificateRequiredForCore":  false,
+    "CertificateStoreChanged":  false,
+    "PolicyChanged":  false,
+    "ProductionProfileAccessed":  false,
+    "ApplicationLaunched":  false,
+    "Windows10And11GuiVerified":  false,
+    "GeneralPublicationBlocked":  true,
+    "IndependentPublicationBlocked":  true,
+    "FormalAcceptancePublicationBlocked":  true,
+    "LocalExecutableOrZipPublished":  false
+}

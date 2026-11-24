@@ -1,0 +1,39 @@
+{
+  "formatVersion": 1,
+  "purpose": "DeveloperPlanningOnly",
+  "notRuntimeTrustConfiguration": true,
+  "applicationLaunchAuthorized": false,
+  "generalDistributionAuthorized": false,
+  "acceptanceDistributionAuthorized": false,
+  "containsPersonalInformationOrSecrets": false,
+  "decisions": {
+    "sellerCategory": "undecided",
+    "publisherDisplayPolicy": "undecided",
+    "signingRoute": "undecided",
+    "privateDeliveryRoute": "undecided",
+    "windows10TestDeviceAvailable": "unknown",
+    "windows11TestDeviceAvailable": "unknown",
+    "licensedDesktopExcelAvailable": "unknown"
+  },
+  "allowedPlanningValues": {
+    "sellerCategory": ["undecided", "individual", "sole_proprietor", "legal_entity"],
+    "publisherDisplayPolicy": ["undecided", "personal_name", "registered_business_name"],
+    "signingRoute": ["undecided", "public_ca_hardware_or_hsm", "artifact_signing_after_eligibility_and_adapter", "store_after_account_and_runtime_design"],
+    "privateDeliveryRoute": ["undecided", "new_private_github_repository", "dropbox_named_invitations"],
+    "availability": ["unknown", "available", "not_available"]
+  },
+  "purchaseStatus": "HOLD_PENDING_ELIGIBILITY_AND_TECHNICAL_DESIGN",
+  "purchaseOrContractPerformed": false,
+  "identityDocumentsSubmitted": false,
+  "runtimePolicyOverridesAllowed": false,
+  "doNotStoreHere": [
+    "legal name or address",
+    "government identification documents",
+    "credit card or billing details",
+    "private keys, PFX files, PINs or passwords",
+    "access tokens or client secrets",
+    "tester email addresses or private invitation links",
+    "business data or application logs"
+  ],
+  "nextStep": "Choose seller category and private delivery preference; do not buy signing or launch the application yet."
+}

@@ -1,0 +1,21 @@
+{
+    "Stage":  "Windows Server acceptance preparation - NOT FOR SALE",
+    "CapturedAtUtc":  "2026-11-20T03:38:15.4686453Z",
+    "Status":  "FAILED",
+    "SourceCommit":  "282867019806fcc164f803d78a21043f70e40d02",
+    "ServerRunUrl":  "https://github.com/daiki0902-chiba/TaskPilot/actions/runs/44668857333",
+    "ServerOnly":  true,
+    "Windows10AcceptanceVerified":  false,
+    "Windows11AcceptanceVerified":  false,
+    "InteractiveGuiVerified":  false,
+    "NotificationDeliveryVerified":  false,
+    "ActualExcelOutputVerified":  false,
+    "ApplicationLaunched":  false,
+    "SourceDataModified":  false,
+    "Package":  null,
+    "PackagingTests":  null,
+    "ToolsTests":  null,
+    "PreflightStatus":  null,
+    "Collector":  null,
+    "Error":  "Unable to find type [IO.Compression.ZipArchive]."
+}

@@ -1,0 +1,270 @@
+{
+  "recordScope": "frozen_dedicated_acceptance_history",
+  "currentNormalDevelopmentGuide": "../development/NORMAL-DEVELOPMENT-ja.md",
+  "archiveNotice": "Historical acceptance requirements below do not become prerequisites for normal-product local verification. See latestDevelopmentDirection and the current normal guide. Existing launch and publication blocks remain.",
+  "stage": "TaskPilot 0.4.0.2 dedicated desktop acceptance implementation",
+  "capturedDateUtc": "2026-11-22",
+  "readiness": "NOT_READY",
+  "applicationLaunchAuthorized": false,
+  "dedicatedAcceptanceBuildAvailable": false,
+  "acceptanceState": {
+    "name": "READY_FOR_DESKTOP_ACCEPTANCE",
+    "requiredByDedicatedEntry": true,
+    "reachableWithCurrentConfiguration": false,
+    "clientNativeQualificationRunnerImplemented": false
+  },
+  "repository": "daiki0902-chiba/TaskPilot",
+  "repositoryVisibility": "public",
+  "pullRequest": {
+    "number": 1,
+    "url": "https://github.com/daiki0902-chiba/TaskPilot/pull/1",
+    "draft": true,
+    "implementationBase": "88e565a5aa5dd3ee88b2af7e289524648e899049"
+  },
+  "mainUnchanged": "a761e76fbe4c4335a1847dbfc4417516d205316f",
+  "priorValidatedApplicationSource": "16711174fc285b3adcb872a5d5fd4bae1f087c73",
+  "changesInThisImplementation": {
+    "dedicatedAcceptanceEntryAdded": true,
+    "publicReleaseControlsRelaxed": false,
+    "mainChanged": false,
+    "userDataAccessed": false,
+    "userDataModified": false,
+    "existingDataUsed": false,
+    "trustedPublisherConfigured": false,
+    "signedAuthorizationProvided": false,
+    "distributionZipAuthorized": false
+  },
+  "priorPublicationObservation": {
+    "observedAtSource": "88e565a5aa5dd3ee88b2af7e289524648e899049",
+    "releaseCount": 0,
+    "runId": 45000222885,
+    "runUrl": "https://github.com/daiki0902-chiba/TaskPilot/actions/runs/45000222885",
+    "conclusion": "success",
+    "artifacts": [
+      {
+        "id": 14745373186,
+        "name": "TaskPilot-Windows-Server-native-test-reports-45000222885-1",
+        "reportsOnly": true,
+        "expiresAt": "2026-12-06T07:54:33Z"
+      }
+    ],
+    "candidateAndAcceptanceUploadSteps": "skipped",
+    "executableAndDistributionZipPublished": false,
+    "olderArtifactsAreNotThisBuild": [
+      {
+        "id": 14598983164,
+        "version": "0.4.0.1",
+        "independentModeSupported": false
+      },
+      {
+        "id": 14598594048,
+        "version": "0.4.0.1",
+        "independentModeSupported": false
+      },
+      {
+        "id": 14586141354,
+        "version": "0.4.0.1",
+        "independentModeSupported": false
+      }
+    ]
+  },
+  "enforcedStops": [
+    "General and independent-test-mode publication remains stopped.",
+    "Runtime Initialize-TPRuntime rejects TestMode before resolving user storage.",
+    "Existing independent preflight and diagnostics stay blocked.",
+    "The dedicated launcher requires a pinned trusted publisher before external PowerShell execution.",
+    "The dedicated acceptance preflight cannot authorize GUI without client-native qualification.",
+    "Internal acceptance compilation is not a distributable ZIP or application-launch authorization.",
+    "CI must publish reports only, not acceptance executables or distribution ZIPs."
+  ],
+  "priorServerEvidence": {
+    "platform": "Windows Server 2022 / Windows PowerShell Desktop 5.1 x64",
+    "source": "16711174fc285b3adcb872a5d5fd4bae1f087c73",
+    "normalGroupsPassed": 8,
+    "independentCasesPassed": 27,
+    "memoryCasesPassed": 8,
+    "releaseGateChecksPassed": 12,
+    "boundaryProbes": 80,
+    "guardMutationChecks": 40,
+    "normalProviderSpecificCasesSkipped": true,
+    "coversNewAcceptanceEntry": false,
+    "windows10And11GuiVerified": false
+  },
+  "verificationInThisImplementation": {
+    "newTestResults": "A_FOLLOWUP_AUTOMATED_TESTS_PASSED_DESKTOP_BLOCKED",
+    "sourceCommit": "b15e153d385cb81fb3b089861ee266131454d5b4",
+    "permanentEvidence": "../verification/acceptance-followup-ci-20261122.json",
+    "applicationGuiLaunched": false,
+    "windows10And11Verified": false,
+    "applicationLaunchAuthorized": false
+  },
+  "readinessRequirementsOutstanding": [
+    "Pinned official trusted publisher and authentic signed launcher/scripts/DLLs.",
+    "Cryptographically signed purpose/version/environment/payload-bound authorization.",
+    "Package protection and browser-origin/DLL loading qualified with OS protections enabled.",
+    "Safe client-native synthetic qualification runner before first Windows 10/11 GUI launch.",
+    "Actual recipient access control; public Actions artifacts are not a restricted delivery channel.",
+    "Signed delivery/download/start instructions matched to an authorized kit.",
+    "Additional package-guard adversarial tests for in-place file and directory changes.",
+    "OS-enforced immutable signed installation covering CLR and EXE.config reads before Main.",
+    "Host execution-policy compatibility without changing or replacing protection checks.",
+    "Target Windows client guard and host qualification; Server native coverage alone does not authorize client execution."
+  ],
+  "plannedDesktopCases": {
+    "count": 31,
+    "windows10": {
+      "performed": 0,
+      "status": "NOT_STARTED_BLOCKED"
+    },
+    "windows11": {
+      "performed": 0,
+      "status": "NOT_STARTED_BLOCKED"
+    }
+  },
+  "generalDistributionResumeAllowed": false,
+  "acceptanceExecutableOrZipUploadAllowed": false,
+  "documentationChecks": {
+    "uniqueCaseIds": 31,
+    "unexecutedOsRows": 62,
+    "localLinksVerified": 84,
+    "monthlyResidualHours": 4,
+    "latestCheckResult": "PASS",
+    "verificationScope": "Document structure only; no application or desktop test executed."
+  },
+  "acceptanceStorage": {
+    "namespace": "%LOCALAPPDATA%\\TaskPilotAcceptance\\<signed-environment-id>",
+    "factory": "CreateAcceptance",
+    "purposeMarkerSeparate": true,
+    "ordinaryIndependentNamespaceUnchanged": "TaskPilotTest",
+    "actualUserStorageOpened": false
+  },
+  "packageCodeTrust": {
+    "ownedCode": "Same pinned publisher Authenticode",
+    "vendorCode": "Original bytes; generated acceptance/vendor-code-lock.json plus purpose-signed payload",
+    "vendorCodeResigned": false
+  },
+  "remainingTechnicalBlockers": {
+    "clientNativeQualificationRunnerImplemented": false,
+    "guardAdversarialInPlaceFileAndDirectoryCoverageComplete": false,
+    "preMainClrAndExeConfigProtectedByCurrentMetadataAcl": false,
+    "osEnforcedImmutableSignedInstallationVerified": false,
+    "postExitDiagnosticReopenProtocolImplemented": false,
+    "diagnosticCollectionStatus": "BLOCKED"
+  },
+  "currentServerEvidence": {
+    "sourceCommit": "b15e153d385cb81fb3b089861ee266131454d5b4",
+    "runId": 45082243912,
+    "runAttempt": 2,
+    "runUrl": "https://github.com/daiki0902-chiba/TaskPilot/actions/runs/45082243912/attempts/2",
+    "conclusion": "success",
+    "reportsOnly": true,
+    "artifact": {
+      "id": 14778027283,
+      "name": "TaskPilot-Windows-Server-native-test-reports-45082243912-2",
+      "sha256": "b457c6397690d8d2b3fb449c8becd3427bd0503075b29404b8dba8b1b9c6ec0c",
+      "expiresAt": "2026-12-06T23:20:26Z",
+      "reportsOnly": true
+    },
+    "baseDedicatedAssertions": 693,
+    "packageBoundaryCases": 15,
+    "packageBoundaryNativeProbes": 96,
+    "diagnosticNativeCases": 11,
+    "backendCases": 6,
+    "backendAssertions": 28,
+    "msixPlanAssertions": 44,
+    "hostObservationAssertions": 10,
+    "hostObservedPolicy": "Unrestricted",
+    "policyChanged": false,
+    "normalGroupsPassed": 8,
+    "acceptanceBinaryIndependentCases": 27,
+    "acceptanceBinaryMemoryCases": 8,
+    "normalProviderSpecificCaseSkipped": true,
+    "windows10And11GuiVerified": false
+  },
+  "workClassification": {
+    "guide": "REMAINING-WORK-ja.md",
+    "developerGuide": "DEVELOPER-PREPARATION-ja.md",
+    "afterReadyGuide": "AFTER-READY-ja.md",
+    "hostCompatibility": "HOST-COMPATIBILITY-ja.md",
+    "AImplemented": [
+      "Native package boundary suite with mandatory controls",
+      "Bounded native readonly diagnostic reopening and existing lock lease",
+      "Backend qualification probe core",
+      "MSIX plan-only tool",
+      "Unchanged-policy SDK host observation"
+    ],
+    "ARemaining": [
+      "Host compatibility without policy overrides",
+      "OS-enforced protected installation and verifier integration",
+      "Selected signing provider adapter and authorization ceremony",
+      "End-to-end client qualification orchestration"
+    ],
+    "BNeeded": [
+      "Seller/publisher category decision",
+      "Eligibility and signing provider selection after technical design",
+      "Private delivery destination and recipients",
+      "Windows/Excel test device availability"
+    ],
+    "CStatus": "WINDOWS10_AND_WINDOWS11_NOT_STARTED_BLOCKED",
+    "purchaseStatus": "HOLD_PENDING_ELIGIBILITY_AND_TECHNICAL_DESIGN",
+    "sourceCommit": "b15e153d385cb81fb3b089861ee266131454d5b4",
+    "verification": "A_FOLLOWUP_AUTOMATED_TESTS_PASSED_DESKTOP_BLOCKED",
+    "permanentEvidence": "../verification/acceptance-followup-ci-20261122.json"
+  },
+  "baseline690ServerEvidence": {
+    "sourceCommit": "07e785425be235b300d3cfcfb75ce15ad5e4579a",
+    "runId": 45034590808,
+    "runUrl": "https://github.com/daiki0902-chiba/TaskPilot/actions/runs/45034590808",
+    "conclusion": "success",
+    "reportsOnly": true,
+    "artifact": {
+      "id": 14758673734,
+      "name": "TaskPilot-Windows-Server-native-test-reports-45034590808-1",
+      "sha256": "aba934196f5e68a1721f35d931c82b3730277551d9fed008742e24779a77609d",
+      "expiresAt": "2026-12-06T14:48:48Z",
+      "reportsOnly": true
+    },
+    "dedicatedSuites": 6,
+    "dedicatedAssertions": 690,
+    "authorityChecks": 46,
+    "nativePackageBoundaryChecks": 9,
+    "entryChecks": 30,
+    "preflightChecks": 30,
+    "diagnosticChecks": 12,
+    "acceptanceNamespaceCases": 6,
+    "acceptanceNamespaceChecks": 26,
+    "packagingChecks": 546,
+    "normalGroups": 8,
+    "independentCases": 27,
+    "memoryCases": 8,
+    "releaseGateChecks": 12,
+    "boundaryProbes": 80,
+    "guardMutationChecks": 40,
+    "normalProviderSpecificCaseSkipped": true,
+    "positiveProductionAuthorizationVerified": false,
+    "windows10And11GuiVerified": false
+  },
+  "latestDevelopmentDirection": {
+    "dateUtc": "2026-11-23",
+    "sellerCategory": "individual",
+    "futureLimitedDelivery": "new_private_github_repository",
+    "paidSigningCertificatePurchase": "not_now",
+    "soleProduct": "normal_TaskPilot",
+    "dedicatedFlavorDevelopment": "frozen",
+    "guide": "../development/NORMAL-DEVELOPMENT-ja.md",
+    "environmentGuide": "../development/NO-VM-LOCAL-TESTING-ja.md",
+    "readiness": "NOT_READY",
+    "vmRequired": false,
+    "sameUserCompleteIsolationVerified": false,
+    "developerDataRootSwitchImplemented": false,
+    "dedicatedStandardUserAlternative": "proposed_pending_developer_choice_and_environment_validation",
+    "noVmFeasibilityRecord": "../verification/no-vm-feasibility-20261123.json",
+    "normalHostOnWindows10And11Verified": false,
+    "normalVerificationRecord": "../verification/normal-development-20261123.json",
+    "normalServerCi": "https://github.com/daiki0902-chiba/TaskPilot/actions/runs/45184776656",
+    "normalBuilds": 1,
+    "dedicatedFlavorBuilds": 0,
+    "publicApplicationArtifactsAllowed": false,
+    "osPolicyOrTrustChangesAllowed": false
+  }
+}

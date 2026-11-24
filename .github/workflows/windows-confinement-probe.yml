@@ -1,0 +1,58 @@
+name: Windows same-user confinement feasibility
+
+on:
+  push:
+    branches:
+      - 'development/**'
+    paths:
+      - 'tests/DeveloperConfinement/**'
+      - '.github/workflows/windows-confinement-probe.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: taskpilot-confinement-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  synthetic-probe:
+    if: startsWith(github.ref, 'refs/heads/development/')
+    runs-on: windows-2022
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        capability: [None, RegistryRead, RegistryReadInstrumentation]
+    defaults:
+      run:
+        shell: powershell
+    steps:
+      - name: Check out development source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+
+      - name: Require native Windows PowerShell 5.1 x64
+        run: |
+          if ($PSVersionTable.PSEdition -ne 'Desktop' -or $PSVersionTable.PSVersion.Major -ne 5 -or $PSVersionTable.PSVersion.Minor -ne 1 -or -not [Environment]::Is64BitProcess) {
+            throw 'The synthetic confinement probe requires native Desktop 5.1 x64.'
+          }
+
+      - name: Probe kernel confinement using synthetic fixtures only
+        run: |
+          $probeRoot = Join-Path $env:RUNNER_TEMP ('TaskPilot-LPAC-' + $env:GITHUB_RUN_ID + '-' + $env:GITHUB_RUN_ATTEMPT)
+          & .\tests\DeveloperConfinement\Invoke-LpacProbe.ps1 -OutputRoot $probeRoot -CapabilityProfile '${{ matrix.capability }}'
+
+      # Diagnostic sources are not another TaskPilot build or GUI entry.
+      # A successful experiment is never application launch authorization.
+      # No executable, package or fixture directory is uploaded.
+      - name: Upload sanitized feasibility report only
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: TaskPilot-Confinement-feasibility-reports-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.capability }}
+          path: TestResults/ConfinementProbe_*.json
+          if-no-files-found: warn
+          retention-days: 14
